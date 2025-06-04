@@ -1,0 +1,20 @@
+# Title: Summary, imperative, start upper case, don't end with a period
+# E.g., "ci: update actions"
+# No more than 50 chars. #### 50 chars is here: #
+
+# Remember blank line between title and body.
+
+# Body: Explain *what* and *why* (not *how*).
+# Include task ID (Jira issue).
+# Wrap at 72 chars. ################################## which is here: #
+
+### Types ###
+#  feat     : 새로운 기능
+#  fix      : 오류 (오류 수정)
+#  dep      : 의존성 수정 관련 (requirements.txt)
+#  ci       : CI, CD 관련
+#  refactor : Refactoring
+#  style    : Style (형식, semicolon 추가:Logic에 변경 없음.)
+#  docs     : 문서 (문서 추가, 수정, 삭제)
+#  test     : 시험 (Test code 추가, 수정, 삭제: Logic에 변경 없음.)
+#  chore    : 기타 변경사항 (Build script 수정 등)
