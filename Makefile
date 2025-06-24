@@ -15,6 +15,7 @@ set-precommit:
 	pre-commit install
 
 set-dev:
+	poetry export -f requirements.txt > requirements.txt
 	pip3 install -r requirements.txt
 
 set-test:
