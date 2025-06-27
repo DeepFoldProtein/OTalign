@@ -1,6 +1,4 @@
 import logging
-import os
-from pathlib import Path
 
 
 class TqdmHandler(logging.StreamHandler):
@@ -14,13 +12,7 @@ class TqdmHandler(logging.StreamHandler):
         tqdm.write(msg)
 
 
-def setup_logging(filename: str | os.PathLike | Path, mode: str = "w") -> None:
-    assert mode in ("w", "a")  # Not read mode
-
-    # Make parent directory
-    filename = Path(filename)
-    filename.parent.mkdir(exist_ok=True, parents=True)
-
+def setup_logging() -> None:
     # Setup root logger
     root = logging.getLogger()
     if root.handlers:
@@ -30,6 +22,6 @@ def setup_logging(filename: str | os.PathLike | Path, mode: str = "w") -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(message)s",
-        handlers=[TqdmHandler(), logging.FileHandler(filename=filename, mode=mode)],
+        handlers=[TqdmHandler()],
         force=True,
     )
