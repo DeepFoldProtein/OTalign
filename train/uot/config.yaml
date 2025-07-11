@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Project‑wide configuration file
+# ---------------------------------------------------------------------------
+# Edit paths as needed; all are relative to the repository root by default.
+# ---------------------------------------------------------------------------
+
+sabmark_ids_path: "sabmark/ids.txt"
+sabmark_ref_path: "sabmark/ref"
+sabmark_csv_path: "sabmark/sab.csv"
+
+# ---------------------------------------------------------------------------
+# Data‑loader & training hyper‑parameters
+# ---------------------------------------------------------------------------
+
+device: "cuda" # "cpu" falls back automatically if no GPU
+batch_size: 256
+max_len: null # keep full length unless truncated elsewhere
+max_seqlen: 512 # pad / truncate sequences to this length during collation
+num_workers: 8
+pin_memory: true
+persistent_workers: true
+prefetch_factor: 2
+seed: 42 # RNG seed for train set shuffle
+
+# Sinkhorn OT parameters
+num_iter: 100   # iterations of Sinkhorn scaling
+reg: 0.05       # entropy regularisation coefficient
+lambda1: 0.01
+lambda2: 0.01
+
+# Optimiser & schedule
+epoch: 100
+accumulation_steps: 1
+learning_rate: 1.0e-3
+betas: [0.9, 0.999]
+use_amp: false # automatic mixed precision
+save_every: 1 # checkpoint cadence (epochs)
+
+# ---------------------------------------------------------------------------
+# Model architecture
+# ---------------------------------------------------------------------------
+
+model_checkpoint: "facebook/esm1b_t33_650M_UR50S" # frozen PLM backbone
+input_dim: 1280 # ESM‑1b hidden size
+residual: True
+output_dim: 1280
+hidden_dims: [5120]
+transform_dropout: 0.5
+
+# Loss weighting
+loss_weights:
+  ce_loss: 1.0
+  sp_loss: 0.0
+  ent_loss: 0.01
+  true_loss: 1.0e-02
+  false_loss: 1.0e-03
+
+# ---------------------------------------------------------------------------
+# Output / tracking
+# ---------------------------------------------------------------------------
+
+outdir: "ckpt/uot" # run‑specific checkpoints will be placed here
+wandb_project: "otalign-uot"
