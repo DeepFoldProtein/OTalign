@@ -14,25 +14,21 @@
 
 ### Pairwise Metrics
 
-<span style="display:inline-block;vertical-align:top;margin-right:2em;">
-Prediction (Sample)
-<pre>
-MGSIGIIIQVVTEE--LNP (17)
-::::::  ::::   
-MGSIGIV-QVVTFATEGVE (18)
-1234567890123456789
-</pre>
-</span>
-<span style="display:inline-block;vertical-align:top;">
-Ground Truth
-<pre>
-MGSIGIIIQVVT--EELNP (17)
-::::::  ::::   :   
-MGSIGIV-QVVTFATEGVE (18)
-1234567890123456789
-</pre>
-</span>
+```raw
+# Prediction (Sample)
 
+MGSIGIIIQVVTEE--LNP (17)
+::::::  ::::
+MGSIGIV-QVVTFATEGVE (18)
+1234567890123456789
+
+# Ground Truth
+
+MGSIGIIIQVVT--EELNP (17)
+::::::  ::::   :
+MGSIGIV-QVVTFATEGVE (18)
+1234567890123456789
+```
 
 | Name              | Definition                                                                          |  Worked Example |
 | ----------------- | ----------------------------------------------------------------------------------- | --------------: |
@@ -56,6 +52,8 @@ MGSIGIV-QVVTFATEGVE (18)
 * Database
   * SABMark
   * PDB40
+  * CASP
+  * CATH
 * Strategy
   * Train the model on SABMark and evaluate on PDB40.
 
@@ -63,7 +61,6 @@ MGSIGIV-QVVTFATEGVE (18)
 
 * Protein Language Model (PLM)
   * ESM-1b
-  * ESM-1v
   * ESM-2
 * Structure Tokenizer
 * Multimodal
@@ -71,6 +68,7 @@ MGSIGIV-QVVTFATEGVE (18)
 ### Model Architecture
 
 * Neural Network
+  * Baseline
   * Add a trainable neural network instead of using the embedding outputs directly.
 * Optimal Transport vs Unbalance Optimal Transport
 
@@ -78,22 +76,18 @@ MGSIGIV-QVVTFATEGVE (18)
 
 * Direct
 * Score Matrix (Dynamic Programming)
-  * Local 
+  * Local
     * Smith-Waterman
     * Differentiable Smith-Waterman
-  * Global 
+  * Global
     * Needleman-Wunsch
   * Glocal
-    * Needleman-Wunsch + 
 
 ### Comparison to Alternative Tools
 
-* BLOSUM + NWalign
+* NWalign with BLOSUM62
 * HHBlits
 * HHAlign
 * PLMAlign
 
 ## References
-
-<!-- * [AlphaFold3 Paper](https://www.nature.com/articles/s41586-024-07487-w)
-* [AlphaFold3 GitHub](https://github.com/google-deepmind/alphafold3/tree/main) -->
