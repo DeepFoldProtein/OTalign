@@ -62,6 +62,7 @@ class SABmark(Dataset):
                 T[pa, pb] = 1
 
         return {
+            "fam": fn,
             "seq_id_a": seq_id_a,
             "seq_id_b": seq_id_b,
             "seq_a": seq_a,
@@ -106,8 +107,9 @@ class SABmark(Dataset):
         pos_map = []
         ungapped_idx = 0
         for ch in aln_str:
-            if ch == ".":
+            if ch in ".-":
                 pos_map.append(None)
+                pass
             else:
                 seq.append(ch)
                 pos_map.append(ungapped_idx)

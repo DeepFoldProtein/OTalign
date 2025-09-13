@@ -230,7 +230,7 @@ class SinkhornOT(nn.Module):
         super().__init__()
 
     def forward(self, a, b, mask_a, mask_b, num_iter, reg, lambda1, lambda2):
-        """Balanced Discrete Optimal Transport."""
+        """Discrete Optimal Transport."""
 
         assert a.size(0) == b.size(0)
         B = a.size(0)
@@ -269,12 +269,12 @@ class SinkhornOT(nn.Module):
         exp_cost = (plan * cost)[valid].view(B, -1).sum(-1)
         neg_ent = (plan_clamped * plan_clamped.log())[valid].view(B, -1).sum(-1)
 
-        final_cost = exp_cost + reg * neg_ent
+        objective = exp_cost + reg * neg_ent
 
         return {
             "expected_cost": exp_cost,
             "negative_entropy": neg_ent,
-            "sinkhorn_distance": final_cost,
+            "objective": objective,
             "cost_matrix": cost,
             "transport_plan": plan,
         }
