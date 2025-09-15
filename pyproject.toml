@@ -1,8 +1,8 @@
 [project]
 name = "OTalign"
 version = "0.0.1"
-description = "Optimal Transport Alignment"
-authors = []
+description = "Differentiable OT-based alignment and evaluation for protein embeddings"
+authors = [{ name = "Minsoo Kim" }]
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
     "accelerate (>=1.10.1,<2.0.0)",
     "sentencepiece (>=0.2.1,<0.3.0)",
     "datasets (>=4.0.0,<5.0.0)",
+    "evaluate (>=0.4.5,<0.5.0)",
     "pyyaml (>=6.0.2,<7.0.0)",
     "tqdm (>=4.67.1,<5.0.0)",
     "matplotlib (>=3.10.6,<4.0.0)",
@@ -26,6 +27,8 @@ dependencies = [
     "numba (>=0.61.2,<0.62.0)",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "pre-commit"]
 
 [tool.ruff]
 line-length = 119
