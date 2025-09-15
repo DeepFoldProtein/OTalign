@@ -13,114 +13,130 @@ def safe_delta(f_new, f_old, mask):
 
 
 class SinkhornUOT(torch.autograd.Function):
-    """Sinkhorn iteration for Unbalanced Optimal Transport with entropy regularization and optional masks.
-
-    This class implements the Sinkhorn algorithm for UOT with improved numerical stability.
-    It supports entropy regularization, KL divergence penalties for marginal relaxation,
-    and optional boolean masks to deactivate specific entries.
-
-    Args:
-        ctx: PyTorch context object to save tensors for backward pass.
-        c: Cost matrix, shape [..., m, n].
-        a: Source marginals, shape [..., m].
-        b: Target marginals, shape [..., n].
-        num_iter: Number of Sinkhorn iterations (positive integer).
-        reg: Entropy regularization parameter (positive float).
-        lambda1: KL divergence penalty for source marginals (positive float).
-        lambda2: KL divergence penalty for target marginals (positive float).
-        mask_a: Boolean mask for source marginals, shape [..., m] or None.
-        mask_b: Boolean mask for target marginals, shape [..., n] or None.
-        damp: Damping factor for linear system (default: 1e-6).
-
-    Returns:
-        A tuple containing:
-        - p (torch.Tensor): Transport plan, shape [..., m, n].
-        - u (torch.Tensor): Source scaling vector, shape [..., m].
-        - v (torch.Tensor): Target scaling vector, shape [..., n].
-
+    """
+    Unbalanced Sinkhorn with optional masks, optional POT-like stabilization (absorption),
+    and configurable gauge fixing for the implicit backward (adjoint solve).
     """
 
     @staticmethod
     def forward(
         ctx,
-        c,
-        a,
-        b,
-        num_iter,
-        reg,
-        lambda1,
-        lambda2,
-        mask_a=None,
-        mask_b=None,
-        u_init=None,
-        v_init=None,
-        eps=1e-12,
-        damp=1e-6,
-        tol=1e-4,
+        c: torch.Tensor,
+        a: torch.Tensor,
+        b: torch.Tensor,
+        num_iter: int,
+        reg: float,
+        lambda1: float,
+        lambda2: float,
+        mask_a: torch.Tensor | None = None,
+        mask_b: torch.Tensor | None = None,
+        u_init: torch.Tensor | None = None,
+        v_init: torch.Tensor | None = None,
+        eps: float = 1e-12,
+        damp: float = 1e-6,
+        tol: float = 1e-4,
+        gauge: str = "last_beta",  # "last_beta" or "mean_zero_beta"
+        stabilize: bool = False,  # POT-like absorption
+        tau: float = 1e5,  # absorption threshold
+        adjoint_solver: str = "dense",  # "dense" | "schur_cg"
+        cg_tol: float = 1e-12,
+        cg_max_iter: int = 2000,
     ):
         if mask_a is None:
             mask_a = torch.ones_like(a, dtype=torch.bool)
         if mask_b is None:
             mask_b = torch.ones_like(b, dtype=torch.bool)
 
-        # Mask cost with +inf → log-kernel has -inf at forbidden entries.
+        # Mask costs to +inf (forbidden pairs)
         inf = torch.tensor(float("inf"), device=c.device, dtype=c.dtype)
         c_masked = c.masked_fill(~mask_a.unsqueeze(-1), inf)
         c_masked = c_masked.masked_fill(~mask_b.unsqueeze(-2), inf)
+
+        # Log-kernel
         logK = -c_masked / reg
 
-        # Log-marginals; masked positions force -inf so u,v -> 0 there.
+        # Log marginals (masked -> -inf)
         ninf_m = torch.full_like(a, -float("inf"))
         ninf_n = torch.full_like(b, -float("inf"))
         log_a = torch.where(mask_a, torch.log(a.clamp_min(eps)), ninf_m)
         log_b = torch.where(mask_b, torch.log(b.clamp_min(eps)), ninf_n)
 
-        # Initialize duals (log u, log v)
-        if u_init is None:
-            f = torch.zeros_like(a)  # [..., m]
-        else:
-            f = torch.log(u_init)
-        if v_init is None:
-            g = torch.zeros_like(b)  # [..., n]
-        else:
-            g = torch.log(v_init)
+        # Dual logs f=log u, g=log v
+        f = torch.zeros_like(a) if u_init is None else torch.log(u_init.clamp_min(eps))
+        g = torch.zeros_like(b) if v_init is None else torch.log(v_init.clamp_min(eps))
 
+        # Offsets for POT-like stabilization
+        alpha_off = torch.zeros_like(a)
+        beta_off = torch.zeros_like(b)
+
+        # UOT weights
         tau_a = lambda1 / (lambda1 + reg)
         tau_b = lambda2 / (lambda2 + reg)
 
         converged = False
-        for _ in range(1, max(int(num_iter + 1), 1)):
+        for i in range(1, max(int(num_iter + 1), 1)):
             f_prev, g_prev = f.clone(), g.clone()
 
-            # f update: log a - logsumexp(logK + g)
-            s = torch.logsumexp(logK + g.unsqueeze(-2), dim=-1)  # [B,M]
+            # f update
+            s = torch.logsumexp(logK + g.unsqueeze(-2), dim=-1)  # log(Kv)
             f = tau_a * (log_a - s)
             f = torch.where(mask_a, f, ninf_m)
 
-            # g update: log b - logsumexp(logK^T + f)
-            t = torch.logsumexp(logK + f.unsqueeze(-1), dim=-2)  # [B,N]
+            # g update
+            t = torch.logsumexp(logK + f.unsqueeze(-1), dim=-2)  # log(K^T u)
             g = tau_b * (log_b - t)
             g = torch.where(mask_b, g, ninf_n)
 
-            # Convergence on duals (small vectors, not the full plan)
-            df = safe_delta(f, f_prev, mask_a)
-            dg = safe_delta(g, g_prev, mask_b)
-            if torch.max(df, dg) < tol:
-                converged = True
-                break
+            # Optional stabilization (absorption)
+            if stabilize:
+                u_tmp = torch.where(mask_a, torch.exp(f), torch.zeros_like(f))
+                v_tmp = torch.where(mask_b, torch.exp(g), torch.zeros_like(g))
+
+                need_absorb_u = (u_tmp > tau).any(dim=-1, keepdim=True)
+                need_absorb_v = (v_tmp > tau).any(dim=-1, keepdim=True)
+
+                if bool(need_absorb_u.any() or need_absorb_v.any()):
+                    max_u = torch.where(
+                        need_absorb_u,
+                        u_tmp.amax(dim=-1, keepdim=True).clamp_min(1.0),
+                        torch.ones_like(u_tmp[..., :1]),
+                    )
+                    max_v = torch.where(
+                        need_absorb_v,
+                        v_tmp.amax(dim=-1, keepdim=True).clamp_min(1.0),
+                        torch.ones_like(v_tmp[..., :1]),
+                    )
+                    a_shift = torch.zeros_like(a)
+                    b_shift = torch.zeros_like(b)
+                    a_shift = torch.where(need_absorb_u.squeeze(-1), (reg * max_u.log()).squeeze(-1), a_shift)
+                    b_shift = torch.where(need_absorb_v.squeeze(-1), (reg * max_v.log()).squeeze(-1), b_shift)
+                    alpha_off = alpha_off + a_shift
+                    beta_off = beta_off + b_shift
+
+                    # Rebuild logK with offsets
+                    logK = (alpha_off.unsqueeze(-1) + beta_off.unsqueeze(-2) - c_masked) / reg
+                    # Reset g (as in POT)
+                    g = torch.zeros_like(g)
+
+            # Periodic convergence check
+            if i % 10 == 0:
+                df = safe_delta(f, f_prev, mask_a)
+                dg = safe_delta(g, g_prev, mask_b)
+                if torch.max(df, dg) < tol:
+                    converged = True
+                    break
 
         if not converged and num_iter > 0:
-            msg = f"Sinkhorn (UOT) did not reach tol={tol} after {num_iter} iters; last df={df:.5e}, dg={dg:.5e}"
-            warnings.warn(msg)
+            warnings.warn(f"Sinkhorn (UOT) did not reach tol={tol} after {num_iter} iters.")
 
-        # Build plan once at the end (masked entries become 0 since -inf)
         joint = mask_a.unsqueeze(-1) & mask_b.unsqueeze(-2)
-        logP = logK + f.unsqueeze(-1) + g.unsqueeze(-2)
+        # Final log plan with offsets
+        logP = (alpha_off.unsqueeze(-1) + beta_off.unsqueeze(-2) - c_masked) / reg + f.unsqueeze(-1) + g.unsqueeze(-2)
         logP = torch.where(joint, logP, torch.tensor(-float("inf"), device=logP.device, dtype=logP.dtype))
 
-        P = torch.exp(logP)  # [..., m, n]
-        u = torch.exp(f)  # [..., m]
-        v = torch.exp(g)  # [..., n]
+        P = torch.exp(logP)
+        u = torch.exp(f)
+        v = torch.exp(g)
 
         # Save for backward
         ctx.save_for_backward(P, u, v, a, b, mask_a, mask_b)
@@ -128,133 +144,224 @@ class SinkhornUOT(torch.autograd.Function):
         ctx.lambda1 = lambda1
         ctx.lambda2 = lambda2
         ctx.damp = damp
+        ctx.eps = eps
+        ctx.gauge = gauge
+        ctx.adjoint_solver = adjoint_solver
+        ctx.cg_tol = cg_tol
+        ctx.cg_max_iter = cg_max_iter
 
         return P, u, v
 
     @staticmethod
     def backward(ctx, grad_p, grad_u, grad_v):
-        # Unpack saved tensors and parameters.
         p, u, v, a, b, mask_a, mask_b = ctx.saved_tensors
         reg, lambda1, lambda2, damp = ctx.reg, ctx.lambda1, ctx.lambda2, ctx.damp
+        eps, gauge = ctx.eps, ctx.gauge
+        adjoint_solver, cg_tol, cg_max_iter = ctx.adjoint_solver, ctx.cg_tol, ctx.cg_max_iter
 
-        # Handle None gradients
         grad_p = torch.zeros_like(p) if grad_p is None else grad_p
         grad_u = torch.zeros_like(u) if grad_u is None else grad_u
         grad_v = torch.zeros_like(v) if grad_v is None else grad_v
 
-        # Zero gradients at masked positions.
         full_mask = mask_a.unsqueeze(-1) & mask_b.unsqueeze(-2)
         grad_p = grad_p.masked_fill(~full_mask, 0)
 
-        # Calculate the total gradient flowing into the fixed-point variables (alpha, beta)
-        # from all three outputs (p, u, v).
-        # dL/d_alpha = (dL/dp)*(dp/d_alpha) + (dL/du)*(du/d_alpha) = (grad_p * p).sum(-1) + grad_u * u
-        # dL/d_beta = (dL/dp)*(dp/d_beta) + (dL/dv)*(dv/d_beta) = (grad_p * p).sum(-2) + grad_v * v
-        grad_alpha_total = (grad_p * p).sum(dim=-1) + grad_u * u
-        grad_beta_total = (grad_p * p).sum(dim=-2) + grad_v * v
+        # t = [t_phi; t_psi]
+        G = grad_p
+        t_phi = (G * p).sum(dim=-1) + grad_u * u
+        t_psi = (G * p).sum(dim=-2) + grad_v * v
 
-        # This vector `t` is the right-hand side of the linear system in the adjoint method.
-        # It represents the total incoming gradient that needs to be propagated backwards.
-        # The slicing [..., :-1] is to make the system non-singular.
-        t = torch.cat((grad_alpha_total, grad_beta_total[..., :-1]), dim=-1).unsqueeze(-1)
-
-        # Recompute marginals of the final plan p for the Jacobian matrix k
-        a_sum = p.sum(dim=-1).clamp(min=1e-8)
-        b_sum = p.sum(dim=-2).clamp(min=1e-8)
-
-        # Construct the Jacobian matrix `k` for the linear system.
-        # This matrix represents the derivative of the fixed-point operator.
         m, n = p.shape[-2:]
         batch_shape = list(p.shape[:-2])
 
-        k = torch.cat(
-            (
-                torch.cat((torch.diag_embed(a_sum / (lambda1 + reg)), p / (lambda1 + reg)), dim=-1),
-                torch.cat((p.transpose(-2, -1) / (lambda2 + reg), torch.diag_embed(b_sum / (lambda2 + reg))), dim=-1),
-            ),
-            dim=-2,
-        )[..., :-1, :-1]
+        tau_a = lambda1 / (lambda1 + reg)
+        tau_b = lambda2 / (lambda2 + reg)
 
-        # Solve the linear system to get the adjoints (z_alpha, z_beta).
-        eye = torch.eye(k.shape[-1], device=k.device, dtype=k.dtype)
-        try:
-            z = torch.linalg.solve(k + damp * eye, t)
-        except RuntimeError as e:
-            warnings.warn(f"Singular matrix detected: {e!s}. Using pseudo-inverse.")
-            z = torch.linalg.pinv(k + damp * eye) @ t
+        p_marg = p.sum(dim=-1).clamp(min=eps)  # [..., m]
+        q_marg = p.sum(dim=-2).clamp(min=eps)  # [..., n]
 
-        # Unpack the adjoints
-        z_alpha = z[..., :m, :]
-        z_beta = torch.cat(
-            (z[..., m:, :], z.new_zeros(batch_shape + [1, 1])),
-            dim=-2,
-        )
+        # Diagonals
+        Dp_inv = torch.diag_embed(1.0 / p_marg)  # = diag(p)^{-1}
+        Dq_inv = torch.diag_embed(1.0 / q_marg)  # = diag(q)^{-1}
 
-        # Compute gradients w.r.t. inputs a and b using the adjoints.
-        scale_a = lambda1 / (lambda1 + reg)
-        scale_b = lambda2 / (lambda2 + reg)
+        # Build J and JT only if using dense solver
+        def solve_adjoint_dense(t_phi, t_psi):
+            eye_m = torch.eye(m, device=p.device, dtype=p.dtype).expand(batch_shape + [m, m])
+            eye_n = torch.eye(n, device=p.device, dtype=p.dtype).expand(batch_shape + [n, n])
 
-        # dL/da = (dL/d_alpha) * (d_alpha/da) = z_alpha * scale_a / a
-        grad_a = (z_alpha.squeeze(-1) * scale_a / (a + 1e-8)) * mask_a
-        grad_b = (z_beta.squeeze(-1) * scale_b / (b + 1e-8)) * mask_b
+            J_12 = tau_a * (Dp_inv @ p)  # [..., m, n]
+            J_21 = tau_b * (Dq_inv @ p.transpose(-2, -1))  # [..., n, m]
 
-        # Compute gradient w.r.t. cost matrix c.
-        # It has a direct component and an indirect component (from the adjoints).
-        direct_grad_c = grad_p * (-p / reg)
-        indirect_grad_c = -p * (z_alpha + z_beta.transpose(-2, -1)) / reg
-        grad_c = direct_grad_c + indirect_grad_c
+            J_top = torch.cat((eye_m, J_12), dim=-1)
+            J_bot = torch.cat((J_21, eye_n), dim=-1)
+            J = torch.cat((J_top, J_bot), dim=-2)  # [..., m+n, m+n]
+
+            JT = J.transpose(-2, -1)
+            t_full = torch.cat((t_phi, t_psi), dim=-1).unsqueeze(-1)
+
+            if gauge == "last_beta":
+                K = JT[..., :-1, :-1]
+                rhs = t_full[..., :-1, :]
+                Id = torch.eye(K.shape[-1], device=K.device, dtype=K.dtype)
+                try:
+                    lam = torch.linalg.solve(K + damp * Id, rhs)
+                except RuntimeError as e:
+                    warnings.warn(f"Singular system (adjoint dense): {e!s}. Using pseudo-inverse.")
+                    lam = torch.linalg.pinv(K + damp * Id) @ rhs
+                lam = torch.cat((lam, lam.new_zeros(batch_shape + [1, 1])), dim=-2)
+
+            elif gauge == "mean_zero_beta":
+                c_vec = torch.zeros(batch_shape + [m + n, 1], device=JT.device, dtype=JT.dtype)
+                c_vec[..., m:, 0] = 1.0
+                zero11 = torch.zeros(batch_shape + [1, 1], device=JT.device, dtype=JT.dtype)
+                K11 = JT + damp * torch.eye(m + n, device=JT.device, dtype=JT.dtype).expand_as(JT)
+                K12 = c_vec
+                K21 = c_vec.transpose(-2, -1)
+                K22 = zero11
+                K_top = torch.cat((K11, K12), dim=-1)
+                K_bot = torch.cat((K21, K22), dim=-1)
+                KKT = torch.cat((K_top, K_bot), dim=-2)
+                rhs = torch.cat((t_full, torch.zeros_like(zero11)), dim=-2)
+                try:
+                    sol = torch.linalg.solve(KKT, rhs)
+                except RuntimeError as e:
+                    warnings.warn(f"Singular system (adjoint KKT): {e!s}. Using pseudo-inverse.")
+                    sol = torch.linalg.pinv(KKT) @ rhs
+                lam = sol[..., : (m + n), :]
+
+            else:
+                raise ValueError(f"Unknown gauge: {gauge}")
+
+            lam_phi = lam[..., :m, 0]
+            lam_psi = lam[..., m:, 0]
+            return lam_phi, lam_psi
+
+        def solve_adjoint_schur_cg(t_phi, t_psi):
+            # Schur complement on lambda_psi using JT structure:
+            # lambda_phi = t_phi - tau_b * P * Dq^{-1} * lambda_psi
+            # (I - tau_a*tau_b * P^T Dp^{-1} P Dq^{-1}) lambda_psi = t_psi - tau_a * P^T Dp^{-1} t_phi
+
+            # Precompute b_psi and define matvec for symmetric reweighted system
+            b_psi = t_psi - tau_a * (p.transpose(-2, -1) @ (Dp_inv @ t_phi.unsqueeze(-1))).squeeze(-1)  # [..., n]
+
+            # Work with x = Dq^{-1/2} lambda_psi for symmetry: S' = I - tau_a*tau_b * A^T A
+            Dq_mhalf = (1.0 / q_marg.sqrt()).unsqueeze(-1)  # [..., n, 1]
+            Dq_half = q_marg.sqrt().unsqueeze(-1)  # [..., n, 1]
+            Dp_mhalf = (1.0 / p_marg.sqrt()).unsqueeze(-1)  # [..., m, 1]
+
+            # b' = Dq^{-1/2} b_psi
+            b_prime = (b_psi.unsqueeze(-1) * Dq_mhalf).squeeze(-1)
+
+            def A_times(x):  # x: [..., n]
+                # y = A x = Dp^{-1/2} P Dq^{-1/2} x
+                y = (x.unsqueeze(-1) * Dq_mhalf).squeeze(-1)  # scale by Dq^{-1/2}
+                y = p @ y.unsqueeze(-1)  # P * (...)
+                y = y.squeeze(-1) * Dp_mhalf.squeeze(-1)  # Dp^{-1/2} *
+                return y  # [..., m]
+
+            def AT_times(y):  # y: [..., m]
+                # z = A^T y = Dq^{-1/2} P^T Dp^{-1/2} y
+                z = (y.unsqueeze(-1) * Dp_mhalf).squeeze(-1)  # Dp^{-1/2} *
+                z = p.transpose(-2, -1) @ z.unsqueeze(-1)  # P^T *
+                z = z.squeeze(-1) * Dq_mhalf.squeeze(-1)  # Dq^{-1/2} *
+                return z  # [..., n]
+
+            def S_prime(x):  # (I - tau_a*tau_b * A^T A + damp*I) x
+                Ax = A_times(x)
+                ATAx = AT_times(Ax)
+                return x - (tau_a * tau_b) * ATAx + damp * x
+
+            # Simple batched CG
+            x = torch.zeros_like(b_prime)
+            r = b_prime - S_prime(x)
+            pdir = r.clone()
+            rr_old = (r * r).sum(dim=-1, keepdim=True)
+
+            for _ in range(cg_max_iter):
+                Ap = S_prime(pdir)
+                alpha = rr_old / ((pdir * Ap).sum(dim=-1, keepdim=True).clamp_min(1e-30))
+                x = x + alpha * pdir
+                r = r - alpha * Ap
+                rr_new = (r * r).sum(dim=-1, keepdim=True)
+                if (rr_new.sqrt() <= cg_tol).all():
+                    break
+                beta = rr_new / rr_old
+                pdir = r + beta * pdir
+                rr_old = rr_new
+
+            # Recover lambda_psi and lambda_phi
+            lam_psi = (x.unsqueeze(-1) * Dq_half).squeeze(-1)  # lambda_psi = Dq^{1/2} x
+            # lambda_phi = t_phi - tau_b * P * Dq^{-1} * lambda_psi
+            lam_phi = t_phi - tau_b * (p @ ((lam_psi / q_marg).unsqueeze(-1))).squeeze(-1)
+            return lam_phi, lam_psi
+
+        if adjoint_solver == "schur_cg":
+            lam_phi, lam_psi = solve_adjoint_schur_cg(t_phi, t_psi)
+        else:
+            lam_phi, lam_psi = solve_adjoint_dense(t_phi, t_psi)
+
+        # Grads w.r.t. a, b
+        grad_a = (tau_a * lam_phi / a.clamp_min(eps)) * mask_a
+        grad_b = (tau_b * lam_psi / b.clamp_min(eps)) * mask_b
+
+        # Corrections for C
+        corr_alpha = (tau_a * lam_phi / p_marg).unsqueeze(-1)  # [..., m, 1]
+        corr_beta = (tau_b * lam_psi / q_marg).unsqueeze(-2)  # [..., 1, n]
+
+        grad_c = -(p / reg) * (G - (corr_alpha + corr_beta))
         grad_c = grad_c.masked_fill(~full_mask, 0)
 
-        # Return gradients for all forward arguments.
-        return grad_c, grad_a, grad_b, None, None, None, None, None, None, None, None, None, None, None
+        return (
+            grad_c,
+            grad_a,
+            grad_b,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
 
 
-# Convenience wrapper for direct use.
 _sinkhorn_uot = SinkhornUOT.apply
 
 
 def unbalanced_sinkhorn(
-    c,
-    a,
-    b,
-    num_iter,
-    reg,
-    lambda1,
-    lambda2,
-    mask_a=None,
-    mask_b=None,
-    u_init=None,
-    v_init=None,
-    damp=1e-6,
-    tol=1e-4,
+    c: torch.Tensor,
+    a: torch.Tensor,
+    b: torch.Tensor,
+    num_iter: int,
+    reg: float,
+    lambda1: float,
+    lambda2: float,
+    mask_a: torch.Tensor | None = None,
+    mask_b: torch.Tensor | None = None,
+    u_init: torch.Tensor | None = None,
+    v_init: torch.Tensor | None = None,
+    eps: float = 1e-12,
+    damp: float = 1e-6,
+    tol: float = 1e-4,
+    gauge: str = "last_beta",
+    stabilize: bool = False,
+    tau: float = 1e5,
+    adjoint_solver: str = "dense",  # "dense" | "schur_cg"
+    cg_tol: float = 1e-12,
+    cg_max_iter: int = 2000,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """A wrapper for the Unbalanced Sinkhorn algorithm with improved stability.
-
-    Args:
-        c (torch.Tensor): Cost matrix, shape [..., m, n].
-        a (torch.Tensor): Source marginals, shape [..., m].
-        b (torch.Tensor): Target marginals, shape [..., n].
-        num_iter (int): Number of Sinkhorn iterations (must be a positive integer).
-        reg (float): Entropy regularization parameter (must be a positive scalar).
-        lambda1 (float): KL divergence penalty for source marginals (positive scalar).
-        lambda2 (float): KL divergence penalty for target marginals (positive scalar).
-        mask_a (torch.BoolTensor or None): Mask for source marginals, shape [..., m] or None.
-        mask_b (torch.BoolTensor or None): Mask for target marginals, shape [..., n] or None.
-        damp (float): Damping factor for linear system (default: 1e-6).
-        tol (float): Convergence tolerance for relative change in pi (default: 1e-4).
-
-    Returns:
-        A tuple containing:
-        - p (torch.Tensor): The computed transport plan, shape [..., m, n].
-        - u (torch.Tensor): The final source scaling vector, shape [..., m].
-        - v (torch.Tensor): The final target scaling vector, shape [..., n].
-
-    Raises:
-        TypeError: If inputs are not of the expected types.
-        ValueError: If inputs have incorrect shapes or invalid values.
-
     """
-    # Check types
+    Wrapper for Unbalanced Sinkhorn with adjoint implicit backward, gauge fixing,
+    and optional POT-like stabilization.
+    """
+    # Type checks
     if not torch.is_tensor(c):
         raise TypeError("c must be a torch.Tensor")
     if not torch.is_tensor(a):
@@ -283,14 +390,14 @@ def unbalanced_sinkhorn(
         raise ValueError("damp must be a positive scalar")
     if not isinstance(tol, (int, float)) or tol <= 0:
         raise ValueError("tol must be a positive scalar")
-    if u_init is not None:
-        if not torch.is_tensor(u_init):
-            raise TypeError("u_init must be a torch.Tensor")
-    if v_init is not None:
-        if not torch.is_tensor(v_init):
-            raise TypeError("v_init must be a torch.Tensor")
+    if u_init is not None and not torch.is_tensor(u_init):
+        raise TypeError("u_init must be a torch.Tensor")
+    if v_init is not None and not torch.is_tensor(v_init):
+        raise TypeError("v_init must be a torch.Tensor")
+    if gauge not in ("last_beta", "mean_zero_beta"):
+        raise ValueError("gauge must be 'last_beta' or 'mean_zero_beta'")
 
-    # Check shapes
+    # Shape checks
     batch_shape = c.shape[:-2]
     m, n = c.shape[-2:]
     if m <= 0 or n <= 0:
@@ -308,7 +415,7 @@ def unbalanced_sinkhorn(
     if v_init is not None and v_init.shape != batch_shape + (n,):
         raise ValueError(f"v_init has incorrect shape: expected {batch_shape + (n,)}, got {v_init.shape}")
 
-    # Check values
+    # Value checks
     if not (a >= 0).all():
         raise ValueError("a must be non-negative")
     if not (b >= 0).all():
@@ -316,5 +423,27 @@ def unbalanced_sinkhorn(
     if not torch.isfinite(c).all():
         warnings.warn("Non-finite values detected in cost matrix c")
 
-    # Call the unbalanced sinkhorn function
-    return _sinkhorn_uot(c, a, b, num_iter, reg, lambda1, lambda2, mask_a, mask_b, u_init, v_init, damp, tol)  # type: ignore
+    # Call function; stash solver choices in ctx via attributes after call:
+    P, u, v = _sinkhorn_uot(
+        c,
+        a,
+        b,
+        num_iter,
+        reg,
+        lambda1,
+        lambda2,
+        mask_a,
+        mask_b,
+        u_init,
+        v_init,
+        eps,
+        damp,
+        tol,
+        gauge,
+        stabilize,
+        tau,
+        adjoint_solver,
+        cg_tol,
+        cg_max_iter,
+    )
+    return P, u, v
