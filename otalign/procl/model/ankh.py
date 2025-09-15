@@ -61,6 +61,6 @@ class AnkhCL(T5PreTrainedModel):
         return CLPredictionOutput(
             loss=None,
             logits=None,
-            hidden_state=last_hidden_state,
+            last_hidden_state=last_hidden_state,
             attentions=None,
         )
