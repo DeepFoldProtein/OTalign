@@ -35,7 +35,7 @@ def clean_aligned_line(line: str) -> str:
     """
     s = line.strip()
     s = re.sub(r"[^A-Za-z\-]", "", s)
-    return s.upper()
+    return s
 
 
 def read_manual_ali(path: pathlib.Path) -> Tuple[str, str]:
@@ -70,8 +70,8 @@ def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, i
     """
     if len(aln1) != len(aln2):
         raise ValueError("Aligned strings must have the same length.")
-    seq1 = "".join(c for c in aln1 if c != "-")
-    seq2 = "".join(c for c in aln2 if c != "-")
+    seq1 = "".join(c for c in aln1 if c != "-").upper()
+    seq2 = "".join(c for c in aln2 if c != "-").upper()
 
     i = j = 0
     pairs: List[Tuple[int, int]] = []
@@ -81,10 +81,11 @@ def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, i
         a_is = a != "-"
         b_is = b != "-"
         if a_is and b_is:
-            pairs.append((i, j))
-            aligned += 1
-            if a == b:
-                matches += 1
+            if a.isupper() and b.isupper():
+                pairs.append((i, j))
+                aligned += 1
+                if a == b:
+                    matches += 1
             i += 1
             j += 1
         elif a_is and not b_is:

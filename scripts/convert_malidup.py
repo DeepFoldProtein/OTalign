@@ -20,7 +20,7 @@ def clean_aligned_line(line: str) -> str:
     line = line.strip()
     # Remove spaces; keep letters and '-' only
     line = re.sub(r"[^A-Za-z\-]", "", line)
-    return line.upper()
+    return line
 
 
 def parse_manual_alignment_file(path: pathlib.Path) -> Tuple[str, str]:
@@ -58,8 +58,8 @@ def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, i
         raise ValueError("Aligned strings must have the same length.")
     ung1 = [c for c in aln1 if c != "-"]
     ung2 = [c for c in aln2 if c != "-"]
-    seq1 = "".join(ung1)
-    seq2 = "".join(ung2)
+    seq1 = "".join(ung1).upper()
+    seq2 = "".join(ung2).upper()
 
     i = j = 0
     pairs: List[Tuple[int, int]] = []
@@ -69,10 +69,11 @@ def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, i
         a_is = a != "-"
         b_is = b != "-"
         if a_is and b_is:
-            pairs.append((i, j))
-            aligned += 1
-            if a == b:
-                matches += 1
+            if a.isupper() and b.isupper():
+                pairs.append((i, j))
+                aligned += 1
+                if a == b:
+                    matches += 1
             i += 1
             j += 1
         elif a_is and not b_is:
