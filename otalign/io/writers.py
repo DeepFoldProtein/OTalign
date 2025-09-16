@@ -20,7 +20,7 @@ def record_from_aligned_pair(
     Stores ungapped sequences and computed pairs.
     """
     # Compute ungapped indices and pairs
-    from .alignment_parser import gapped_to_pairs, ungap
+    from .parser import gapped_to_pairs, ungap
 
     pairs = gapped_to_pairs(seq1_aligned, seq2_aligned)
     rec = {

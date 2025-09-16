@@ -3,8 +3,8 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from otalign.io.alignment_parser import gapped_to_pairs
 from otalign.io.fasta_utils import write_fasta
+from otalign.io.parser import gapped_to_pairs
 
 
 def parse_nwalign_stdout(text: str) -> Tuple[str, str]:

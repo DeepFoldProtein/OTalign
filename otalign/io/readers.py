@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .alignment_parser import (
+from .parser import (
     parse_a3m_alignment_text,
     parse_clustal_alignment_text,
     parse_fasta_alignment_text,

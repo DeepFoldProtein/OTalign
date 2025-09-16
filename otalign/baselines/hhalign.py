@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from otalign.io.alignment_parser import convert_a3m_text_to_a2m
+from otalign.io.parser import convert_a3m_text_to_a2m
 
 
 def run_hhalign_hhm_pair(

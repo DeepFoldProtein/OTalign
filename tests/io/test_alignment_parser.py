@@ -1,4 +1,4 @@
-from otalign.io.alignment_parser import (
+from otalign.io.parser import (
     convert_a3m_text_to_a2m,
     parse_clustal_alignment_text,
     parse_stockholm_alignment_text,

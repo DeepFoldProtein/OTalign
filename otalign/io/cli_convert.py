@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from .alignment_parser import parse_a3m_alignment_text, parse_fasta_alignment_text
 from .fasta_utils import write_fasta_pair
+from .parser import parse_a3m_alignment_text, parse_fasta_alignment_text
 from .readers import read_text
 from .writers import dump_jsonl_records
 

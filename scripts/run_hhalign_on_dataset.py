@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 
 from datasets import load_dataset
 from otalign.baselines.hhalign import run_hhalign_hhm_pair
-from otalign.io.alignment_parser import gapped_to_pairs
+from otalign.io.parser import gapped_to_pairs
 
 
 def iter_hf(dataset: str, name: str, split: str):
