@@ -8,13 +8,19 @@ Dataset schema assumed:
 Duplicates by id are deduplicated.
 """
 
-import argparse, subprocess, tempfile, shutil
+import argparse
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
-from typing import Set, List
+from typing import List, Set
+
 from datasets import load_dataset
 
+
 def wrap(seq: str, width: int = 60) -> str:
-    return "\n".join(seq[i:i+width] for i in range(0, len(seq), width))
+    return "\n".join(seq[i : i + width] for i in range(0, len(seq), width))
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -37,7 +43,7 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix="ffq_"))
     try:
         seen: Set[str] = set()
-        files: List[Path] = []
+        files: List[str] = []
         for ex in ds:
             for sid, seq in ((ex["seq1_id"], ex["seq1"]), (ex["seq2_id"], ex["seq2"])):
                 if sid in seen:
@@ -46,22 +52,22 @@ def main():
                 p = tmp / f"{sid}.fasta"
                 with p.open("w", encoding="utf-8") as f:
                     f.write(f">{sid}\n{wrap(seq, width=args.wrap)}\n")
-                files.append(p)
+                files.append(p.stem)
 
         # Write names (optional, useful later)
         with names_file.open("w", encoding="utf-8") as f:
-            for p in files:
-                f.write(p.stem + "\n")
+            for s in files:
+                f.write(s + "\n")
 
         # Build ffindex
         # Many ffindex builds accept: ffindex_build -s OUT.ffdata OUT.ffindex list_of_files...
-        cmd = [args.ffindex_build, "-s", str(ffdata), str(ffindex)] + [str(p) for p in files]
-        subprocess.check_call(cmd)
+        cmd = [args.ffindex_build, "-s", str(ffdata), str(ffindex)] + files
+        subprocess.check_call(cmd, cwd=tmp)
         print(f"[ok] wrote {ffdata} and {ffindex}")
         print(f"[ok] wrote {names_file} ({len(files)} entries)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+
 if __name__ == "__main__":
     main()
-
