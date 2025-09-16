@@ -65,10 +65,15 @@ sbatch scripts/slurm_hhblits_mpi_ffindex.sh
 ```
 
 ```bash
-ffindex_unpack work/a3m_mpi.ffindex work/a3m_mpi.ffdata work/a3m
+ffindex_unpack work/a3m_mpi.ffdata work/a3m_mpi.ffindex work/a3m
 
-for f in $(cat work/queries.name); do
-  hhmake -i work/a3m/$f.a3m -o work/hhm/$f.a3m -seq 2
+find work/a3m -type f -name "*.fasta" -print0 | while IFS= read -r -d '' file; do 
+  mv -- "$file" "$(echo "$file" | sed 's/\.fasta$/.a3m/')"
+done
+
+mkdir -p work/hhm
+for f in $(cat work/queries.names); do
+  hhmake -i work/a3m/$f.a3m -o work/hhm/$f.hhm -seq 2
 done
 ```
 
