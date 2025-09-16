@@ -32,7 +32,7 @@ python scripts/run_nwalign_on_dataset.py \
 
 See [repo](https://github.com/soedinglab/hh-suite).
 
-### Array
+### Way 1: Array
 
 ```bash
 export FASTA_DIR=work/fasta
@@ -51,9 +51,11 @@ python scripts/make_filelist_from_hf.py \
 sbatch scripts/slurm_hhblits_hhmake_array.sh
 ```
 
-### MPI
+### Way 2: MPI
 
 ```bash
+export HHDB=/path/to/hhsuite/db/uniclust/UniRef30_2023_02
+
 python scripts/make_ffindex_from_hf.py \
   --dataset DeepFoldProtein/malidup-dataset \
   --name all --split test \
@@ -62,12 +64,20 @@ python scripts/make_ffindex_from_hf.py \
 sbatch scripts/slurm_hhblits_mpi_ffindex.sh
 ```
 
-### Final
+```bash
+ffindex_unpack work/a3m_mpi.ffindex work/a3m_mpi.ffdata work/a3m
+
+for f in $(cat work/queries.name); do
+  hhmake -i work/a3m/$f.a3m -o work/hhm/$f.a3m -seq 2
+done
+```
+
+### Finalize
 
 ```bash
 # Local HMM-HMM (default)
 python scripts/run_hhalign_on_dataset.py \
-  --hf_dataset DeepFoldProtein/SABmark --name twi --split test \
+  --hf_dataset DeepFoldProtein/SABmark-dataset --name twi --split test \
   --hhm_dir work/hhm \
   --mode local \
   --output out/hhalign_local.jsonl
