@@ -139,7 +139,7 @@ def main():
             for rec in pool.imap_unordered(_worker, ((ex, args_dict) for ex in it), chunksize=4):
                 fout.write(json.dumps(rec) + "\n")
 
-    print(f"[ok] wrote predictions → {out_path}")
+    print(f"[ok] wrote predictions -> {out_path}")
 
 
 if __name__ == "__main__":

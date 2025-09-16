@@ -47,15 +47,15 @@ BASENAME="$(basename "$IN" .fasta)"
 A3M="$A3M_DIR/$BASENAME.a3m"
 HHM="$HHM_DIR/$BASENAME.hhm"
 
-echo "[info] ($SLURM_ARRAY_TASK_ID) input=$IN → $A3M | $HHM"
+echo "[info] ($SLURM_ARRAY_TASK_ID) input=$IN -> $A3M | $HHM"
 
-# 1) hhblits → A3M
+# 1) hhblits -> A3M
 if [[ ! -s "$A3M" ]]; then
   hhblits -i "$IN" -d "$HHDB" -oa3m "$A3M" \
           -e "$EVALUE" -cov 0.5 -qid 0 -n "$ROUNDS" -cpu "$NCPU" -maxseq "$MAXSEQ"
 fi
 
-# 2) hhmake → HHM
+# 2) hhmake -> HHM
 if [[ ! -s "$HHM" ]]; then
   hhmake -i "$A3M" -o "$HHM" -cpu "$NCPU"
 fi
