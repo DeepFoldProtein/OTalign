@@ -50,12 +50,10 @@ def main():
         dtype=args.dtype,
         policy=policy,
         tokenizer_pretok=tokenizer_pretok,
-        max_tokens_per_batch=0,
-        chunk_len=256,
         shard_size=args.shard_size,
         extra={},
     )
-    writer = NPZCacheWriter("cache_root", cfg)
+    writer = NPZCacheWriter(args.output_root, cfg)
 
     ds = load_dataset(args.dataset, name=args.name, split=args.split)
     seqs = []
