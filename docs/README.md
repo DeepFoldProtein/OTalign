@@ -34,7 +34,7 @@ See [repo](https://github.com/soedinglab/hh-suite).
 
 ```bash
 export FASTA_DIR=work/fasta
-export FILELIST=fasta.list
+export FILELIST=work/fasta.list
 export A3M_DIR=work/a3m
 export HHM_DIR=work/hhm
 export HHDB=/path/to/hhsuite/db/uniclust30_2018_08/uniclust30_2018_08
