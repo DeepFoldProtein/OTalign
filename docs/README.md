@@ -46,7 +46,7 @@ python scripts/make_filelist_from_hf.py \
   --out_dir $FASTA_DIR \
   --filelist $FILELIST
 
-sbatch slurm_hhblits_hhmake_array.sh
+sbatch scripts/slurm_hhblits_hhmake_array.sh
 ```
 
 ```bash

@@ -13,7 +13,7 @@
 set -euo pipefail
 
 # ---- user config ----
-FASTA_DIR="${FASTA_DIR:-data/fasta}"          # input single-sequence FASTA files (*.fasta)
+FASTA_DIR="${FASTA_DIR:-work/fasta}"          # input single-sequence FASTA files (*.fasta)
 A3M_DIR="${A3M_DIR:-work/a3m}"
 HHM_DIR="${HHM_DIR:-work/hhm}"
 FILELIST="${FILELIST:-work/fasta.list}"       # list of absolute paths to fasta files
