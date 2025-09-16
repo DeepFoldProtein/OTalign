@@ -225,12 +225,8 @@ def convert_malisam(
 
 def main():
     ap = argparse.ArgumentParser(description="Convert MALISAM to JSONL (strict 7-char SCOP IDs).")
-    ap.add_argument(
-        "--root", type=str, required=True, help="Root folder containing MALISAM pair directories (e.g., data/MALISAM)."
-    )
-    ap.add_argument(
-        "--output", type=str, required=True, help="Output JSONL path (e.g., datasets/malisam/data/all.jsonl)."
-    )
+    ap.add_argument("--root", type=str, required=True, help="Root folder containing MALISAM pair directories (e.g., data/MALISAM).")
+    ap.add_argument("--output", type=str, required=True, help="Output JSONL path (e.g., datasets/malisam/data/all.jsonl).")
     ap.add_argument(
         "--ali_glob",
         type=str,

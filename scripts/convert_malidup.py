@@ -265,9 +265,7 @@ def main():
         help="Root folder containing MALIDUP subfolders with *.manual.ali files (e.g., data/MALIDUP).",
     )
     ap.add_argument("--dup_txt", type=str, required=True, help="Path to dup.txt (tab-separated metadata).")
-    ap.add_argument(
-        "--output", type=str, required=True, help="Output JSONL path (e.g., datasets/malidup/data/all.jsonl)."
-    )
+    ap.add_argument("--output", type=str, required=True, help="Output JSONL path (e.g., datasets/malidup/data/all.jsonl).")
     ap.add_argument(
         "--ali_glob",
         type=str,

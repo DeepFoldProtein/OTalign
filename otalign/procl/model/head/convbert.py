@@ -69,9 +69,7 @@ class BaseModule(nn.Module):
             hidden_dropout_prob=dropout,
         )
 
-        self.transformer_encoder = nn.ModuleList(
-            [c_bert.ConvBertLayer(encoder_layers_Config) for _ in range(num_layers)]
-        )
+        self.transformer_encoder = nn.ModuleList([c_bert.ConvBertLayer(encoder_layers_Config) for _ in range(num_layers)])
 
         if pooling is not None:
             if pooling in {"avg", "mean"}:

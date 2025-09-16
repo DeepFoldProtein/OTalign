@@ -228,9 +228,7 @@ def convert_group(group_dir: pathlib.Path, subset_label: str, out_handle) -> int
 def main():
     ap = argparse.ArgumentParser(description="Convert SABmark to JSONL (HF-ready).")
     ap.add_argument("--root", type=str, required=True, help="Root containing SABmark subsets (e.g., data/SABmark).")
-    ap.add_argument(
-        "--output_dir", type=str, required=True, help="Directory to write JSONL files (one per subset plus all.jsonl)."
-    )
+    ap.add_argument("--output_dir", type=str, required=True, help="Directory to write JSONL files (one per subset plus all.jsonl).")
     ap.add_argument(
         "--subsets",
         type=str,
