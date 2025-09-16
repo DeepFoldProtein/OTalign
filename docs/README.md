@@ -15,7 +15,7 @@ python scripts/build_cache.py \
 See [Zhang Lab](https://zhanggroup.org/NW-align/).
 
 ```bash
-# HF SABmark (twilight) → NWalign predictions
+# HF SABmark (twilight) -> NWalign predictions
 python scripts/run_nwalign_on_dataset.py \
   --hf_dataset DeepFoldProtein/SABmark --name twi --split test \
   --nwalign_bin NWalign --glocal 0 \
