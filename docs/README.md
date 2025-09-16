@@ -12,6 +12,8 @@ python scripts/build_cache.py \
 
 ## NWalign
 
+See [Zhang Lab](https://zhanggroup.org/NW-align/).
+
 ```bash
 # HF SABmark (twilight) → NWalign predictions
 python scripts/run_nwalign_on_dataset.py \
@@ -26,7 +28,9 @@ python scripts/run_nwalign_on_dataset.py \
   --output out/nwalign_twi.jsonl
 ```
 
-## HHblits
+## HH-suite
+
+See [repo](https://github.com/soedinglab/hh-suite).
 
 ```bash
 export FASTA_DIR=data/fasta
