@@ -32,6 +32,8 @@ python scripts/run_nwalign_on_dataset.py \
 
 See [repo](https://github.com/soedinglab/hh-suite).
 
+### Array
+
 ```bash
 export FASTA_DIR=work/fasta
 export FILELIST=work/fasta.list
@@ -48,6 +50,19 @@ python scripts/make_filelist_from_hf.py \
 
 sbatch scripts/slurm_hhblits_hhmake_array.sh
 ```
+
+### MPI
+
+```bash
+python scripts/make_ffindex_from_hf.py \
+  --dataset DeepFoldProtein/malidup-dataset \
+  --name all --split test \
+  --out_prefix work/queries
+
+sbatch scripts/slurm_hhblits_mpi_ffindex.sh
+```
+
+### Final
 
 ```bash
 # Local HMM-HMM (default)
