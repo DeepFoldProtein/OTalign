@@ -25,7 +25,7 @@ echo "[info] python: $(which python)"; python --version || true
 
 # --- user config ---
 FF="${FF:-work/queries}"
-OUT_DIR="${OUT_DIR:-work/a3m_mpi}"
+OUT_DIR="${OUT_DIR:-work/a3m}"
 HHDB="${HHDB:-/shared/db/uniclust30_2018_08/uniclust30_2018_08}"
 CPU_PER_TASK="${SLURM_CPUS_PER_TASK:-4}"
 EVALUE="${EVALUE:-1e-3}"
