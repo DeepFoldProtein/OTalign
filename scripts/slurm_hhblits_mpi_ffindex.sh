@@ -10,13 +10,21 @@
 
 set -euo pipefail
 
+# MPI Environment Setup
+export I_MPI_FABRICS=shm:ofi
+export FI_PROVIDER=tcp
+export SLURM_MPI_TYPE=pmi2
+module purge > /dev/null
+module load gnu12 > /dev/null
+module load intel/mpi /dev/null
+
+# Python Setup
 source .venv/bin/activate
 # pyenv activate plm-bench || true
 echo "[info] python: $(which python)"; python --version || true
 
 # --- user config ---
-FFIDX="${FFIDX:-work/queries.ffindex}"
-FFDAT="${FFDAT:-work/queries.ffdata}"
+FF="${FF:-work/queries}"
 OUT_DIR="${OUT_DIR:-work/a3m_mpi}"
 HHDB_SHARED="${HHDB_SHARED:-/shared/db/uniclust30_2018_08/uniclust30_2018_08}"
 CPU_PER_TASK="${SLURM_CPUS_PER_TASK:-4}"
@@ -42,7 +50,7 @@ mkdir -p "$OUT_DIR" logs
 OA3M_DIR_OPT=("-oa3m" "$OUT_DIR")
 CMD_BASE=(
   "$HHBLITS_MPI"
-  -i "$FFIDX"
+  -i "$FF"
   -d "$HHDB_SHARED"   # adjust prefix; same as hhblits -d <prefix>
   "${OA3M_DIR_OPT[@]}"
   -e "$EVALUE" -cov "$COV" -n "$ROUNDS" -cpu "$CPU_PER_TASK" -maxseq "$MAXSEQ"
