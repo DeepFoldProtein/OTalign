@@ -50,21 +50,21 @@ def main():
                     continue
                 seen.add(sid)
                 p = tmp / f"{sid}.fasta"
-                with p.open("w", encoding="utf-8") as f:
-                    f.write(f">{sid}\n{wrap(seq, width=args.wrap)}\n")
+                p.write_text(f">{sid}\n{wrap(seq, width=args.wrap)}\n", encoding="utf-8")
                 files.append(p)
 
         # Write names (optional, useful later)
-        with names_file.open("w", encoding="utf-8") as f:
-            for s in files:
-                f.write(p.stem + "\n")
+        names_file.write_text("\n".join(p.stem for p in files))
 
         # Build ffindex
         # Many ffindex builds accept: ffindex_build -s OUT.ffdata OUT.ffindex list_of_files...
-        cmd = [args.ffindex_build, "-s", str(ffdata.absolute()), str(ffindex.absolute())] + [p.parts[-1] for p in files]
-        subprocess.check_call(cmd, cwd=tmp)
-        print(f"[ok] wrote {ffdata} and {ffindex}")
-        print(f"[ok] wrote {names_file} ({len(files)} entries)")
+        cmd = [args.ffindex_build, "-s", str(ffdata), str(ffindex), str(tmp)]
+        try:
+            subprocess.check_call(cmd)
+            print(f"[ok] wrote {ffdata} and {ffindex}")
+            print(f"[ok] wrote {names_file} ({len(files)} entries)")
+        except subprocess.CalledProcessError as e:
+            print(e)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
