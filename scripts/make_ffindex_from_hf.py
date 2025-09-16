@@ -43,7 +43,7 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix="ffq_"))
     try:
         seen: Set[str] = set()
-        files: List[str] = []
+        files: List[Path] = []
         for ex in ds:
             for sid, seq in ((ex["seq1_id"], ex["seq1"]), (ex["seq2_id"], ex["seq2"])):
                 if sid in seen:
@@ -52,16 +52,16 @@ def main():
                 p = tmp / f"{sid}.fasta"
                 with p.open("w", encoding="utf-8") as f:
                     f.write(f">{sid}\n{wrap(seq, width=args.wrap)}\n")
-                files.append(p.stem)
+                files.append(p)
 
         # Write names (optional, useful later)
         with names_file.open("w", encoding="utf-8") as f:
             for s in files:
-                f.write(s + "\n")
+                f.write(p.stem + "\n")
 
         # Build ffindex
         # Many ffindex builds accept: ffindex_build -s OUT.ffdata OUT.ffindex list_of_files...
-        cmd = [args.ffindex_build, "-s", str(ffdata.absolute()), str(ffindex.absolute())] + files
+        cmd = [args.ffindex_build, "-s", str(ffdata.absolute()), str(ffindex.absolute())] + [p.parts[-1] for p in files]
         subprocess.check_call(cmd, cwd=tmp)
         print(f"[ok] wrote {ffdata} and {ffindex}")
         print(f"[ok] wrote {names_file} ({len(files)} entries)")
