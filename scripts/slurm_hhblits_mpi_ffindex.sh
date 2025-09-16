@@ -26,7 +26,7 @@ echo "[info] python: $(which python)"; python --version || true
 # --- user config ---
 FF="${FF:-work/queries}"
 OUT_DIR="${OUT_DIR:-work/a3m_mpi}"
-HHDM="${HHDM:-/shared/db/uniclust30_2018_08/uniclust30_2018_08}"
+HHDB="${HHDB:-/shared/db/uniclust30_2018_08/uniclust30_2018_08}"
 CPU_PER_TASK="${SLURM_CPUS_PER_TASK:-4}"
 EVALUE="${EVALUE:-1e-3}"
 ROUNDS="${ROUNDS:-2}"
@@ -43,7 +43,7 @@ mkdir -p "$OUT_DIR" logs
 #fi
 #mkdir -p "$NODE_DB"
 #echo "[info] staging DB to $NODE_DB ..."
-#rsync -a --delete "${HHDM%/}/" "$NODE_DB/"
+#rsync -a --delete "${HHDB%/}/" "$NODE_DB/"
 
 # Each rank writes outputs into OUT_DIR; many builds of hhblits-mpi can produce per-query files under -oa3m-dir
 # If your build does not support that, see plan B below.
@@ -51,7 +51,7 @@ OA3M_DIR_OPT=("-oa3m" "$OUT_DIR")
 CMD_BASE=(
   "$HHBLITS_MPI"
   -i "$FF"
-  -d "$HHDM"   # adjust prefix; same as hhblits -d <prefix>
+  -d "$HHDB"   # adjust prefix; same as hhblits -d <prefix>
   "${OA3M_DIR_OPT[@]}"
   -e "$EVALUE" -cov "$COV" -n "$ROUNDS" -cpu "$CPU_PER_TASK" -maxseq "$MAXSEQ"
 )
