@@ -75,12 +75,12 @@ def main():
     # batch over sequences
     pbar = tqdm(total=len(pairs))
     for i in range(0, len(pairs), args.batch_size):
-        batch = pairs[i : i + 8]
+        batch = pairs[i : i + args.batch_size]
         seqs = [s for _, s in batch]
-        out = adaptor.encode(seqs, batch_size=len(batch), device=device, fp16=True)
+        out = adaptor.encode(seqs, batch_size=len(batch), device=device, fp16=args.dtype == "fp16")
         ids = [i for i, _ in batch]
         writer.append_batch(ids, out.residue_embeddings, out.attention_mask, out.per_sequence_lengths)
-        pbar.update(args.batch_size)
+        pbar.update(len(batch))
     pbar.close()
 
     writer.close()
