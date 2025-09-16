@@ -33,10 +33,19 @@ python scripts/run_nwalign_on_dataset.py \
 See [repo](https://github.com/soedinglab/hh-suite).
 
 ```bash
-export FASTA_DIR=data/fasta
+export FASTA_DIR=work/fasta
+export FILELIST=fasta.list
 export A3M_DIR=work/a3m
 export HHM_DIR=work/hhm
 export HHDB=/path/to/hhsuite/db/uniclust30_2018_08/uniclust30_2018_08
+
+python scripts/make_filelist_from_hf.py \
+  --dataset DeepFoldProtein/SABmark-dataset \
+  --name twi \
+  --split test \
+  --out_dir $FASTA_DIR \
+  --filelist $FILELIST
+
 sbatch slurm_hhblits_hhmake_array.sh
 ```
 
