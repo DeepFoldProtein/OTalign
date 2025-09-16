@@ -65,7 +65,7 @@ sbatch scripts/slurm_hhblits_mpi_ffindex.sh
 ```
 
 ```bash
-ffindex_unpack work/a3m_mpi.ffdata work/a3m_mpi.ffindex work/a3m
+ffindex_unpack work/a3m.ffdata work/a3m.ffindex work/a3m
 
 find work/a3m -type f -name "*.fasta" -print0 | while IFS= read -r -d '' file; do 
   mv -- "$file" "$(echo "$file" | sed 's/\.fasta$/.a3m/')"
