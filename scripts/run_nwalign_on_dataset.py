@@ -4,12 +4,7 @@ import multiprocessing as mp
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-
-try:
-    from datasets import load_dataset
-except Exception:
-    load_dataset = None
-
+from datasets import load_dataset
 from otalign.baselines.nwalign import run_nwalign_for_pair
 
 

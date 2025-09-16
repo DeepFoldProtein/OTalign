@@ -3,11 +3,8 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-
-def write_pair_fasta(path: Path, id1: str, s1: str, id2: str, s2: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        f.write(f">{id1}\n{s1}\n>{id2}\n{s2}\n")
+from otalign.io.alignment_parser import gapped_to_pairs
+from otalign.io.fasta_utils import write_fasta
 
 
 def parse_nwalign_stdout(text: str) -> Tuple[str, str]:
@@ -66,28 +63,6 @@ def parse_nwalign_stdout(text: str) -> Tuple[str, str]:
     return seq1_aln, seq2_aln
 
 
-def gapped_to_pairs(seq1_aligned: str, seq2_aligned: str) -> List[Tuple[int, int]]:
-    """
-    Convert two gapped aligned sequences to 0-based residue index pairs.
-    """
-    assert len(seq1_aligned) == len(seq2_aligned)
-    i = j = 0
-    pairs: List[Tuple[int, int]] = []
-    for a, b in zip(seq1_aligned, seq2_aligned):
-        if a != "-" and b != "-":
-            pairs.append((i, j))
-            i += 1
-            j += 1
-        elif a != "-" and b == "-":
-            i += 1
-        elif a == "-" and b != "-":
-            j += 1
-        else:
-            # both gaps: move on
-            pass
-    return pairs
-
-
 def run_nwalign_for_pair(
     seq1_id: str,
     seq1: str,
@@ -118,8 +93,8 @@ def run_nwalign_for_pair(
 
     f1 = tmpdir / "q.fasta"
     f2 = tmpdir / "t.fasta"
-    write_pair_fasta(f1, seq1_id, seq1, seq1_id, seq1)  # NWalign expects one seq per file; keep id simple
-    write_pair_fasta(f2, seq2_id, seq2, seq2_id, seq2)
+    write_fasta(f1, seq1_id, seq1)  # NWalign expects one seq per file; keep id simple
+    write_fasta(f2, seq2_id, seq2)
 
     cmd = [
         nwalign_bin,
