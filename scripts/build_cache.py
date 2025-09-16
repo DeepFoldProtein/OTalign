@@ -56,22 +56,30 @@ def main():
     writer = NPZCacheWriter(args.output_root, cfg)
 
     ds = load_dataset(args.dataset, name=args.name, split=args.split)
-    seqs = []
-    ids = []
+
+    id_set = set()
+    pair_set = set()
     for ex in ds:
-        seqs += [ex["seq1"], ex["seq2"]]
-        ids += [ex["seq1_id"], ex["seq2_id"]]
+        id_set.add(ex["seq1_id"])
+        pair_set.add((ex["seq1_id"], ex["seq1"]))
+        id_set.add(ex["seq2_id"])
+        pair_set.add((ex["seq2_id"], ex["seq2"]))
+
+    if len(id_set) != len(pair_set):
+        raise ValueError("More than two sequences are matched to a single id.")
 
     device = torch.device(args.device)
     adaptor.model.to(device)
 
+    pairs = list(pair_set)
     # batch over sequences
-    pbar = tqdm(total=len(seqs))
-    for i in range(0, len(seqs), args.batch_size):
-        batch = seqs[i : i + 8]
-        out = adaptor.encode(batch, batch_size=len(batch), device=device, fp16=True)
-        writer.append_batch(ids[i : i + 8], out.residue_embeddings, out.attention_mask, out.per_sequence_lengths)
-
+    pbar = tqdm(total=len(pairs))
+    for i in range(0, len(pairs), args.batch_size):
+        batch = pairs[i : i + 8]
+        seqs = [s for _, s in batch]
+        out = adaptor.encode(seqs, batch_size=len(batch), device=device, fp16=True)
+        ids = [i for i, _ in batch]
+        writer.append_batch(ids, out.residue_embeddings, out.attention_mask, out.per_sequence_lengths)
         pbar.update(args.batch_size)
     pbar.close()
 
