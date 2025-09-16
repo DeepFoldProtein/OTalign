@@ -24,7 +24,7 @@ EVALUE="${EVALUE:-1e-3}"
 ROUNDS="${ROUNDS:-2}"
 COV="${COV:-0.0}"
 MAXSEQ="${MAXSEQ:-65535}"
-HHBLITS_MPI="${HHBLITS_MPI:-hhblits-mpi}"
+HHBLITS_MPI="${HHBLITS_MPI:-hhblits_mpi}"
 
 mkdir -p "$OUT_DIR" logs
 
