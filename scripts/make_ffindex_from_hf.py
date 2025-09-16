@@ -61,7 +61,7 @@ def main():
 
         # Build ffindex
         # Many ffindex builds accept: ffindex_build -s OUT.ffdata OUT.ffindex list_of_files...
-        cmd = [args.ffindex_build, "-s", str(ffdata), str(ffindex)] + files
+        cmd = [args.ffindex_build, "-s", str(ffdata.absolute()), str(ffindex.absolute())] + files
         subprocess.check_call(cmd, cwd=tmp)
         print(f"[ok] wrote {ffdata} and {ffindex}")
         print(f"[ok] wrote {names_file} ({len(files)} entries)")
