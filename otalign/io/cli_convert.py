@@ -138,11 +138,11 @@ def main():
     if args.dump_aligned_fasta:
         write_fasta_pair(args.dump_aligned_fasta, seq1_id, a1, seq2_id, a2, width=args.wrap_width)
 
-    print(f"[ok] wrote JSONL → {args.output_jsonl}")
+    print(f"[ok] wrote JSONL -> {args.output_jsonl}")
     if args.dump_ungapped_fasta:
-        print(f"[ok] wrote ungapped FASTA → {args.dump_ungapped_fasta}")
+        print(f"[ok] wrote ungapped FASTA -> {args.dump_ungapped_fasta}")
     if args.dump_aligned_fasta:
-        print(f"[ok] wrote aligned FASTA → {args.dump_aligned_fasta}")
+        print(f"[ok] wrote aligned FASTA -> {args.dump_aligned_fasta}")
 
 
 if __name__ == "__main__":
