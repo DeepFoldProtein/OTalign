@@ -16,7 +16,7 @@ export FI_PROVIDER=tcp
 export SLURM_MPI_TYPE=pmi2
 module purge > /dev/null
 module load gnu12 > /dev/null
-module load intel/mpi /dev/null
+module load intel/mpi > /dev/null
 
 # Python Setup
 source .venv/bin/activate
