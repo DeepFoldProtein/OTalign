@@ -25,15 +25,10 @@ def gapped_to_pairs(aln1: str, aln2: str) -> List[Pair]:
         b_is = b != "-" and b != "."
         if a_is and b_is:
             pairs.append((i, j))
+        if a_is:
             i += 1
+        if b_is:
             j += 1
-        elif a_is and not b_is:
-            i += 1
-        elif not a_is and b_is:
-            j += 1
-        else:
-            # gap-gap
-            pass
     return pairs
 
 

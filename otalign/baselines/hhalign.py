@@ -125,6 +125,14 @@ def parse_hhr(hhr_string: str) -> Sequence[dict]:
     return hits
 
 
+def _first_valid_value(numbers: list[int]) -> int:
+    # Zero-based
+    for value in numbers:
+        if value != -1:
+            return value
+    return -1
+
+
 def run_hhalign_hhm_pair(
     q_hhm: str | Path,
     t_hhm: str | Path,
@@ -183,9 +191,9 @@ def run_hhalign_hhm_pair(
                 a1 = hits[0]["query"]
                 a2 = hits[0]["hit_sequence"]
                 if len(hits[0]["indices_query"]) > 0:
-                    a1 = "-" * (hits[0]["indices_query"][0] - 1) + a1
+                    a1 = "x" * _first_valid_value(hits[0]["indices_query"]) + a1
                 if len(hits[0]["indices_hit"]) > 0:
-                    a2 = "-" * (hits[0]["indices_hit"][0] - 1) + a2
+                    a2 = "x" * _first_valid_value(hits[0]["indices_hit"]) + a2
                 if (l1 := len(a1)) < (l2 := len(a2)):
                     a1 += "-" * (l2 - l1)
                 else:
