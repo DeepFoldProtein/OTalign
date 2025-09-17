@@ -20,12 +20,19 @@
 
 ## Results
 
+### F1
+
+| Method | MALIDUP ↑ | MALISAM ↑ |
+|---|---|---|
+| Needleman-Wunsch | **0.3492** | 0.0662 |
+| HHalign | 0.2712 | **0.0002** |
+
 ### Accuarcy (Recall)
 
 | Method | MALIDUP ↑ | MALISAM ↓ | SABmark (sup) ↑ | SABmark (twi) ↑ |
 |---|---|---|---|---|
 | Needleman-Wunsch | 0.3733 | 0.0749 | 0.3861 | 0.1496 |
-| HHalign | 0.4523 | 0.0093 | | |
+| HHalign | 0.2903 | **0.0002** | | |
 | OTalign (AnkhCL) | | | | |
 | OTalign (ESM-1b) | | | | |
 | OTalign (ESM-2) | | | | |
@@ -100,14 +107,14 @@ python scripts/run_hhalign_on_dataset.py \
   --hf_dataset <DATASET> --name all --split test \
   --hhm_dir work/hhm \
   --mode global \
-  --output out/hhalign_local.jsonl
+  --output out/hhalign_global.jsonl
 
 # Local HMM-HMM
 python scripts/run_hhalign_on_dataset.py \
   --jsonl data/pairs.jsonl \
   --hhm_dir work/hhm \
   --mode local \
-  --output out/hhalign_global.jsonl
+  --output out/hhalign_local.jsonl
 
 # Glocal attempt + custom flags (example)
 python scripts/run_hhalign_on_dataset.py \
