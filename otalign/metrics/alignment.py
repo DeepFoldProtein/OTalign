@@ -84,15 +84,18 @@ def alignment_scores(pred_pairs: Set[Pair], ref_pairs: Set[Pair]) -> AlignmentSc
     fp = len(pred_pairs - ref_pairs)
     fn = len(ref_pairs - pred_pairs)
 
-    if len(pred_pairs) == 0:
-        precision = 1.0 if len(ref_pairs) == 0 else 0.0
-    else:
-        precision = tp / len(pred_pairs)
+    pred_size = len(pred_pairs)
+    ref_size = len(ref_pairs)
 
-    if len(ref_pairs) == 0:
-        recall = 1.0 if len(pred_pairs) == 0 else 0.0
+    if pred_size == 0:
+        precision = 1.0 if ref_size == 0 else 0.0
     else:
-        recall = tp / len(ref_pairs)
+        precision = tp / pred_size
+
+    if ref_size == 0:
+        recall = 1.0 if pred_size == 0 else 0.0
+    else:
+        recall = tp / ref_size
 
     if precision + recall == 0:
         f1 = 0.0
@@ -105,7 +108,7 @@ def alignment_scores(pred_pairs: Set[Pair], ref_pairs: Set[Pair]) -> AlignmentSc
     else:
         jaccard = tp / union
 
-    return AlignmentScores(precision=precision, recall=recall, f1=f1, jaccard=jaccard, tp=tp, fp=fp, fn=fn, pred_size=len(pred_pairs), ref_size=len(ref_pairs))
+    return AlignmentScores(precision=precision, recall=recall, f1=f1, jaccard=jaccard, tp=tp, fp=fp, fn=fn, pred_size=pred_size, ref_size=ref_size)
 
 
 ### High-level helpers
