@@ -46,6 +46,8 @@ python scripts/build_cache.py \
 
 ### Needleman-Wunsch
 
+A dynamic programming-based global aligner using substitution matrices. Included as a classic baseline for raw sequence alignment.
+
 See [Zhang Lab](https://zhanggroup.org/NW-align/).
 
 ```bash
@@ -63,6 +65,8 @@ python scripts/run_nwalign_on_dataset.py \
 ```
 
 ### HH-suite
+
+A state-of-the-art profile-profile aligner that leverages MSAs. Serves as a strong upper baseline using evolutionary information.
 
 See [repo](https://github.com/soedinglab/hh-suite).
 
