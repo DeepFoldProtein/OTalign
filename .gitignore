@@ -232,4 +232,7 @@ Temporary Items
 .ionide
 
 ### Experiments ###
-data/
+/data
+/out
+/datasets
+.cache/
