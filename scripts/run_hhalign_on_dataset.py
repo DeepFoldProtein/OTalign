@@ -1,12 +1,14 @@
 import argparse
 import json
 import multiprocessing as mp
+from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from datasets import load_dataset
 from otalign.baselines.hhalign import run_hhalign_hhm_pair
 from otalign.io.parser import gapped_to_pairs
+from otalign.metrics.alignment import alignment_scores
 
 
 def iter_hf(dataset: str, name: str, split: str):
@@ -21,18 +23,16 @@ def iter_hf(dataset: str, name: str, split: str):
 
 
 def metrics(pred: List[Tuple[int, int]], ref: Optional[List[List[int]]]) -> Dict[str, float]:
-    if not ref:
-        return {}
-    ref_set = {(int(i), int(j)) for i, j in ref}
-    pred_set = set(pred)
-    tp = len(ref_set & pred_set)
-    fp = len(pred_set - ref_set)
-    fn = len(ref_set - ref_set & pred_set)
-    prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
-    acc = rec
-    return {"precision": prec, "recall": rec, "f1": f1, "accuracy": acc}
+    ref_pairs = set()
+    if ref:
+        for x, y in ref:
+            ref_pairs.add((x, y))
+    pred_pairs = set()
+    if pred:
+        for x, y in pred:
+            pred_pairs.add((x, y))
+    metrics = alignment_scores(pred_pairs, ref_pairs)
+    return asdict(metrics)
 
 
 def _worker(task):
