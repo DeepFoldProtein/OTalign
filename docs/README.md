@@ -24,18 +24,18 @@
 
 | Method | MALIDUP ↑ | MALISAM ↑ |
 |---|---|---|
-| Needleman-Wunsch | **0.3492** | 0.0662 |
-| HHalign | 0.2712 | **0.0002** |
+| Needleman-Wunsch | 0.3492 | 0.0662 |
+| HHalign | **0.3825** | **0.0092** |
 
 ### Accuarcy (Recall)
 
 | Method | MALIDUP ↑ | MALISAM ↓ | SABmark (sup) ↑ | SABmark (twi) ↑ |
 |---|---|---|---|---|
 | Needleman-Wunsch | 0.3733 | 0.0749 | 0.3861 | 0.1496 |
-| HHalign | 0.2903 | **0.0002** | | |
+| HHalign          | 0.4111 | 0.0100 | 0.3507 | 0.1596 |
 | OTalign (AnkhCL) | | | | |
 | OTalign (ESM-1b) | | | | |
-| OTalign (ESM-2) | | | | |
+| OTalign (ESM-2)  | | | | |
 | OTalign (ProtT5) | | | | |
 
 ## Reproduction
@@ -91,9 +91,9 @@ sbatch scripts/slurm_hhblits_mpi_ffindex.sh
 ```bash
 ffindex_unpack work/a3m.ffdata work/a3m.ffindex work/a3m
 
-find work/a3m -type f -name "*.fasta" -print0 | while IFS= read -r -d '' file; do 
-  mv -- "$file" "$(echo "$file" | sed 's/\.fasta$/.a3m/')"
-done
+# find work/a3m -type f -name "*.fasta" -print0 | while IFS= read -r -d '' file; do 
+#   mv -- "$file" "$(echo "$file" | sed 's/\.fasta$/.a3m/')"
+# done
 
 mkdir -p work/hhm
 for f in $(cat work/queries.names); do

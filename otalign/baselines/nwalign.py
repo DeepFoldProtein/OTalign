@@ -59,7 +59,6 @@ def parse_nwalign_stdout(text: str) -> Tuple[str, str]:
     seq2_aln = "".join(b[2] for b in blocks)
     if len(seq1_aln) != len(seq2_aln):
         raise ValueError("Aligned strings have different lengths.")
-
     return seq1_aln, seq2_aln
 
 
@@ -70,6 +69,7 @@ def run_nwalign_for_pair(
     seq2: str,
     *,
     nwalign_bin: str = "NWalign",
+    out_dir: Optional[str | Path] = None,
     infmt1: int = 4,
     infmt2: int = 4,
     glocal: int = 0,
@@ -82,6 +82,7 @@ def run_nwalign_for_pair(
     - infmt 4: FASTA
     - glocal 0: global (Needleman-Wunsch); 1: local-global (glocal)
     """
+
     extra_args = extra_args or []
     close_tmp = False
     if tmpdir is None:
@@ -90,6 +91,9 @@ def run_nwalign_for_pair(
         close_tmp = True
     else:
         tmpdir.mkdir(parents=True, exist_ok=True)
+
+    out_dir = Path(out_dir) if out_dir is not None else tmpdir
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     f1 = tmpdir / "q.fasta"
     f2 = tmpdir / "t.fasta"
@@ -116,6 +120,8 @@ def run_nwalign_for_pair(
         if close_tmp:
             t.cleanup()  # type: ignore
 
+    out_path = out_dir / f"{seq1_id}-{seq2_id}.out"
+    out_path.write_text(out)
     seq1_aln, seq2_aln = parse_nwalign_stdout(out)
     pairs = gapped_to_pairs(seq1_aln, seq2_aln)
     return pairs, seq1_aln, seq2_aln

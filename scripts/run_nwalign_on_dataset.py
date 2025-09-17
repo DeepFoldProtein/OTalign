@@ -19,7 +19,7 @@ def load_pairs_from_jsonl(path: str | Path) -> List[Dict[str, Any]]:
 
 
 def iter_pairs_hf(dataset_name: str, name: str, split: str):
-    ds = load_dataset(dataset_name, name=name, split=split)  # type: ignore
+    ds = load_dataset(dataset_name, name=name, split=split)
     for ex_raw in ds:
         ex = cast(dict, ex_raw)
         yield {
@@ -62,6 +62,7 @@ def _worker(task):
             ex["seq2_id"],
             ex["seq2"],
             nwalign_bin=args_dict["nwalign_bin"],
+            out_dir=args_dict["out_dir"],
             infmt1=args_dict["infmt1"],
             infmt2=args_dict["infmt2"],
             glocal=args_dict["glocal"],
@@ -97,7 +98,7 @@ def main():
     ap.add_argument("--infmt2", type=int, default=4)
     ap.add_argument("--glocal", type=int, default=0, help="0=global, 1=glocal")
     ap.add_argument("--extra_args", nargs="*", default=[])
-
+    ap.add_argument("--out_dir", type=str, default=None)
     ap.add_argument("--output", type=str, required=True)
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
@@ -126,6 +127,7 @@ def main():
         "infmt2": args.infmt2,
         "glocal": args.glocal,
         "extra_args": args.extra_args,
+        "out_dir": args.out_dir,
     }
 
     out_path = Path(args.output)
