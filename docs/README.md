@@ -9,9 +9,14 @@
 | **MALIDUP** | **True homologs**, low identity | domain duplication, same fold        | High recall         |
 | **MALISAM** | **Non-homologous** (analogs)    | structural analogy, different origin | Low false alignment |
 
+* [**MALIDUP**](http://prodata.swmed.edu/malidup/)
+* [**MALISAM**](http://prodata.swmed.edu/malisam/)
+
 ### SABmark
 
 **SABmark** is a benchmark dataset designed to evaluate sequence alignment methods on **remote homologs**. It contains protein pairs grouped by **SCOP superfamilies**, with structural alignments as ground truth. The dataset includes challenging **low sequence identity** cases and is commonly used to assess alignment **recall and accuracy**.
+
+* [**SABmark**](https://doi.org/10.1093/bioinformatics/bth493)
 
 ## Results
 
