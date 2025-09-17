@@ -1,63 +1,71 @@
-# Benchmark Manual
+# Benchmark
 
-## Build Embedding Cache
+## Databases
+
+### MALIDUP vs MALISAM
+
+| Dataset     | Purpose                         | Examples                             | Which is better?    |
+| ----------- | ------------------------------- | ------------------------------------ | ------------------- |
+| **MALIDUP** | **True homologs**, low identity | domain duplication, same fold        | High recall         |
+| **MALISAM** | **Non-homologous** (analogs)    | structural analogy, different origin | Low false alignment |
+
+### SABmark
+
+**SABmark** is a benchmark dataset designed to evaluate sequence alignment methods on **remote homologs**. It contains protein pairs grouped by **SCOP superfamilies**, with structural alignments as ground truth. The dataset includes challenging **low sequence identity** cases and is commonly used to assess alignment **recall and accuracy**.
+
+## Results
+
+### Accuarcy (Recall)
+
+| Method | MALIDUP ↑ | MALISAM ↓ | SABmark (sup) ↑ | SABmark (twi) ↑ |
+|---|---|---|---|---|
+| Needleman-Wunsch | 0.3733 | 0.0749 | 0.3861 | 0.1496 |
+| HHalign | 0.4523 | 0.0093 | | |
+| OTalign (AnkhCL) | | | | |
+| OTalign (ESM-1b) | | | | |
+| OTalign (ESM-2) | | | | |
+| OTalign (ProtT5) | | | | |
+
+## Reproduction
+
+### Build Embedding Cache
 
 ```bash
 python scripts/build_cache.py \
-  --dataset DeepFoldProtein/SABmark-dataset \
-  --name twi --split test \
-  --model AnkhCL \
+  --dataset DeepFoldProtein/{SABmark-dataset,malisam-dataset,malidup-dataset} \
+  --name {all,sup,twi} --split test \
+  --model {AnkhCL,ESM1b,ESM2,ProtT5} \
   --output_root .cache
+  --dtype fp32 --batch_size 4 --device cuda:0 --shard_size 100
 ```
 
-## NWalign
+### Needleman-Wunsch
 
 See [Zhang Lab](https://zhanggroup.org/NW-align/).
 
 ```bash
 # HF SABmark (twilight) -> NWalign predictions
 python scripts/run_nwalign_on_dataset.py \
-  --hf_dataset DeepFoldProtein/SABmark --name twi --split test \
+  --hf_dataset DeepFoldProtein/SABmark-dataset --name twi --split test \
   --nwalign_bin NWalign --glocal 0 \
-  --output out/nwalign_sabmark_twi.jsonl
+  --output out/nwalign_sabmark-twi.jsonl
 
 # JSONL pairs you curated yourself
 python scripts/run_nwalign_on_dataset.py \
-  --jsonl data/SABmark/twi.jsonl \
-  --nwalign_bin /path/to/NWalign \
-  --output out/nwalign_twi.jsonl
+  --jsonl data/pairs.jsonl \
+  --nwalign_bin NWalign \
+  --output out/nwalign_pairs.jsonl
 ```
 
-## HH-suite
+### HH-suite
 
 See [repo](https://github.com/soedinglab/hh-suite).
-
-### Way 1: Array
-
-```bash
-export FASTA_DIR=work/fasta
-export FILELIST=work/fasta.list
-export A3M_DIR=work/a3m
-export HHM_DIR=work/hhm
-export HHDB=/path/to/hhsuite/db/uniclust30_2018_08/uniclust30_2018_08
-
-python scripts/make_filelist_from_hf.py \
-  --dataset DeepFoldProtein/SABmark-dataset \
-  --name twi \
-  --split test \
-  --out_dir $FASTA_DIR \
-  --filelist $FILELIST
-
-sbatch scripts/slurm_hhblits_hhmake_array.sh
-```
-
-### Way 2: MPI
 
 ```bash
 export HHDB=/path/to/hhsuite/db/uniclust/UniRef30_2023_02
 
 python scripts/make_ffindex_from_hf.py \
-  --dataset DeepFoldProtein/malidup-dataset \
+  --dataset <DATASET> \
   --name all --split test \
   --out_prefix work/queries
 
@@ -77,26 +85,24 @@ for f in $(cat work/queries.names); do
 done
 ```
 
-### Finalize
-
 ```bash
-# Local HMM-HMM (default)
+# Global HMM-HMM
 python scripts/run_hhalign_on_dataset.py \
-  --hf_dataset DeepFoldProtein/SABmark-dataset --name twi --split test \
-  --hhm_dir work/hhm \
-  --mode local \
-  --output out/hhalign_local.jsonl
-
-# Global-ish attempt
-python scripts/run_hhalign_on_dataset.py \
-  --jsonl data/SABmark/twi.jsonl \
+  --hf_dataset <DATASET> --name all --split test \
   --hhm_dir work/hhm \
   --mode global \
+  --output out/hhalign_local.jsonl
+
+# Local HMM-HMM
+python scripts/run_hhalign_on_dataset.py \
+  --jsonl data/pairs.jsonl \
+  --hhm_dir work/hhm \
+  --mode local \
   --output out/hhalign_global.jsonl
 
 # Glocal attempt + custom flags (example)
 python scripts/run_hhalign_on_dataset.py \
-  --jsonl data/SABmark/twi.jsonl \
+  --jsonl data/pairs.jsonl \
   --hhm_dir work/hhm \
   --mode glocal \
   --extra_args "-Z" "1" "-B" "1" \
