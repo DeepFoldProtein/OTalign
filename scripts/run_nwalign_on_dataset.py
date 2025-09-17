@@ -3,7 +3,7 @@ import json
 import multiprocessing as mp
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from datasets import load_dataset
 from otalign.baselines.nwalign import run_nwalign_for_pair
@@ -20,7 +20,8 @@ def load_pairs_from_jsonl(path: str | Path) -> List[Dict[str, Any]]:
 
 def iter_pairs_hf(dataset_name: str, name: str, split: str):
     ds = load_dataset(dataset_name, name=name, split=split)  # type: ignore
-    for ex in ds:
+    for ex_raw in ds:
+        ex = cast(dict, ex_raw)
         yield {
             "pair_id": ex.get("pair_id"),
             "seq1_id": ex["seq1_id"],

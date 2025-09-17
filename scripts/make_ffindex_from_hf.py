@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, cast
 
 from datasets import load_dataset
 
@@ -44,7 +44,8 @@ def main():
     try:
         seen: Set[str] = set()
         files: List[Path] = []
-        for ex in ds:
+        for ex_raw in ds:
+            ex = cast(dict, ex_raw)
             for sid, seq in ((ex["seq1_id"], ex["seq1"]), (ex["seq2_id"], ex["seq2"])):
                 if sid in seen:
                     continue

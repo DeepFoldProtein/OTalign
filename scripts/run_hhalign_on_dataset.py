@@ -3,7 +3,7 @@ import json
 import multiprocessing as mp
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 from datasets import load_dataset
 from otalign.baselines.hhalign import run_hhalign_hhm_pair
@@ -13,7 +13,8 @@ from otalign.metrics.alignment import alignment_scores
 
 def iter_hf(dataset: str, name: str, split: str):
     ds = load_dataset(dataset, name=name, split=split)  # type: ignore
-    for ex in ds:
+    for ex_raw in ds:
+        ex = cast(dict, ex_raw)
         yield {
             "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
             "seq1_id": ex["seq1_id"],

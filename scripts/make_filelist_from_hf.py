@@ -12,7 +12,7 @@ If your dataset uses different field names, use --seq-fields to map them.
 import argparse
 import re
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, cast
 
 from datasets import load_dataset
 from otalign.io.fasta_utils import write_fasta
@@ -63,7 +63,8 @@ def main():
         # The above comprehension is awkward for clarity; just handle explicitly instead:
         paths.clear()
         seen.clear()
-        for ex in ds:
+        for ex_raw in ds:
+            ex = cast(dict, ex_raw)
             for sid, s in iter_pairs_custom(ex, f_seq1_id, f_seq1, f_seq2_id, f_seq2):
                 if sid in seen:
                     continue
@@ -72,7 +73,8 @@ def main():
                 write_fasta(p, sid, s, width=args.wrap)
                 paths.append(p)
     else:
-        for ex in ds:
+        for ex_raw in ds:
+            ex = cast(dict, ex_raw)
             for sid, s in iter_pairs_default(ex):
                 if sid in seen:
                     continue
