@@ -182,8 +182,10 @@ def run_hhalign_hhm_pair(
                 hits = parse_hhr(hhr_string)
                 a1 = hits[0]["query"]
                 a2 = hits[0]["hit_sequence"]
-                a1 = "-" * (hits[0]["indices_query"][0] - 1) + a1
-                a2 = "-" * (hits[0]["indices_hit"][0] - 1) + a2
+                if len(hits[0]["indices_query"]) > 0:
+                    a1 = "-" * (hits[0]["indices_query"][0] - 1) + a1
+                if len(hits[0]["indices_hit"]) > 0:
+                    a2 = "-" * (hits[0]["indices_hit"][0] - 1) + a2
                 if (l1 := len(a1)) < (l2 := len(a2)):
                     a1 += "-" * (l2 - l1)
                 else:
