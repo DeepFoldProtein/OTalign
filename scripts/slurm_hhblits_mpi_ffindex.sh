@@ -19,7 +19,8 @@ module load gnu12 > /dev/null
 module load intel/mpi > /dev/null
 
 # Python Setup
-source .venv/bin/activate
+VENV_ROOT="{VENV_ROOT:-${PWD}}"
+source ${VENV_ROOT}/bin/activate
 # pyenv activate plm-bench || true
 echo "[info] python: $(which python)"; python --version || true
 
