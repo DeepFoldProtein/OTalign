@@ -2,15 +2,7 @@ from dataclasses import dataclass
 from typing import Iterable, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
-
-
-try:
-    # SciPy is optional; only needed for 1-1 matching
-    from scipy.optimize import linear_sum_assignment
-
-    _SCIPY_AVAILABLE = True
-except Exception:
-    _SCIPY_AVAILABLE = False
+from scipy.optimize import linear_sum_assignment
 
 
 Pair = Tuple[int, int]
@@ -63,8 +55,6 @@ def predict_pairs_topk_per_row(plan: np.ndarray, k: int) -> Set[Pair]:
 def predict_pairs_bipartite_matching(plan: np.ndarray) -> Set[Pair]:
     """One-to-one maximum-weight matching via Hungarian algorithm."""
     _check_plan(plan)
-    if not _SCIPY_AVAILABLE:
-        raise RuntimeError("scipy is required for bipartite matching. Install scipy or use another extractor.")
     # Hungarian solves min-cost; convert to cost = -weight (stable with large constant)
     w = plan.astype(np.float64)
     max_w = np.nanmax(w) if w.size else 0.0
