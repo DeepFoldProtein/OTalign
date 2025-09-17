@@ -19,7 +19,7 @@ module load gnu12 > /dev/null
 module load intel/mpi > /dev/null
 
 # Python Setup
-VENV_ROOT="{VENV_ROOT:-${PWD}}"
+VENV_ROOT="${VENV_ROOT:-${PWD}}"
 source ${VENV_ROOT}/bin/activate
 # pyenv activate plm-bench || true
 echo "[info] python: $(which python)"; python --version || true
@@ -29,10 +29,6 @@ FF="${FF:-work/queries}"
 OUT_DIR="${OUT_DIR:-work/a3m}"
 HHDB="${HHDB:-/shared/db/uniclust30_2018_08/uniclust30_2018_08}"
 CPU_PER_TASK="${SLURM_CPUS_PER_TASK:-4}"
-EVALUE="${EVALUE:-1e-3}"
-ROUNDS="${ROUNDS:-2}"
-COV="${COV:-0.0}"
-MAXSEQ="${MAXSEQ:-65535}"
 HHBLITS_MPI="${HHBLITS_MPI:-hhblits_mpi}"
 
 mkdir -p "$OUT_DIR" logs
@@ -54,7 +50,7 @@ CMD_BASE=(
   -i "$FF"
   -d "$HHDB"   # adjust prefix; same as hhblits -d <prefix>
   "${OA3M_DIR_OPT[@]}"
-  -e "$EVALUE" -cov "$COV" -n "$ROUNDS" -cpu "$CPU_PER_TASK" -maxseq "$MAXSEQ"
+  -cpu "$CPU_PER_TASK"
 )
 
 echo "[info] running: srun ${CMD_BASE[*]}"
