@@ -80,14 +80,31 @@ class AlignmentScores:
 
 
 def alignment_scores(pred_pairs: Set[Pair], ref_pairs: Set[Pair]) -> AlignmentScores:
-    inter = pred_pairs & ref_pairs
-    tp = len(inter)
+    tp = len(pred_pairs & ref_pairs)
     fp = len(pred_pairs - ref_pairs)
     fn = len(ref_pairs - pred_pairs)
-    precision = _safe_div(tp, tp + fp)
-    recall = _safe_div(tp, tp + fn)
-    f1 = _safe_div(2 * precision * recall, precision + recall) if (precision + recall) > 0 else 0.0
-    jaccard = _safe_div(tp, len(pred_pairs | ref_pairs))
+
+    if len(pred_pairs) == 0:
+        precision = 1.0 if len(ref_pairs) == 0 else 0.0
+    else:
+        precision = tp / len(pred_pairs)
+
+    if len(ref_pairs) == 0:
+        recall = 1.0 if len(pred_pairs) == 0 else 0.0
+    else:
+        recall = tp / len(ref_pairs)
+
+    if precision + recall == 0:
+        f1 = 0.0
+    else:
+        f1 = 2 * precision * recall / (precision + recall)
+
+    union = len(pred_pairs | ref_pairs)
+    if union == 0:
+        jaccard = 1.0
+    else:
+        jaccard = tp / union
+
     return AlignmentScores(precision=precision, recall=recall, f1=f1, jaccard=jaccard, tp=tp, fp=fp, fn=fn, pred_size=len(pred_pairs), ref_size=len(ref_pairs))
 
 
