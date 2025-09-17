@@ -1,12 +1,13 @@
 import argparse
+import typing
 
 import torch
 from tqdm.auto import tqdm
 
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 from otalign.cache.config import CacheConfig
 from otalign.cache.npz_writer import NPZCacheWriter
-from otalign.models.plm_adaptors import build_ankhcl_adaptor, build_esm_adaptor, build_prott5_adaptor
+from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 
 
 def main():
@@ -22,24 +23,7 @@ def main():
     ap.add_argument("--device", type=str, default="cpu")
     args = ap.parse_args()
 
-    if args.model == "ESM2":
-        adaptor = build_esm_adaptor("facebook/esm2_t33_650M_UR50D")
-        policy, adaptor_name = "drop_first_last_active", "ESM-2"
-        tokenizer_pretok = None
-    elif args.model == "ESM1b":
-        adaptor = build_esm_adaptor("facebook/esm1b_t33_650M_UR50S")
-        policy, adaptor_name = "drop_first_last_active", "ESM-1b"
-        tokenizer_pretok = None
-    elif args.model == "AnkhCL":
-        adaptor = build_ankhcl_adaptor()
-        policy, adaptor_name = "drop_last_active", "AnkhCL"
-        tokenizer_pretok = None
-    elif args.model == "ProtT5":
-        adaptor = build_prott5_adaptor("Rostlab/prot_t5_xl_uniref50")
-        policy, adaptor_name = "drop_last_active", "ProtT5"
-        tokenizer_pretok = None
-    else:
-        raise ValueError(f"Not valid model name: '{args.model}'")
+    adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.model)
 
     torch.set_grad_enabled(False)
     cfg = CacheConfig(
@@ -49,17 +33,18 @@ def main():
         adaptor_version="1",
         dtype=args.dtype,
         policy=policy,
-        tokenizer_pretok=tokenizer_pretok,
+        tokenizer_pretok=None,
         shard_size=args.shard_size,
         extra={},
     )
     writer = NPZCacheWriter(args.output_root, cfg)
 
-    ds = load_dataset(args.dataset, name=args.name, split=args.split)
+    ds = typing.cast(Dataset, load_dataset(args.dataset, name=args.name, split=args.split))
 
     id_set = set()
     pair_set = set()
-    for ex in ds:
+    for ex_raw in ds:
+        ex = typing.cast(dict, ex_raw)
         id_set.add(ex["seq1_id"])
         pair_set.add((ex["seq1_id"], ex["seq1"]))
         id_set.add(ex["seq2_id"])
