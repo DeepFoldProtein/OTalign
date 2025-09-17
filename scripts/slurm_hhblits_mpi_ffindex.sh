@@ -4,7 +4,7 @@
 #SBATCH --error=work/%x_%j.err
 #SBATCH --partition=normal
 #SBATCH --nodes=1                   # adjust
-#SBATCH --ntasks-per-node=8         # MPI ranks per node
+#SBATCH --ntasks-per-node=16         # MPI ranks per node
 #SBATCH --cpus-per-task=4           # threads per rank (hhblits -cpu)
 #SBATCH --time=48:00:00
 
