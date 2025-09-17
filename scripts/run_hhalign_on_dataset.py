@@ -44,14 +44,15 @@ def _worker(task):
         if not q_hhm.exists() or not t_hhm.exists():
             return {"pair_id": ex["pair_id"], "error": "missing_hhm"}
 
-        a1, a2 = run_hhalign_hhm_pair(
+        a1, a2, start1, start2 = run_hhalign_hhm_pair(
             q_hhm,
             t_hhm,
             hhalign_bin=args["hhalign_bin"],
+            out_dir=args["out_dir"],
             mode=args["mode"],
             extra_args=args["extra_args"],
         )
-        pairs = gapped_to_pairs(a1, a2)
+        pairs = gapped_to_pairs(a1, a2, start1, start2)
         met = metrics(pairs, ex.get("ref_alignment"))
         return {
             "pair_id": ex["pair_id"],
@@ -77,6 +78,7 @@ def main():
     ap.add_argument("--hhalign_bin", type=str, default="hhalign")
     ap.add_argument("--mode", type=str, default="local", choices=["local", "global", "glocal"], help="Alignment mode. Tries a few flag patterns per mode until one works.")
     ap.add_argument("--extra_args", nargs="*", default=[], help="Additional flags passed to hhalign after mode flags")
+    ap.add_argument("--out_dir", type=str, default=None)
     ap.add_argument("--output", type=str, required=True)
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
@@ -102,6 +104,7 @@ def main():
         "hhalign_bin": args.hhalign_bin,
         "mode": args.mode,
         "extra_args": args.extra_args,
+        "out_dir": args.out_dir,
     }
 
     out = Path(args.output)

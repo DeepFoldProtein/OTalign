@@ -142,16 +142,19 @@ def run_hhalign_hhm_pair(
     mode: str = "local",  # "local" | "global" | "glocal"
     extra_args: Optional[List[str]] = None,
     timeout: Optional[int] = 300,
-) -> Tuple[str, str]:
+) -> Tuple[str, str, int, int]:
     """
     Run hhalign on two .hhm files and return pairwise alignment as two gapped A3M strings.
     We parse -oa3m and strip lowercase (insertions) per A3M convention.
     Robust 'mode' handling: try candidate flag patterns until one succeeds.
     """
+    q_hhm = Path(q_hhm)
+    t_hhm = Path(t_hhm)
+
     out_dir = Path(out_dir) if out_dir is not None else Path(tempfile.mkdtemp())
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_a3m = out_dir / "pair.aln.a3m"
-    out_hhr = out_dir / "pair.aln.hhr"
+    out_a3m = out_dir / f"{q_hhm.stem}-{t_hhm.stem}.a3m"
+    out_hhr = out_dir / f"{q_hhm.stem}-{t_hhm.stem}.hhr"
 
     base_cmd = [hhalign_bin, "-i", str(q_hhm), "-t", str(t_hhm), "-oa3m", str(out_a3m), "-o", str(out_hhr)]
 
@@ -183,28 +186,29 @@ def run_hhalign_hhm_pair(
         cmd = base_cmd + cand + extra_args
         try:
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, timeout=timeout)
-            # success
             recs = convert_a3m_text_to_a2m(out_a3m.read_text())
+
             if len(recs) < 2:
+                # --- HHR fallback ---
                 hhr_string = out_hhr.read_text()
                 hits = parse_hhr(hhr_string)
+                if not hits:
+                    raise RuntimeError(f"hhalign: No A3M and no valid HHR hits in {out_hhr}")
+
                 a1 = hits[0]["query"]
                 a2 = hits[0]["hit_sequence"]
-                if len(hits[0]["indices_query"]) > 0:
-                    a1 = "x" * _first_valid_value(hits[0]["indices_query"]) + a1
-                if len(hits[0]["indices_hit"]) > 0:
-                    a2 = "x" * _first_valid_value(hits[0]["indices_hit"]) + a2
-                if (l1 := len(a1)) < (l2 := len(a2)):
-                    a1 += "-" * (l2 - l1)
-                else:
-                    a2 += "-" * (l1 - l2)
-                # raise RuntimeError(f"hhalign produced no pairwise A3M: {out_a3m}")
+
+                # 0-based
+                start1 = _first_valid_value(hits[0]["indices_query"])
+                start2 = _first_valid_value(hits[0]["indices_hit"])
+
+                return a1, a2, start1, start2
             else:
+                # --- A3M ---
                 a1 = recs[0]["seq"].upper().replace(".", "-")
                 a2 = recs[1]["seq"].upper().replace(".", "-")
-            if len(strip_a3m_lowercase(a1)) != len(strip_a3m_lowercase(a2)):
-                raise ValueError("Aligned strings have different lengths after stripping lowercase.")
-            return a1, a2
+
+                return a1, a2, 0, 0  #
         except subprocess.CalledProcessError:
             tried_errors.append(f"cmd failed: {' '.join(cmd)}")
         except Exception as e:

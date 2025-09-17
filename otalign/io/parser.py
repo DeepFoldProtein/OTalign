@@ -8,7 +8,7 @@ Pair = Tuple[int, int]
 ### Core mapping
 
 
-def gapped_to_pairs(aln1: str, aln2: str) -> List[Pair]:
+def gapped_to_pairs(aln1: str, aln2: str, start1: int = 0, start2: int = 0) -> List[Pair]:
     """
     Convert two gapped aligned strings (same length) into 0-based residue index pairs.
     Rules:
@@ -18,7 +18,9 @@ def gapped_to_pairs(aln1: str, aln2: str) -> List[Pair]:
     """
     if len(aln1) != len(aln2):
         raise ValueError("Aligned strings must have equal length.")
-    i = j = 0
+
+    i, j = start1, start2
+
     pairs: List[Pair] = []
     for a, b in zip(aln1, aln2):
         a_is = a != "-" and a != "."
