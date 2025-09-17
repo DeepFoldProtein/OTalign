@@ -107,14 +107,14 @@ python scripts/run_hhalign_on_dataset.py \
   --hf_dataset <DATASET> --name all --split test \
   --hhm_dir work/hhm \
   --mode global \
-  --output out/hhalign_global.jsonl
+  --output work/hhalign_global.jsonl
 
 # Local HMM-HMM
 python scripts/run_hhalign_on_dataset.py \
   --jsonl data/pairs.jsonl \
   --hhm_dir work/hhm \
   --mode local \
-  --output out/hhalign_local.jsonl
+  --output work/hhalign_local.jsonl
 
 # Glocal attempt + custom flags (example)
 python scripts/run_hhalign_on_dataset.py \
@@ -122,5 +122,5 @@ python scripts/run_hhalign_on_dataset.py \
   --hhm_dir work/hhm \
   --mode glocal \
   --extra_args "-Z" "1" "-B" "1" \
-  --output out/hhalign_glocal.jsonl
+  --output work/hhalign_glocal.jsonl
 ```
