@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Optimize crawling
+Crawl-delay: 1
+
+# Block access to API routes that shouldn't be indexed
+Disallow: /api/
+
+# Allow all images and assets
+Allow: /web/
+Allow: /svgs/
+Allow: /android/
+Allow: /ios/

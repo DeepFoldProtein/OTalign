@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
+  /* Toss-inspired color palette */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #202632;
+  --toss-blue: #0064ff;
+  --toss-gray: #202632;
+  --toss-light-gray: #8b95a1;
+  --surface: #f8f9fa;
+  --surface-hover: #f1f3f4;
+  --border: #e5e8eb;
+  --border-light: #f1f3f4;
 }
 
 @theme inline {
@@ -10,17 +18,65 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-toss-blue: var(--toss-blue);
+  --color-toss-gray: var(--toss-gray);
+  --color-toss-light-gray: var(--toss-light-gray);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f0f11;
+    --foreground: #ffffff;
+    --toss-blue: #3182f6;
+    --toss-gray: #ffffff;
+    --toss-light-gray: #8b95a1;
+    --surface: #1a1b1e;
+    --surface-hover: #242529;
+    --border: #2f3038;
+    --border-light: #242529;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--toss-light-gray);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--toss-gray);
+}
+
+/* Custom classes for Toss-inspired design */
+.toss-gradient {
+  background: linear-gradient(135deg, var(--toss-blue) 0%, #4a90e2 100%);
+}
+
+.toss-surface {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+}
+
+.toss-surface:hover {
+  background: var(--surface-hover);
+  border-color: var(--border);
 }

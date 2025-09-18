@@ -1,60 +1,28 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { LeaderboardEntry } from '@/lib/types';
-import { ChevronUpIcon, ChevronDownIcon, LinkIcon } from '@heroicons/react/24/outline';
-import clsx from 'clsx';
+import { LeaderboardEntry } from "@/lib/types";
+import {
+  ChevronUpIcon,
+  ChevronDownIcon,
+  LinkIcon,
+} from "@heroicons/react/24/outline";
+import clsx from "clsx";
+import { useTableSort, SortField } from "@/hooks/useTableSort";
 
 interface LeaderboardTableProps {
   data: LeaderboardEntry[];
 }
 
-type SortField = 'rank' | 'model' | 'type' | 'average_f1' | 'malidup_f1' | 'malisam_f1' | 'sabmark_sup_recall' | 'sabmark_twi_recall' | 'date_submitted';
-type SortDirection = 'asc' | 'desc';
-
 export default function LeaderboardTable({ data }: LeaderboardTableProps) {
-  const [sortField, setSortField] = useState<SortField>('rank');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-
-  const sortedAndFilteredData = useMemo(() => {
-    let filtered = data;
-    
-    if (typeFilter !== 'all') {
-      filtered = data.filter(entry => entry.type === typeFilter);
-    }
-
-    return filtered.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      // Handle null values
-      if (aVal === null && bVal === null) return 0;
-      if (aVal === null) return 1;
-      if (bVal === null) return -1;
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-
-      return 0;
-    });
-  }, [data, sortField, sortDirection, typeFilter]);
-
-  const handleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const {
+    sortField,
+    sortDirection,
+    typeFilter,
+    sortedAndFilteredData,
+    uniqueTypes,
+    handleSort,
+    setTypeFilter,
+  } = useTableSort({ data });
 
   const formatScore = (score: number | null) => {
     if (score === null) return <span className="text-gray-400">TBD</span>;
@@ -63,35 +31,35 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'Traditional':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-      case 'OTalign':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
-      case 'PLM-based':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      case "Traditional":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+      case "OTalign":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+      case "PLM-based":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300";
     }
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? 
-      <ChevronUpIcon className="w-4 h-4" /> : 
-      <ChevronDownIcon className="w-4 h-4" />;
+    return sortDirection === "asc" ? (
+      <ChevronUpIcon className="w-4 h-4" />
+    ) : (
+      <ChevronDownIcon className="w-4 h-4" />
+    );
   };
-
-  const uniqueTypes = useMemo(() => 
-    Array.from(new Set(data.map(entry => entry.type))), 
-    [data]
-  );
 
   return (
     <div className="space-y-4">
       {/* Filter Controls */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex items-center gap-2">
-          <label htmlFor="type-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="type-filter"
+            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Filter by type:
           </label>
           <select
@@ -101,8 +69,10 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
             className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
           >
             <option value="all">All Types</option>
-            {uniqueTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
+            {uniqueTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
             ))}
           </select>
         </div>
@@ -116,75 +86,72 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
         <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('rank')}
+                onClick={() => handleSort("rank")}
               >
                 <div className="flex items-center gap-1">
                   Rank
                   <SortIcon field="rank" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('model')}
+                onClick={() => handleSort("model")}
               >
                 <div className="flex items-center gap-1">
                   Model
                   <SortIcon field="model" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('type')}
+                onClick={() => handleSort("type")}
               >
                 <div className="flex items-center gap-1">
                   Type
                   <SortIcon field="type" />
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Description
-              </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('average_f1')}
+                onClick={() => handleSort("average_f1")}
               >
                 <div className="flex items-center gap-1">
                   Avg F1
                   <SortIcon field="average_f1" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('malidup_f1')}
+                onClick={() => handleSort("malidup_f1")}
               >
                 <div className="flex items-center gap-1">
                   MALIDUP F1
                   <SortIcon field="malidup_f1" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('malisam_f1')}
+                onClick={() => handleSort("malisam_f1")}
               >
                 <div className="flex items-center gap-1">
                   MALISAM F1
                   <SortIcon field="malisam_f1" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('sabmark_sup_recall')}
+                onClick={() => handleSort("sabmark_sup_recall")}
               >
                 <div className="flex items-center gap-1">
                   SABmark (sup)
                   <SortIcon field="sabmark_sup_recall" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('sabmark_twi_recall')}
+                onClick={() => handleSort("sabmark_twi_recall")}
               >
                 <div className="flex items-center gap-1">
                   SABmark (twi)
@@ -194,9 +161,9 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                 Organization
               </th>
-              <th 
+              <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort('date_submitted')}
+                onClick={() => handleSort("date_submitted")}
               >
                 <div className="flex items-center gap-1">
                   Date
@@ -206,24 +173,36 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                 Links
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                Description
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
             {sortedAndFilteredData.map((entry, index) => (
-              <tr 
+              <tr
                 key={entry.model}
                 className={clsx(
                   "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors",
-                  index < 3 && sortField === 'rank' && sortDirection === 'asc' && "bg-gradient-to-r from-yellow-50 to-transparent dark:from-yellow-900/20"
+                  index < 3 &&
+                    sortField === "rank" &&
+                    sortDirection === "asc" &&
+                    "bg-gradient-to-r from-yellow-50 to-transparent dark:from-yellow-900/20"
                 )}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    {entry.rank <= 3 && sortField === 'rank' && sortDirection === 'asc' && (
-                      <span className="mr-2">
-                        {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
-                      </span>
-                    )}
+                    {entry.rank <= 3 &&
+                      sortField === "rank" &&
+                      sortDirection === "asc" && (
+                        <span className="mr-2">
+                          {entry.rank === 1
+                            ? "🥇"
+                            : entry.rank === 2
+                            ? "🥈"
+                            : "🥉"}
+                        </span>
+                      )}
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {entry.rank}
                     </span>
@@ -235,17 +214,14 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={clsx(
-                    "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                    getTypeColor(entry.type)
-                  )}>
+                  <span
+                    className={clsx(
+                      "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                      getTypeColor(entry.type)
+                    )}
+                  >
                     {entry.type}
                   </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 dark:text-white max-w-xs truncate" title={entry.description}>
-                    {entry.description}
-                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {formatScore(entry.average_f1)}
@@ -293,6 +269,14 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                         Code
                       </a>
                     )}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div
+                    className="text-sm text-gray-900 dark:text-white max-w-xs truncate"
+                    title={entry.description}
+                  >
+                    {entry.description}
                   </div>
                 </td>
               </tr>

@@ -1,0 +1,92 @@
+{
+  "name": "OTalign Leaderboard",
+  "short_name": "OTalign",
+  "description": "Interactive leaderboard for optimal transport-based protein sequence alignment algorithms",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["science", "education", "productivity"],
+  "icons": [
+    {
+      "src": "/web/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/web/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/web/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/web/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/android/play_store_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Leaderboard",
+      "short_name": "Leaderboard",
+      "description": "View the current protein alignment algorithm rankings",
+      "url": "/?tab=leaderboard",
+      "icons": [
+        {
+          "src": "/web/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Submit Result",
+      "short_name": "Submit",
+      "description": "Submit new algorithm results",
+      "url": "/?tab=submit",
+      "icons": [
+        {
+          "src": "/web/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "View Datasets",
+      "short_name": "Datasets",
+      "description": "Explore benchmark datasets",
+      "url": "/?tab=datasets",
+      "icons": [
+        {
+          "src": "/web/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/svgs/logo_with_text.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "platform": "wide",
+      "label": "OTalign Leaderboard Overview"
+    }
+  ]
+}
