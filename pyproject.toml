@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "OTalign"
 version = "0.0.1"
@@ -72,3 +76,6 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.setuptools]
+packages = ["otalign"]
