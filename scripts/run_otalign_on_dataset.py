@@ -4,7 +4,7 @@ import json
 import multiprocessing as mp
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 import torch
 from datasets import load_dataset
@@ -12,8 +12,24 @@ from tqdm.auto import tqdm
 
 from otalign.align.sinkhorn import SinkhornUOT
 from otalign.align.uot_alignment import hard_alignment_from_transport, uot_alignment_metrics_with_sinkhorn
+from otalign.cache.lmdb_reader import LMDBCache
+from otalign.cache.npz_reader import NPZCache
 from otalign.metrics.alignment import alignment_scores
 from otalign.models.embedding import get_embeddings_for_sequences
+
+
+# Global cache for multiprocessing workers
+AnyCache = Union[NPZCache, LMDBCache]
+worker_cache: Optional[AnyCache] = None
+
+
+def init_worker(cache_dir: str, cache_type: str):
+    """Initializer for multiprocessing pool to create a shared cache object."""
+    global worker_cache
+    if cache_type == "lmdb":
+        worker_cache = LMDBCache(cache_dir)
+    else:
+        worker_cache = NPZCache(cache_dir)
 
 
 def iter_hf(dataset: str, name: str, split: str):
@@ -50,7 +66,7 @@ def alignment_metrics(pred: list[tuple[int, int]], ref: Optional[list[list[int]]
     return asdict(metrics)
 
 
-def _process_batch(batch: list[dict], args_dict: dict) -> list[dict]:
+def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[dict]:
     """
     Processes a batch of sequence pairs on a GPU.
     """
@@ -76,12 +92,13 @@ def _process_batch(batch: list[dict], args_dict: dict) -> list[dict]:
             device=args_dict["device"],
             batch_size=args_dict["align_batch_size"] * 2,
             dtype=args_dict["dtype"],
+            cache=cache,
         )
 
         # 2. Pad and batch embeddings
         batch_size = len(batch)
-        emb1_list = [e.to(device, dtype=torch_dtype) for e in embeddings[:batch_size]]
-        emb2_list = [e.to(device, dtype=torch_dtype) for e in embeddings[batch_size:]]
+        emb1_list = embeddings[:batch_size]
+        emb2_list = embeddings[batch_size:]
 
         max_len1 = max(e.shape[0] for e in emb1_list) if emb1_list else 0
         max_len2 = max(e.shape[0] for e in emb2_list) if emb2_list else 0
@@ -220,16 +237,17 @@ def _worker(task):
             device=args_dict["device"],
             batch_size=2,
             dtype=args_dict["dtype"],
+            cache=worker_cache,
         )
 
-        emb1_np, emb2_np = embeddings[0], embeddings[1]
+        emb1_tensor, emb2_tensor = embeddings[0], embeddings[1]
 
         # Convert to torch tensors
         device = torch.device(args_dict["device"])
         dtype_map = {"fp16": torch.float16, "fp32": torch.float32, "bf16": torch.bfloat16}
         torch_dtype = dtype_map[args_dict["dtype"]]
-        emb1 = torch.from_numpy(emb1_np).to(device, dtype=torch_dtype).unsqueeze(0)
-        emb2 = torch.from_numpy(emb2_np).to(device, dtype=torch_dtype).unsqueeze(0)
+        emb1 = emb1_tensor.to(device, dtype=torch_dtype).unsqueeze(0)
+        emb2 = emb2_tensor.to(device, dtype=torch_dtype).unsqueeze(0)
         mask1 = torch.ones(emb1.shape[:2], dtype=torch.bool, device=device)
         mask2 = torch.ones(emb2.shape[:2], dtype=torch.bool, device=device)
 
@@ -358,7 +376,16 @@ def main():
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    tasks = ((ex, args_dict) for ex in it)
+    # Auto-detect cache type and initialize
+    cache_dir_path = Path(args.cache_dir)
+    if (cache_dir_path / "data.lmdb").exists():
+        cache = LMDBCache(args.cache_dir)
+        cache_type = "lmdb"
+        print("Using LMDBCache")
+    else:
+        cache = NPZCache(args.cache_dir)
+        cache_type = "npz"
+        print("Using NPZCache")
 
     with out_path.open("w", encoding="utf-8") as fout:
         if args.device == "cpu":
@@ -366,8 +393,12 @@ def main():
             tasks = ((ex, args_dict) for ex in it)
             # Get total for tqdm
             total = len(items) if args.jsonl else len(load_dataset(args.hf_dataset, args.name, split=args.split))  # type: ignore
-            with mp.Pool(processes=args.workers) as pool:
-                for rec in tqdm(pool.imap_unordered(_worker, tasks, chunksize=4), total=total, desc="Aligning pairs (CPU)"):
+            with mp.Pool(processes=args.workers, initializer=init_worker, initargs=(args.cache_dir, cache_type)) as pool:
+                for rec in tqdm(
+                    pool.imap_unordered(_worker, tasks, chunksize=4),
+                    total=total,
+                    desc="Aligning pairs (CPU)",
+                ):
                     fout.write(json.dumps(rec) + "\n")
         else:
             # Use batching for GPU-bound tasks
@@ -384,7 +415,7 @@ def main():
 
             with tqdm(total=total, desc=f"Aligning pairs (GPU, batch_size={batch_size})") as pbar:
                 for batch in batched_it:
-                    records = _process_batch(list(batch), args_dict)
+                    records = _process_batch(list(batch), args_dict, cache)
                     for rec in records:
                         fout.write(json.dumps(rec) + "\n")
                     pbar.update(len(batch))

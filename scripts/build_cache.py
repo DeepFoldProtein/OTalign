@@ -2,10 +2,11 @@ import argparse
 import typing
 
 import torch
+from datasets import Dataset, load_dataset
 from tqdm.auto import tqdm
 
-from datasets import Dataset, load_dataset
 from otalign.cache.config import CacheConfig
+from otalign.cache.lmdb_writer import LMDBCacheWriter
 from otalign.cache.npz_writer import NPZCacheWriter
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 
@@ -21,6 +22,7 @@ def main():
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--shard_size", type=int, default=2000)
     ap.add_argument("--device", type=str, default="cpu")
+    ap.add_argument("--cache_type", type=str, default="npz", choices=["npz", "lmdb"])
     args = ap.parse_args()
 
     adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.model)
@@ -37,7 +39,12 @@ def main():
         shard_size=args.shard_size,
         extra={},
     )
-    writer = NPZCacheWriter(args.output_root, cfg)
+    if args.cache_type == "npz":
+        writer = NPZCacheWriter(args.output_root, cfg)
+    elif args.cache_type == "lmdb":
+        writer = LMDBCacheWriter(args.output_root, cfg)
+    else:
+        raise ValueError(f"Unknown cache type: {args.cache_type}")
 
     ds = typing.cast(Dataset, load_dataset(args.dataset, name=args.name, split=args.split))
 
