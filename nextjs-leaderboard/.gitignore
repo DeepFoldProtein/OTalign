@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Force include src/lib directory (override parent gitignore)
 !src/lib/
+
+.open-next/
+.wrangler/
