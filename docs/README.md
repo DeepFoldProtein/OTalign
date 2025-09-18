@@ -52,6 +52,8 @@ python scripts/build_cache.py \
   --cache_type lmdb
 ```
 
+### OTalign
+
 ```bash
 python scripts/run_otalign_on_dataset.py \
   --dp_mode global \
