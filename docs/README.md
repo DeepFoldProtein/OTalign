@@ -22,21 +22,25 @@
 
 ### F1
 
-| Method | MALIDUP ↑ | MALISAM ↑ |
-| --- | --- | --- |
-| Needleman-Wunsch | 0.3492 | 0.0662 |
-| HHalign | **0.3825** | **0.0092** |
+| Method            | MALIDUP ↑   | MALISAM ↑   |
+| ----------------- | ----------- | ----------- |
+| Needleman-Wunsch  | 0.3492      | 0.0662      |
+| HHalign           | 0.3825      | 0.0092      |
+| OTalign (AnkhCL)  | **0.6396**  | 0.1911      |
+| OTalign (ProtT5)  | 0.5904      | **0.2011**  |
+| OTalign (ESM-2)   | 0.5391      | 0.1133      |
+| OTalign (ESM-1b)  | 0.4149      | 0.0633      |
 
 ### Accuarcy (Recall)
 
-| Method | MALIDUP ↑ | MALISAM ↓ | SABmark (sup) ↑ | SABmark (twi) ↑ |
-| --- | --- | --- | --- | --- |
-| Needleman-Wunsch | 0.3733 | 0.0749 | 0.3861 | 0.1496 |
-| HHalign          | 0.4111 | 0.0100 | 0.3507 | 0.1596 |
-| OTalign (AnkhCL) |        |        | 0.7139 | 0.4660 |
-| OTalign (ESM-1b) |        |        | 0.3298 | 0.2492 |
-| OTalign (ESM-2)  |        |        | 0.6499 | 0.3824 |
-| OTalign (ProtT5) |        |        | 0.6783 | 0.4313 |
+| Method            | SABmark (sup) ↑ | SABmark (twi) ↑ |
+| ----------------- | --------------- | --------------- |
+| Needleman-Wunsch  | 0.3861          | 0.1496          |
+| HHalign           | 0.3507          | 0.1596          |
+| OTalign (AnkhCL)  | **0.7139**      | **0.4660**      |
+| OTalign (ProtT5)  | 0.6783          | 0.4313          |
+| OTalign (ESM-2)   | 0.6499          | 0.3824          |
+| OTalign (ESM-1b)  | 0.3298          | 0.2492          |
 
 ## Reproduction
 
