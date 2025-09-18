@@ -21,8 +21,8 @@ export const metadata: Metadata = {
     "benchmarking",
     "OTalign",
   ],
-  authors: [{ name: "OTalign Team" }],
-  creator: "OTalign Team",
+  authors: [{ name: "DeepFold" }],
+  creator: "DeepFold",
   publisher: "OTalign",
 
   // Open Graph
@@ -160,7 +160,7 @@ export default function RootLayout({
               },
               creator: {
                 "@type": "Organization",
-                name: "OTalign Team",
+                name: "DeepFold",
               },
             }),
           }}

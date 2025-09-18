@@ -51,7 +51,7 @@ export const leaderboardData: LeaderboardData = {
       malidup_recall: null,
       malisam_recall: null,
       date_submitted: "2025-01-15",
-      organization: "OTalign Team",
+      organization: "DeepFold",
     },
     {
       rank: 4,
@@ -68,7 +68,7 @@ export const leaderboardData: LeaderboardData = {
       malidup_recall: null,
       malisam_recall: null,
       date_submitted: "2025-01-15",
-      organization: "OTalign Team",
+      organization: "DeepFold",
     },
     {
       rank: 5,
@@ -85,7 +85,7 @@ export const leaderboardData: LeaderboardData = {
       malidup_recall: null,
       malisam_recall: null,
       date_submitted: "2025-01-15",
-      organization: "OTalign Team",
+      organization: "DeepFold",
     },
     {
       rank: 6,
@@ -102,7 +102,7 @@ export const leaderboardData: LeaderboardData = {
       malidup_recall: null,
       malisam_recall: null,
       date_submitted: "2025-01-15",
-      organization: "OTalign Team",
+      organization: "DeepFold",
     },
   ],
   metadata: {
