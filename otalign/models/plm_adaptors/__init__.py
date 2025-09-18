@@ -6,10 +6,30 @@ from .t5_adaptor import build_prott5_adaptor
 
 
 MODEL_REGISTRY = {
-    "ESM2": {
+    "ESM2_36_3B": {
+        "builder": partial(build_esm_adaptor, "facebook/esm2_t36_3B_UR50D"),
+        "policy": "drop_first_last_active",
+        "adaptor_name": "ESM-2 (36L-3B)",
+    },
+    "ESM2_33_650M": {
         "builder": partial(build_esm_adaptor, "facebook/esm2_t33_650M_UR50D"),
         "policy": "drop_first_last_active",
-        "adaptor_name": "ESM-2",
+        "adaptor_name": "ESM-2 (33L-650M)",
+    },
+    "ESM2_30_150M": {
+        "builder": partial(build_esm_adaptor, "facebook/esm2_t30_150M_UR50D"),
+        "policy": "drop_first_last_active",
+        "adaptor_name": "ESM-2 (30L-150M)",
+    },
+    "ESM2_12_35M": {
+        "builder": partial(build_esm_adaptor, "facebook/esm2_t12_35M_UR50D"),
+        "policy": "drop_first_last_active",
+        "adaptor_name": "ESM-2 (12L-35M)",
+    },
+    "ESM2_6_8M": {
+        "builder": partial(build_esm_adaptor, "facebook/esm2_t6_8M_UR50D"),
+        "policy": "drop_first_last_active",
+        "adaptor_name": "ESM-2 (6L-8M)",
     },
     "ESM1b": {
         "builder": partial(build_esm_adaptor, "facebook/esm1b_t33_650M_UR50S"),
