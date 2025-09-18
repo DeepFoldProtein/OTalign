@@ -25,8 +25,8 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
     }
 
     return filtered.sort((a, b) => {
-      let aVal = a[sortField];
-      let bVal = b[sortField];
+      const aVal = a[sortField];
+      const bVal = b[sortField];
 
       // Handle null values
       if (aVal === null && bVal === null) return 0;

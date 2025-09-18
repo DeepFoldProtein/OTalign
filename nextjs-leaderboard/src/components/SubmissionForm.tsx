@@ -56,7 +56,7 @@ export default function SubmissionForm() {
         <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-200">
           <li><strong>Run Evaluation:</strong> Execute your alignment method on our benchmark datasets</li>
           <li><strong>Fill Form:</strong> Complete the form below with your method details and performance metrics</li>
-          <li><strong>Generate JSON:</strong> Click "Generate Submission JSON" to create the submission file</li>
+          <li><strong>Generate JSON:</strong> Click &quot;Generate Submission JSON&quot; to create the submission file</li>
           <li><strong>Submit:</strong> Create a Pull Request to our GitHub repository with the JSON file</li>
         </ol>
       </div>

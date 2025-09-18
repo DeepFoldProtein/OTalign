@@ -20,7 +20,7 @@ export default function Home() {
         setData(data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch(() => {
         setError('Failed to load leaderboard data');
         setLoading(false);
       });

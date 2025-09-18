@@ -93,7 +93,7 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
     entry.malidup_f1 !== null || entry.malisam_f1 !== null
   );
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ScatterDataPoint }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
