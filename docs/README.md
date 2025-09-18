@@ -44,11 +44,22 @@
 
 ```bash
 python scripts/build_cache.py \
-  --dataset DeepFoldProtein/{SABmark-dataset,malisam-dataset,malidup-dataset} \
-  --name {all,sup,twi} --split test \
-  --model {AnkhCL,ESM1b,ESM2,ProtT5} \
-  --output_root .cache
-  --dtype fp32 --batch_size 4 --device cuda:0 --shard_size 100
+  --dataset DeepFoldProtein/malidup-dataset \
+  --name all --split test \
+  --model AnkhCL \
+  --output_root .cache \
+  --device cuda:2 --batch_size 8 \
+  --cache_type lmdb
+```
+
+```bash
+python scripts/run_otalign_on_dataset.py \
+  --dp_mode global \
+  --device cuda --align_batch_size 16 \
+  --output out/global.jsonl \
+  --hf_dataset DeepFoldProtein/SABmark-dataset --name sup --split test \
+  --model AnkhCL \
+  --cache_dir CACHE_DIR
 ```
 
 ### Needleman-Wunsch
