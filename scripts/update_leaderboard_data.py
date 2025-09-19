@@ -51,17 +51,23 @@ def extract_metrics(data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, float]
 
 
 def calculate_average(metrics: Dict[str, float]) -> Optional[float]:
-    """Calculate average F1 score from malidup_f1 and malisam_f1."""
-    f1_scores = []
+    """Calculate average score from all four metrics: malidup_f1, malisam_f1, sabmark_sup_recall, sabmark_twi_recall."""
+    scores = []
 
     if "malidup_f1" in metrics and metrics["malidup_f1"] is not None:
-        f1_scores.append(metrics["malidup_f1"])
+        scores.append(metrics["malidup_f1"])
 
     if "malisam_f1" in metrics and metrics["malisam_f1"] is not None:
-        f1_scores.append(metrics["malisam_f1"])
+        scores.append(metrics["malisam_f1"])
 
-    if f1_scores:
-        return round(sum(f1_scores) / len(f1_scores), 4)
+    if "sabmark_sup_recall" in metrics and metrics["sabmark_sup_recall"] is not None:
+        scores.append(metrics["sabmark_sup_recall"])
+
+    if "sabmark_twi_recall" in metrics and metrics["sabmark_twi_recall"] is not None:
+        scores.append(metrics["sabmark_twi_recall"])
+
+    if scores:
+        return round(sum(scores) / len(scores), 4)
 
     return None
 
