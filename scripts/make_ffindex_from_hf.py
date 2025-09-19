@@ -54,10 +54,14 @@ def main():
                 pairs.append((sid, seq))
 
         # Write sequences
-        fasta_file.write_text("\n".join(f">{sid}\n{seq}" for sid, seq in pairs))
+        with fasta_file.open("w") as fp:
+            for sid, seq in pairs:
+                fp.write(f"{sid}\n{seq}\n")
 
         # Write names (optional, useful later)
-        names_file.write_text("\n".join(sid for sid, _ in pairs))
+        with names_file.open("w") as fp:
+            for sid, _ in pairs:
+                fp.write(f"{sid}\n")
 
         # Build ffindex
         # Many ffindex builds accept: ffindex_build -s OUT.ffdata OUT.ffindex list_of_files...
