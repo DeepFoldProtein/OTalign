@@ -211,8 +211,8 @@ def convert_group(group_dir: pathlib.Path, subset_label: str, out_handle) -> int
             "pair_id": pair_id,
             "group_id": group_id,
             "set_name": subset_label,
-            "seq1_id": seq1_id,
-            "seq2_id": seq2_id,
+            "seq1_id": f"{group_id}:{seq1_id}",
+            "seq2_id": f"{group_id}:{seq2_id}",
             "seq1": seq1,
             "seq2": seq2,
             "ref_alignment": ref_pairs,  # list of [i,j] pairs in 0-based ungapped coords
@@ -229,13 +229,7 @@ def main():
     ap = argparse.ArgumentParser(description="Convert SABmark to JSONL (HF-ready).")
     ap.add_argument("--root", type=str, required=True, help="Root containing SABmark subsets (e.g., data/SABmark).")
     ap.add_argument("--output_dir", type=str, required=True, help="Directory to write JSONL files (one per subset plus all.jsonl).")
-    ap.add_argument(
-        "--subsets",
-        type=str,
-        nargs="*",
-        default=["twi", "sup", "twi_fp", "sup_fp"],
-        help="Which raw subset folders to include (default: twi sup twi_fp sup_fp).",
-    )
+    ap.add_argument("--subsets", type=str, nargs="*", default=["twi", "sup", "twi_fp", "sup_fp"], help="Which raw subset folders to include (default: twi sup twi_fp sup_fp).")
     args = ap.parse_args()
 
     root = pathlib.Path(args.root).resolve()
