@@ -19,7 +19,7 @@ def extract_model_name(filename: str) -> str:
     basename = os.path.basename(filename)
     
     # Remove dataset suffix and .jsonl extension
-    for dataset in ['_malidup', '_malisam', '_sabmark-sup', '_sabmark-twi']:
+    for dataset in ['-malidup', '-malisam', '-sabmark-sup', '-sabmark-twi']:
         if dataset in basename:
             basename = basename.replace(dataset, '')
             break
@@ -130,11 +130,11 @@ def process_dataset(eval_dir: str, dataset: str) -> pd.DataFrame:
     """Process all JSONL files for a specific dataset."""
     
     # Find all JSONL files for this dataset
-    pattern = os.path.join(eval_dir, f"*{dataset}.jsonl")
+    pattern = os.path.join(eval_dir, f"*-{dataset}.jsonl")
     jsonl_files = glob.glob(pattern)
     
     # Also check for files ending with _tm.jsonl (transmembrane variants)
-    tm_pattern = os.path.join(eval_dir, f"*{dataset}_tm.jsonl")
+    tm_pattern = os.path.join(eval_dir, f"*-{dataset}_tm.jsonl")
     tm_files = glob.glob(tm_pattern)
     
     print(f"Processing {dataset}:")

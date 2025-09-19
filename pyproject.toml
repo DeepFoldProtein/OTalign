@@ -56,7 +56,7 @@ exclude = [
 
 [tool.ruff.lint]
 # Never enforce `E501` (line length violations).
-ignore = ["C901", "E501", "E402"]
+ignore = ["C901", "E501", "E402", "W293"]
 select = ["C", "E", "F", "I", "W"]
 
 # Ignore import violations in all `__init__.py` files.
