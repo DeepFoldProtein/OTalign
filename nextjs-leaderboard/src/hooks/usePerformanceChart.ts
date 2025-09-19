@@ -7,6 +7,7 @@ interface ScatterDataPoint {
   model: string;
   type: string;
   organization: string;
+  parameters: string;
 }
 
 interface RadarDataPoint {
@@ -41,23 +42,47 @@ export function usePerformanceChart({
     }
   }, [data, selectedModel]);
 
-  // Filter data with valid scores for scatter plot
+  // Parse parameter count from string (e.g., "1.2B" -> 1200, "N/A" -> -1)
+  const parseParameterCount = (paramStr: string): number => {
+    if (paramStr === "N/A" || paramStr === "n/a" || !paramStr) {
+      return -1; // Special value for N/A
+    }
+
+    const cleanStr = paramStr.toLowerCase().replace(/[,\s]/g, "");
+    const match = cleanStr.match(/^(\d+(?:\.\d+)?)(k|m|b)?$/);
+
+    if (!match) return -1;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2];
+
+    switch (unit) {
+      case "k":
+        return value * 1000;
+      case "m":
+        return value * 1000000;
+      case "b":
+        return value * 1000000000;
+      default:
+        return value;
+    }
+  };
+
+  // Filter data with valid average scores for scatter plot
   const validData = useMemo(
-    () =>
-      data.filter(
-        (entry) => entry.malidup_f1 !== null && entry.malisam_f1 !== null
-      ),
+    () => data.filter((entry) => entry.average !== null),
     [data]
   );
 
   const scatterData: ScatterDataPoint[] = useMemo(
     () =>
       validData.map((entry) => ({
-        x: entry.malidup_f1!,
-        y: entry.malisam_f1!,
+        x: parseParameterCount(entry.parameters),
+        y: entry.average!,
         model: entry.model,
         type: entry.type,
         organization: entry.organization,
+        parameters: entry.parameters,
       })),
     [validData]
   );
@@ -106,10 +131,7 @@ export function usePerformanceChart({
   };
 
   const availableModels = useMemo(
-    () =>
-      data.filter(
-        (entry) => entry.malidup_f1 !== null || entry.malisam_f1 !== null
-      ),
+    () => data.filter((entry) => entry.average !== null),
     [data]
   );
 
