@@ -11,7 +11,7 @@ import pandas as pd
 
 def read_csv_data(eval_dir: str) -> Dict[str, pd.DataFrame]:
     """Read all alignment metrics summary CSV files."""
-    datasets = ['malidup', 'malisam', 'sabmark-sup', 'sabmark-twi']
+    datasets = ["malidup", "malisam", "sabmark-sup", "sabmark-twi"]
     data = {}
 
     for dataset in datasets:
@@ -32,24 +32,24 @@ def extract_metrics(data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, float]
 
     for dataset, df in data.items():
         for _, row in df.iterrows():
-            model = row['label']
-            metric = row['metric']
-            mean_value = row['mean']
+            model = row["label"]
+            metric = row["metric"]
+            mean_value = row["mean"]
             if model not in results:
                 results[model] = {}
             # Map dataset and metric to the expected field names
-            if dataset == 'malidup' and metric == 'F1':
-                results[model]['malidup_f1'] = round(mean_value, 4)
-            elif dataset == 'malisam' and metric == 'F1':
-                results[model]['malisam_f1'] = round(mean_value, 4)
-            elif dataset == 'sabmark-sup' and metric == 'Recall':
-                results[model]['sabmark_sup_recall'] = round(mean_value, 4)
-            elif dataset == 'sabmark-twi' and metric == 'Recall':
-                results[model]['sabmark_twi_recall'] = round(mean_value, 4)
-            elif dataset == 'malidup' and metric == 'Recall':
-                results[model]['malidup_recall'] = round(mean_value, 4)
-            elif dataset == 'malisam' and metric == 'Recall':
-                results[model]['malisam_recall'] = round(mean_value, 4)
+            if dataset == "malidup" and metric == "F1":
+                results[model]["malidup_f1"] = round(mean_value, 4)
+            elif dataset == "malisam" and metric == "F1":
+                results[model]["malisam_f1"] = round(mean_value, 4)
+            elif dataset == "sabmark-sup" and metric == "Recall":
+                results[model]["sabmark_sup_recall"] = round(mean_value, 4)
+            elif dataset == "sabmark-twi" and metric == "Recall":
+                results[model]["sabmark_twi_recall"] = round(mean_value, 4)
+            elif dataset == "malidup" and metric == "Recall":
+                results[model]["malidup_recall"] = round(mean_value, 4)
+            elif dataset == "malisam" and metric == "Recall":
+                results[model]["malisam_recall"] = round(mean_value, 4)
 
     return results
 
@@ -58,11 +58,11 @@ def calculate_average_f1(metrics: Dict[str, float]) -> Optional[float]:
     """Calculate average F1 score from malidup_f1 and malisam_f1."""
     f1_scores = []
 
-    if 'malidup_f1' in metrics and metrics['malidup_f1'] is not None:
-        f1_scores.append(metrics['malidup_f1'])
+    if "malidup_f1" in metrics and metrics["malidup_f1"] is not None:
+        f1_scores.append(metrics["malidup_f1"])
 
-    if 'malisam_f1' in metrics and metrics['malisam_f1'] is not None:
-        f1_scores.append(metrics['malisam_f1'])
+    if "malisam_f1" in metrics and metrics["malisam_f1"] is not None:
+        f1_scores.append(metrics["malisam_f1"])
 
     if f1_scores:
         return round(sum(f1_scores) / len(f1_scores), 4)
@@ -75,54 +75,54 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
 
     # Model mapping
     model_info = {
-        'AnkhCL': {
-            'model': 'OTalign (AnkhCL)',
-            'type': 'OTalign',
-            'description': 'Optimal Transport alignment with AnkhCL embeddings',
-            'organization': 'DeepFold',
-            'paper_url': '',
-            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        "AnkhCL": {
+            "model": "OTalign (AnkhCL)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with AnkhCL embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        'ESM-1b': {
-            'model': 'OTalign (ESM-1b)',
-            'type': 'OTalign',
-            'description': 'Optimal Transport alignment with ESM-1b embeddings',
-            'organization': 'DeepFold',
-            'paper_url': '',
-            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        "ESM-1b": {
+            "model": "OTalign (ESM-1b)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ESM-1b embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        'ESM-2': {
-            'model': 'OTalign (ESM-2)',
-            'type': 'OTalign',
-            'description': 'Optimal Transport alignment with ESM-2 embeddings',
-            'organization': 'DeepFold',
-            'paper_url': '',
-            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        "ESM-2": {
+            "model": "OTalign (ESM-2)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ESM-2 embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        'ProtT5': {
-            'model': 'OTalign (ProtT5)',
-            'type': 'OTalign',
-            'description': 'Optimal Transport alignment with ProtT5 embeddings',
-            'organization': 'DeepFold',
-            'paper_url': '',
-            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        "ProtT5": {
+            "model": "OTalign (ProtT5)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ProtT5 embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        'HHalign': {
-            'model': 'HHAlign',
-            'type': 'Traditional',
-            'description': 'Profile-profile alignment with MSAs',
-            'organization': 'Söding Lab',
-            'paper_url': 'https://doi.org/10.1093/bioinformatics/bti125',
-            'code_url': 'https://github.com/soedinglab/hh-suite'
+        "HHalign": {
+            "model": "HHAlign",
+            "type": "Traditional",
+            "description": "Profile-profile alignment with MSAs",
+            "organization": "Söding Lab",
+            "paper_url": "https://doi.org/10.1093/bioinformatics/bti125",
+            "code_url": "https://github.com/soedinglab/hh-suite",
         },
-        'NW': {
-            'model': 'Needleman-Wunsch',
-            'type': 'Traditional',
-            'description': 'Dynamic programming with substitution matrices',
-            'organization': 'Zhang Lab',
-            'paper_url': 'https://doi.org/10.1016/0022-2836(70)90057-4',
-            'code_url': 'https://zhanggroup.org/NW-align/'
-        }
+        "NW": {
+            "model": "Needleman-Wunsch",
+            "type": "Traditional",
+            "description": "Dynamic programming with substitution matrices",
+            "organization": "Zhang Lab",
+            "paper_url": "https://doi.org/10.1016/0022-2836(70)90057-4",
+            "code_url": "https://zhanggroup.org/NW-align/",
+        },
     }
 
     entries = []
@@ -136,30 +136,30 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
         avg_f1 = calculate_average_f1(model_metrics)
 
         entry = {
-            'rank': 0,  # Will be set later based on sorting
-            'model': info['model'],
-            'type': info['type'],
-            'description': info['description'],
-            'paper_url': info['paper_url'],
-            'code_url': info['code_url'],
-            'average_f1': avg_f1,
-            'malidup_f1': model_metrics.get('malidup_f1'),
-            'malisam_f1': model_metrics.get('malisam_f1'),
-            'sabmark_sup_recall': model_metrics.get('sabmark_sup_recall'),
-            'sabmark_twi_recall': model_metrics.get('sabmark_twi_recall'),
-            'malidup_recall': model_metrics.get('malidup_recall'),
-            'malisam_recall': model_metrics.get('malisam_recall'),
-            'date_submitted': '2025-09-19',
-            'organization': info['organization']
+            "rank": 0,  # Will be set later based on sorting
+            "model": info["model"],
+            "type": info["type"],
+            "description": info["description"],
+            "paper_url": info["paper_url"],
+            "code_url": info["code_url"],
+            "average_f1": avg_f1,
+            "malidup_f1": model_metrics.get("malidup_f1"),
+            "malisam_f1": model_metrics.get("malisam_f1"),
+            "sabmark_sup_recall": model_metrics.get("sabmark_sup_recall"),
+            "sabmark_twi_recall": model_metrics.get("sabmark_twi_recall"),
+            "malidup_recall": model_metrics.get("malidup_recall"),
+            "malisam_recall": model_metrics.get("malisam_recall"),
+            "date_submitted": "2025-09-19",
+            "organization": info["organization"],
         }
         entries.append(entry)
 
     # Sort by average F1 (descending), with None values at the end
-    entries.sort(key=lambda x: x['average_f1'] if x['average_f1'] is not None else -1, reverse=True)
+    entries.sort(key=lambda x: x["average_f1"] if x["average_f1"] is not None else -1, reverse=True)
 
     # Assign ranks
     for i, entry in enumerate(entries):
-        entry['rank'] = i + 1
+        entry["rank"] = i + 1
 
     return entries
 
@@ -169,29 +169,29 @@ def generate_typescript_content(entries: List[Dict]) -> str:
 
     timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    content = '''import { LeaderboardData } from "./types";
+    content = """import { LeaderboardData } from "./types";
 
 export const leaderboardData: LeaderboardData = {
   leaderboard_data: [
-'''
+"""
 
     for entry in entries:
         content += f'''    {{
-      rank: {entry['rank']},
-      model: "{entry['model']}",
-      type: "{entry['type']}",
-      description: "{entry['description']}",
-      paper_url: "{entry['paper_url']}",
-      code_url: "{entry['code_url']}",
-      average_f1: {entry['average_f1'] if entry['average_f1'] is not None else 'null'},
-      malidup_f1: {entry['malidup_f1'] if entry['malidup_f1'] is not None else 'null'},
-      malisam_f1: {entry['malisam_f1'] if entry['malisam_f1'] is not None else 'null'},
-      sabmark_sup_recall: {entry['sabmark_sup_recall'] if entry['sabmark_sup_recall'] is not None else 'null'},
-      sabmark_twi_recall: {entry['sabmark_twi_recall'] if entry['sabmark_twi_recall'] is not None else 'null'},
-      malidup_recall: {entry['malidup_recall'] if entry['malidup_recall'] is not None else 'null'},
-      malisam_recall: {entry['malisam_recall'] if entry['malisam_recall'] is not None else 'null'},
-      date_submitted: "{entry['date_submitted']}",
-      organization: "{entry['organization']}",
+      rank: {entry["rank"]},
+      model: "{entry["model"]}",
+      type: "{entry["type"]}",
+      description: "{entry["description"]}",
+      paper_url: "{entry["paper_url"]}",
+      code_url: "{entry["code_url"]}",
+      average_f1: {entry["average_f1"] if entry["average_f1"] is not None else "null"},
+      malidup_f1: {entry["malidup_f1"] if entry["malidup_f1"] is not None else "null"},
+      malisam_f1: {entry["malisam_f1"] if entry["malisam_f1"] is not None else "null"},
+      sabmark_sup_recall: {entry["sabmark_sup_recall"] if entry["sabmark_sup_recall"] is not None else "null"},
+      sabmark_twi_recall: {entry["sabmark_twi_recall"] if entry["sabmark_twi_recall"] is not None else "null"},
+      malidup_recall: {entry["malidup_recall"] if entry["malidup_recall"] is not None else "null"},
+      malisam_recall: {entry["malisam_recall"] if entry["malisam_recall"] is not None else "null"},
+      date_submitted: "{entry["date_submitted"]}",
+      organization: "{entry["organization"]}",
     }},
 '''
 
@@ -229,7 +229,7 @@ def main():
     ts_content = generate_typescript_content(entries)
 
     print(f"Writing to {output_file}...")
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write(ts_content)
 
     print("Done!")
@@ -238,7 +238,7 @@ def main():
     print("\nLeaderboard Summary:")
     print("=" * 50)
     for entry in entries:
-        avg_f1 = entry['average_f1'] if entry['average_f1'] is not None else "N/A"
+        avg_f1 = entry["average_f1"] if entry["average_f1"] is not None else "N/A"
         print(f"{entry['rank']}. {entry['model']}: {avg_f1}")
 
 
