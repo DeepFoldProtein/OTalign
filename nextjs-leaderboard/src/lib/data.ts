@@ -20,9 +20,9 @@ export const leaderboardData: LeaderboardData = {
     },
     {
       rank: 2,
-      model: "OTalign (ProtT5_XL_Uniref50)",
+      model: "OTalign (ProtT5_XL_UniRef50)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ProtT5_XL_Uniref50 embeddings",
+      description: "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "3B",
@@ -164,7 +164,7 @@ export const leaderboardData: LeaderboardData = {
     },
   ],
   metadata: {
-    last_updated: "2025-09-19T17:18:16Z",
+    last_updated: "2025-09-19T17:29:46Z",
     total_models: 10,
     datasets: ["MALIDUP", "MALISAM", "SABmark"],
     metrics: ["F1 Score", "Recall"],
