@@ -26,7 +26,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, help="Path to the dataset (JSONL or HF identifier).")
     ap.add_argument("--out_prefix", default="work/queries", help="Output prefix (path without extension)")
-    ap.add_argument("--wrap", type=int, default=60)
+    ap.add_argument("--wrap", type=int, default=None)
     ap.add_argument("--ffindex_from_fasta", default="ffindex_from_fasta")
     args = ap.parse_args()
 
@@ -54,7 +54,7 @@ def main():
         # Write sequences
         with fasta_file.open("w") as fp:
             for sid, seq in pairs:
-                fp.write(f"{sid}\n{seq}\n")
+                fp.write(f">{sid}\n{seq}\n")
 
         # Write names (optional, useful later)
         with names_file.open("w") as fp:
