@@ -62,7 +62,7 @@ python scripts/run_otalign_on_dataset.py \
   --dp_mode global \
   --device cuda --align_batch_size 16 \
   --output out/global.jsonl \
-  --dataset DeepFoldProtein/SABmark-dataset,sup,test \
+  --dataset DeepFoldProtein/malidup-dataset,all,test \
   --model AnkhCL \
   --cache_dir CACHE_DIR
 ```
