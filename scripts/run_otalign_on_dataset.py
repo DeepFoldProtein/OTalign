@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union, cast
 
+import numpy as np
 import torch
 from datasets import load_dataset
 from tqdm.auto import tqdm
@@ -17,6 +18,7 @@ from otalign.cache.npz_reader import NPZCache
 from otalign.io.fasta_utils import reconstruct_alignment
 from otalign.metrics.alignment import alignment_scores
 from otalign.models.embedding import get_embeddings_for_sequences
+from otalign.quantize import quantize
 
 
 # Global cache for multiprocessing workers
@@ -181,6 +183,15 @@ def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[
             f_np = res_ab_i["scaling_u"][0].log().cpu().numpy()
             g_np = res_ab_i["scaling_v"][0].log().cpu().numpy()
 
+            # Save transport plan if requested
+            save_transport_plan_dir_str = args_dict.get("save_transport_plan_dir")
+            if save_transport_plan_dir_str:
+                plan_dtype = np.uint8 if args_dict["plan_dtype"] == "uint8" else np.uint16
+                quantized_data = quantize(P_np, dtype=plan_dtype)
+                pair_id = ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}")
+                output_path = Path(save_transport_plan_dir_str) / f"{pair_id}.npz"
+                np.savez_compressed(output_path, **quantized_data, f=f_np, g=g_np)
+
             hard_aln = hard_alignment_from_transport(
                 P=P_np,
                 f=f_np,
@@ -298,6 +309,15 @@ def _worker(task):
         f_np = res_ab["scaling_u"][0].log().cpu().numpy()
         g_np = res_ab["scaling_v"][0].log().cpu().numpy()
 
+        # Save transport plan if requested
+        save_transport_plan_dir_str = args_dict.get("save_transport_plan_dir")
+        if save_transport_plan_dir_str:
+            plan_dtype = np.uint8 if args_dict["plan_dtype"] == "uint8" else np.uint16
+            quantized_data = quantize(P_np, dtype=plan_dtype)
+            pair_id = ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}")
+            output_path = Path(save_transport_plan_dir_str) / f"{pair_id}.npz"
+            np.savez_compressed(output_path, **quantized_data, f=f_np, g=g_np)
+
         hard_aln = hard_alignment_from_transport(
             P=P_np,
             f=f_np,
@@ -373,12 +393,9 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for GPU alignment.")
     ap.add_argument("--output", type=str, required=True, help="Path to write output JSONL file.")
-    ap.add_argument(
-        "--export_fasta_dir",
-        type=str,
-        default=None,
-        help="If provided, export alignments as FASTA files to this directory.",
-    )
+    ap.add_argument("--export_fasta_dir", type=str, default=None, help="If provided, export alignments as FASTA files to this directory.")
+    ap.add_argument("--save_transport_plan_dir", type=str, default=None, help="If provided, save transport plans to this directory.")
+    ap.add_argument("--plan_dtype", type=str, default="uint8", choices=["uint8", "uint16"], help="Data type for quantizing transport plans.")
     args = ap.parse_args()
 
     # Load dataset iterator
@@ -406,6 +423,10 @@ def main():
     # Create FASTA export directory if specified
     if args.export_fasta_dir:
         Path(args.export_fasta_dir).mkdir(parents=True, exist_ok=True)
+
+    # Create transport plan export directory if specified
+    if args.save_transport_plan_dir:
+        Path(args.save_transport_plan_dir).mkdir(parents=True, exist_ok=True)
 
     # Auto-detect cache type and initialize
     cache_dir_path = Path(args.cache_dir)
