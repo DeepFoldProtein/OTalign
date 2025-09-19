@@ -22,7 +22,7 @@ def main():
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--shard_size", type=int, default=2000)
     ap.add_argument("--device", type=str, default="cpu")
-    ap.add_argument("--cache_type", type=str, default="npz", choices=["npz", "lmdb"])
+    ap.add_argument("--cache_type", type=str, default="lmdb", choices=["npz", "lmdb"])
     args = ap.parse_args()
 
     adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.model)
