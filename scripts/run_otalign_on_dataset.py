@@ -14,6 +14,7 @@ from otalign.align.sinkhorn import SinkhornUOT
 from otalign.align.uot_alignment import hard_alignment_from_transport, uot_alignment_metrics_with_sinkhorn
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
+from otalign.io.fasta_utils import reconstruct_alignment
 from otalign.metrics.alignment import alignment_scores
 from otalign.models.embedding import get_embeddings_for_sequences
 
@@ -205,6 +206,16 @@ def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[
                 "ot_metrics": ot_metrics_serializable,
                 "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k != "device"}},
             }
+
+            # Export FASTA if requested
+            fasta_export_dir_str = args_dict.get("export_fasta_dir")
+            if fasta_export_dir_str and "pred_alignment" in rec:
+                aligned_seq1, aligned_seq2 = reconstruct_alignment(ex["seq1"], ex["seq2"], rec["pred_alignment"])
+                fasta_content = f">{rec['seq1_id']}\n{aligned_seq1}\n>{rec['seq2_id']}\n{aligned_seq2}\n"
+                output_path = Path(fasta_export_dir_str) / f"{rec['pair_id']}.fasta"
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(fasta_content)
+
             records.append(rec)
 
         return records
@@ -313,6 +324,16 @@ def _worker(task):
             "ot_metrics": ot_metrics_serializable,
             "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": args_dict},
         }
+
+        # Export FASTA if requested
+        fasta_export_dir_str = args_dict.get("export_fasta_dir")
+        if fasta_export_dir_str and "pred_alignment" in rec:
+            aligned_seq1, aligned_seq2 = reconstruct_alignment(ex["seq1"], ex["seq2"], rec["pred_alignment"])
+            fasta_content = f">{rec['seq1_id']}\n{aligned_seq1}\n>{rec['seq2_id']}\n{aligned_seq2}\n"
+            output_path = Path(fasta_export_dir_str) / f"{rec['pair_id']}.fasta"
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(fasta_content)
+
         return rec
 
     except Exception as e:
@@ -352,6 +373,12 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for GPU alignment.")
     ap.add_argument("--output", type=str, required=True, help="Path to write output JSONL file.")
+    ap.add_argument(
+        "--export_fasta_dir",
+        type=str,
+        default=None,
+        help="If provided, export alignments as FASTA files to this directory.",
+    )
     args = ap.parse_args()
 
     # Load dataset iterator
@@ -375,6 +402,10 @@ def main():
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create FASTA export directory if specified
+    if args.export_fasta_dir:
+        Path(args.export_fasta_dir).mkdir(parents=True, exist_ok=True)
 
     # Auto-detect cache type and initialize
     cache_dir_path = Path(args.cache_dir)
