@@ -4,7 +4,6 @@ import csv
 import json
 import pathlib
 import re
-from typing import Dict, List, Tuple
 
 
 ###############################################################################
@@ -23,13 +22,13 @@ def clean_aligned_line(line: str) -> str:
     return line
 
 
-def parse_manual_alignment_file(path: pathlib.Path) -> Tuple[str, str]:
+def parse_manual_alignment_file(path: pathlib.Path) -> tuple[str, str]:
     """
     Read a .manual.ali file and return the two aligned (gapped) strings.
     We skip lines that start with '#' and blank lines. We expect exactly two
     non-empty aligned strings.
     """
-    aligned: List[str] = []
+    aligned: list[str] = []
     with path.open("r", encoding="utf-8", errors="ignore") as f:
         for raw in f:
             s = raw.strip()
@@ -47,7 +46,7 @@ def parse_manual_alignment_file(path: pathlib.Path) -> Tuple[str, str]:
     return aligned[0], aligned[1]
 
 
-def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, int]], float]:
+def gapped_to_mapping(aln1: str, aln2: str) -> tuple[str, str, list[tuple[int, int]], float]:
     """
     Convert a pair of gapped aligned strings into:
       - ungapped seq1, seq2 (uppercase)
@@ -62,7 +61,7 @@ def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, i
     seq2 = "".join(ung2).upper()
 
     i = j = 0
-    pairs: List[Tuple[int, int]] = []
+    pairs: list[tuple[int, int]] = []
     matches = 0
     aligned = 0
     for a, b in zip(aln1, aln2):
@@ -87,7 +86,7 @@ def gapped_to_mapping(aln1: str, aln2: str) -> Tuple[str, str, List[Tuple[int, i
     return seq1, seq2, pairs, pid
 
 
-def parse_ranges(rng: str) -> List[str]:
+def parse_ranges(rng: str) -> list[str]:
     """
     Parse Range strings like '(A1-A45)' or '(A17-A49,A50-A118)'.
     Return a list of normalized segment strings, e.g. ['A1-A45', 'A50-A118'].
@@ -110,14 +109,14 @@ def parse_ranges(rng: str) -> List[str]:
 ###############################################################################
 
 
-def read_dup_table(path: pathlib.Path) -> Dict[str, dict]:
+def read_dup_table(path: pathlib.Path) -> dict[str, dict]:
     """
     Read dup.txt (tab-separated) and build a dict keyed by Pair Name (or parent folder name).
     Expected header columns (based on your sample):
     Pair Name, Domain1, SCOP ID1, Range1, Domain2, SCOP ID2, Range2,
     SCOP Class, SCOP Fold, SCOP Superfamily, SCOP Family, SCOP Protein
     """
-    by_pair: Dict[str, dict] = {}
+    by_pair: dict[str, dict] = {}
     # Handle either tab or multiple spaces. We'll try csv with delimiter='\t' first.
     with path.open("r", encoding="utf-8", errors="ignore") as f:
         # Attempt to sniff delimiter
@@ -219,7 +218,7 @@ def convert_malidup(
 
             m = meta_by_pair.get(pair_name, {})
             # Prefer human-readable labels (strings), assemble scop_labels like SABmark
-            scop_labels: List[str] = []
+            scop_labels: list[str] = []
             for key in ["scop_class", "scop_fold", "scop_superfamily", "scop_family", "scop_protein"]:
                 val = m.get(key, "")
                 if val:
@@ -234,8 +233,8 @@ def convert_malidup(
                 "pair_id": f"{pair_name}:{seq1_id}-{seq2_id}",
                 "group_id": pair_name,
                 "set_name": "malidup",  # dataset tag
-                "seq1_id": seq1_id,
-                "seq2_id": seq2_id,
+                "seq1_id": f"{pair_name}:{seq1_id}",
+                "seq2_id": f"{pair_name}:{seq2_id}",
                 "seq1": seq1,
                 "seq2": seq2,
                 "ref_alignment": ref_pairs,  # [[i, j], ...] 0-based indices

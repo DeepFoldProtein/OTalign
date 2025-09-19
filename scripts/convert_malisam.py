@@ -198,13 +198,12 @@ def convert_malisam(
             notes = read_optional_notes(pair_dir)
 
             # Assemble JSON record
-            pair_id = f"{dir_name}:{seq1_id}-{seq2_id}"
             ex = {
-                "pair_id": pair_id,
+                "pair_id": f"{dir_name}:{seq1_id}-{seq2_id}",
                 "group_id": dir_name,
                 "set_name": "malisam",
-                "seq1_id": seq1_id,
-                "seq2_id": seq2_id,
+                "seq1_id": f"{dir_name}:{seq1_id}",
+                "seq2_id": f"{dir_name}:{seq2_id}",
                 "seq1": seq1,
                 "seq2": seq2,
                 "ref_alignment": ref_pairs,  # [[i, j], ...] in 0-based ungapped coords

@@ -38,3 +38,51 @@ def write_fasta_pair(
     w2 = wrap_fasta_sequence(seq2, width) if width else seq2
     with p.open("w", encoding="utf-8") as f:
         f.write(f">{seq1_id}\n{w1}\n>{seq2_id}\n{w2}\n")
+
+
+def reconstruct_alignment(seq1: str, seq2: str, pred_alignment: list[list[int]]) -> tuple[str, str]:
+    """
+    Reconstructs the aligned sequences from the original sequences and the predicted alignment pairs.
+    """
+    aligned_seq1 = []
+    aligned_seq2 = []
+
+    match_pairs = sorted([tuple(p) for p in pred_alignment])
+
+    last_i = -1
+    last_j = -1
+
+    for i, j in match_pairs:
+        # Unaligned region before the current match
+        gap_in_seq2 = seq1[last_i + 1 : i]
+        gap_in_seq1 = seq2[last_j + 1 : j]
+
+        # Add unaligned parts of seq1 (gaps in seq2)
+        if gap_in_seq2:
+            aligned_seq1.extend(list(gap_in_seq2))
+            aligned_seq2.extend(["-"] * len(gap_in_seq2))
+
+        # Add unaligned parts of seq2 (gaps in seq1)
+        if gap_in_seq1:
+            aligned_seq1.extend(["-"] * len(gap_in_seq1))
+            aligned_seq2.extend(list(gap_in_seq1))
+
+        # Add the matched pair
+        aligned_seq1.append(seq1[i])
+        aligned_seq2.append(seq2[j])
+
+        last_i = i
+        last_j = j
+
+    # Tail part
+    gap_in_seq2 = seq1[last_i + 1 :]
+    if gap_in_seq2:
+        aligned_seq1.extend(list(gap_in_seq2))
+        aligned_seq2.extend(["-"] * len(gap_in_seq2))
+
+    gap_in_seq1 = seq2[last_j + 1 :]
+    if gap_in_seq1:
+        aligned_seq1.extend(["-"] * len(gap_in_seq1))
+        aligned_seq2.extend(list(gap_in_seq1))
+
+    return "".join(aligned_seq1), "".join(aligned_seq2)
