@@ -5,6 +5,7 @@ export interface LeaderboardEntry {
   description: string;
   paper_url?: string;
   code_url?: string;
+  parameters: string;
   average: number | null;
   malidup_f1: number | null;
   malisam_f1: number | null;

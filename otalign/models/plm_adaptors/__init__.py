@@ -41,10 +41,10 @@ MODEL_REGISTRY = {
         "policy": "drop_last_active",
         "adaptor_name": "AnkhCL",
     },
-    "ProtT5": {
+    "ProtT5_XL_UniRef50": {
         "builder": partial(build_prott5_adaptor, "Rostlab/prot_t5_xl_uniref50"),
         "policy": "drop_last_active",
-        "adaptor_name": "ProtT5",
+        "adaptor_name": "ProtT5_XL_UniRef50",
     },
 }
 

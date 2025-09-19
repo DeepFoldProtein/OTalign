@@ -5,6 +5,7 @@ export type SortField =
   | "rank"
   | "model"
   | "type"
+  | "parameters"
   | "average"
   | "malidup_f1"
   | "malisam_f1"

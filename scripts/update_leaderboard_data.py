@@ -84,6 +84,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "1.15B",
         },
         "ESM1b": {
             "model": "OTalign (ESM-1b)",
@@ -92,6 +93,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "650M",
         },
         "ESM2_12_35M": {
             "model": "OTalign (ESM-2 12M)",
@@ -100,6 +102,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "35M",
         },
         "ESM2_30_150M": {
             "model": "OTalign (ESM-2 150M)",
@@ -108,6 +111,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "150M",
         },
         "ESM2_33_650M": {
             "model": "OTalign (ESM-2 650M)",
@@ -116,6 +120,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "650M",
         },
         "ESM2_36_3B": {
             "model": "OTalign (ESM-2 3B)",
@@ -124,6 +129,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "3B",
         },
         "ESM2_6_8M": {
             "model": "OTalign (ESM-2 8M)",
@@ -132,14 +138,16 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "8M",
         },
-        "ProtT5": {
-            "model": "OTalign (ProtT5)",
+        "ProtT5_XL_UniRef50": {
+            "model": "OTalign (ProtT5_XL_UniRef50)",
             "type": "OTalign",
-            "description": "Optimal Transport alignment with ProtT5 embeddings",
+            "description": "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "3B",
         },
         "hhalign": {
             "model": "HHAlign",
@@ -148,6 +156,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "Söding Lab",
             "paper_url": "https://doi.org/10.1093/bioinformatics/bti125",
             "code_url": "https://github.com/soedinglab/hh-suite",
+            "parameters": "N/A",
         },
         "nwalign": {
             "model": "Needleman-Wunsch",
@@ -156,6 +165,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "organization": "Zhang Lab",
             "paper_url": "https://doi.org/10.1016/0022-2836(70)90057-4",
             "code_url": "https://zhanggroup.org/NW-align/",
+            "parameters": "N/A",
         },
     }
 
@@ -176,6 +186,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "description": info["description"],
             "paper_url": info["paper_url"],
             "code_url": info["code_url"],
+            "parameters": info["parameters"],
             "average": avg,
             "malidup_f1": model_metrics.get("malidup_f1"),
             "malisam_f1": model_metrics.get("malisam_f1"),
@@ -215,6 +226,7 @@ export const leaderboardData: LeaderboardData = {
       description: "{entry["description"]}",
       paper_url: "{entry["paper_url"]}",
       code_url: "{entry["code_url"]}",
+      parameters: "{entry["parameters"]}",
       average: {entry["average"] if entry["average"] is not None else "null"},
       malidup_f1: {entry["malidup_f1"] if entry["malidup_f1"] is not None else "null"},
       malisam_f1: {entry["malisam_f1"] if entry["malisam_f1"] is not None else "null"},
