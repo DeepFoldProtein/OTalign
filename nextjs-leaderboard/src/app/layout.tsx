@@ -36,11 +36,11 @@ export const metadata: Metadata = {
     url: baseUrl,
     images: [
       {
-        url: `${baseUrl}/svgs/logo_with_text.svg`,
-        width: 1450.71,
-        height: 400,
+        url: `${baseUrl}/og/og.png`,
+        width: 1200,
+        height: 600,
         alt: "OTalign Logo",
-        type: "image/svg+xml",
+        type: "image/png",
       },
     ],
   },
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: "OTalign Leaderboard",
     description:
       "Interactive leaderboard for optimal transport-based protein sequence alignment algorithms",
-    images: [`${baseUrl}/svgs/logo_with_text.svg`],
+    images: [`${baseUrl}/svgs/og.png`],
     creator: "@otalign",
   },
 

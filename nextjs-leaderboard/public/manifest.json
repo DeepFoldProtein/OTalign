@@ -82,9 +82,9 @@
   ],
   "screenshots": [
     {
-      "src": "/svgs/logo_with_text.svg",
+      "src": "/og/og.png",
       "sizes": "1280x720",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "platform": "wide",
       "label": "OTalign Leaderboard Overview"
     }
