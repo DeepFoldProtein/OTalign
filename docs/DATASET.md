@@ -13,14 +13,14 @@ Each entry in the dataset is a JSON object with the following structure:
 
 ```json
 {
-  "seq1_id": "2j5uA03",
-  "seq2_id": "6zlvA01",
-  "label": "positive",
-  "tm_score": 0.82559,
-  "alignment": {
-    "seq1": "RVSAKVQGKENAFGIINGYDSDTKLLELKQLPYDMKFKKGQKVVTSGLGGKFPAGIFIGTIEKVETDKMGLSQTAFIKPG",
-    "seq2": "SIPVQVNR-NGLRAIAVGTGNP-ERLELRYVADTADIKEGDLLVSSGLGQRFPAGYPVATVKEVIHDSGQPFAVVRAVP-"
-  }
+    "seq1_id": "1pm3A00",
+    "seq2_id": "2qggA02",
+    "label": "positive",
+    "tm_score": 0.57693,
+    "alignment": {
+        "seq1": "----HMRIVEEMVGKEVLDS----SAKVIGKVKDVEVDIESQAIESLVLGKG-----GGETIVPYE--MVKKIG---DKILLKGPEE--",
+        "seq2": "ADVDEYYWS-DLKGLTVLGLDDEEQEVNLGQIHELFETG-A--NDV-VVRATPDSIDSEER-IPWHKDVVQRVDLEAGRIYVNWG--VD"
+    }
 }
 ```
 
