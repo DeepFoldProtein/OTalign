@@ -5,13 +5,11 @@ export interface LeaderboardEntry {
   description: string;
   paper_url?: string;
   code_url?: string;
-  average_f1: number | null;
+  average: number | null;
   malidup_f1: number | null;
   malisam_f1: number | null;
   sabmark_sup_recall: number | null;
   sabmark_twi_recall: number | null;
-  malidup_recall: number | null;
-  malisam_recall: number | null;
   date_submitted: string;
   organization: string;
 }

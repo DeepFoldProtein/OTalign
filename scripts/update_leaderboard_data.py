@@ -46,15 +46,11 @@ def extract_metrics(data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, float]
                 results[model]["sabmark_sup_recall"] = round(mean_value, 4)
             elif dataset == "sabmark-twi" and metric == "Recall":
                 results[model]["sabmark_twi_recall"] = round(mean_value, 4)
-            elif dataset == "malidup" and metric == "Recall":
-                results[model]["malidup_recall"] = round(mean_value, 4)
-            elif dataset == "malisam" and metric == "Recall":
-                results[model]["malisam_recall"] = round(mean_value, 4)
 
     return results
 
 
-def calculate_average_f1(metrics: Dict[str, float]) -> Optional[float]:
+def calculate_average(metrics: Dict[str, float]) -> Optional[float]:
     """Calculate average F1 score from malidup_f1 and malisam_f1."""
     f1_scores = []
 
@@ -73,7 +69,7 @@ def calculate_average_f1(metrics: Dict[str, float]) -> Optional[float]:
 def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dict]:
     """Create leaderboard entries from extracted metrics."""
 
-    # Model mapping
+    # Model mapping - keys match the exact labels from CSV data
     model_info = {
         "AnkhCL": {
             "model": "OTalign (AnkhCL)",
@@ -83,7 +79,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        "ESM-1b": {
+        "ESM1b": {
             "model": "OTalign (ESM-1b)",
             "type": "OTalign",
             "description": "Optimal Transport alignment with ESM-1b embeddings",
@@ -91,10 +87,42 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        "ESM-2": {
-            "model": "OTalign (ESM-2)",
+        "ESM2_12_35M": {
+            "model": "OTalign (ESM-2 12M)",
             "type": "OTalign",
-            "description": "Optimal Transport alignment with ESM-2 embeddings",
+            "description": "Optimal Transport alignment with ESM-2 12M embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+        },
+        "ESM2_30_150M": {
+            "model": "OTalign (ESM-2 150M)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ESM-2 150M embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+        },
+        "ESM2_33_650M": {
+            "model": "OTalign (ESM-2 650M)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ESM-2 650M embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+        },
+        "ESM2_36_3B": {
+            "model": "OTalign (ESM-2 3B)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ESM-2 3B embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+        },
+        "ESM2_6_8M": {
+            "model": "OTalign (ESM-2 8M)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ESM-2 8M embeddings",
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
@@ -107,7 +135,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
         },
-        "HHalign": {
+        "hhalign": {
             "model": "HHAlign",
             "type": "Traditional",
             "description": "Profile-profile alignment with MSAs",
@@ -115,7 +143,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "paper_url": "https://doi.org/10.1093/bioinformatics/bti125",
             "code_url": "https://github.com/soedinglab/hh-suite",
         },
-        "NW": {
+        "nwalign": {
             "model": "Needleman-Wunsch",
             "type": "Traditional",
             "description": "Dynamic programming with substitution matrices",
@@ -133,7 +161,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             continue
         info = model_info[model_key]
         # Calculate average F1
-        avg_f1 = calculate_average_f1(model_metrics)
+        avg = calculate_average(model_metrics)
 
         entry = {
             "rank": 0,  # Will be set later based on sorting
@@ -142,20 +170,18 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "description": info["description"],
             "paper_url": info["paper_url"],
             "code_url": info["code_url"],
-            "average_f1": avg_f1,
+            "average": avg,
             "malidup_f1": model_metrics.get("malidup_f1"),
             "malisam_f1": model_metrics.get("malisam_f1"),
             "sabmark_sup_recall": model_metrics.get("sabmark_sup_recall"),
             "sabmark_twi_recall": model_metrics.get("sabmark_twi_recall"),
-            "malidup_recall": model_metrics.get("malidup_recall"),
-            "malisam_recall": model_metrics.get("malisam_recall"),
             "date_submitted": "2025-09-19",
             "organization": info["organization"],
         }
         entries.append(entry)
 
     # Sort by average F1 (descending), with None values at the end
-    entries.sort(key=lambda x: x["average_f1"] if x["average_f1"] is not None else -1, reverse=True)
+    entries.sort(key=lambda x: x["average"] if x["average"] is not None else -1, reverse=True)
 
     # Assign ranks
     for i, entry in enumerate(entries):
@@ -183,13 +209,11 @@ export const leaderboardData: LeaderboardData = {
       description: "{entry["description"]}",
       paper_url: "{entry["paper_url"]}",
       code_url: "{entry["code_url"]}",
-      average_f1: {entry["average_f1"] if entry["average_f1"] is not None else "null"},
+      average: {entry["average"] if entry["average"] is not None else "null"},
       malidup_f1: {entry["malidup_f1"] if entry["malidup_f1"] is not None else "null"},
       malisam_f1: {entry["malisam_f1"] if entry["malisam_f1"] is not None else "null"},
       sabmark_sup_recall: {entry["sabmark_sup_recall"] if entry["sabmark_sup_recall"] is not None else "null"},
       sabmark_twi_recall: {entry["sabmark_twi_recall"] if entry["sabmark_twi_recall"] is not None else "null"},
-      malidup_recall: {entry["malidup_recall"] if entry["malidup_recall"] is not None else "null"},
-      malisam_recall: {entry["malisam_recall"] if entry["malisam_recall"] is not None else "null"},
       date_submitted: "{entry["date_submitted"]}",
       organization: "{entry["organization"]}",
     }},
@@ -214,7 +238,7 @@ def main():
 
     # Paths
     eval_dir = "/gpfs/deepfold/work/otalign/eval"
-    output_file = "/gpfs/deepfold/users/baehanjin/work/OTalign/nextjs-leaderboard/src/lib/data.ts"
+    output_file = "/store/deepfold/users/baehanjin/work/OTalign/nextjs-leaderboard/src/lib/data.ts"
 
     print("Reading CSV data...")
     csv_data = read_csv_data(eval_dir)
@@ -238,10 +262,9 @@ def main():
     print("\nLeaderboard Summary:")
     print("=" * 50)
     for entry in entries:
-        avg_f1 = entry["average_f1"] if entry["average_f1"] is not None else "N/A"
-        print(f"{entry['rank']}. {entry['model']}: {avg_f1}")
+        avg = entry["average"] if entry["average"] is not None else "N/A"
+        print(f"{entry['rank']}. {entry['model']}: {avg}")
 
 
 if __name__ == "__main__":
-    main()
     main()
