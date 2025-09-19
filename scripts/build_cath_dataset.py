@@ -360,6 +360,9 @@ def main():
     ap.add_argument("--workers", type=int, default=mp.cpu_count(), help="Number of parallel workers for TM-align.")
     ap.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
 
+    # Splitting
+    ap.add_argument("--split_ratios", type=float, nargs=3, default=[0.8, 0.1, 0.1], help="Train, validation, and test split ratios.")
+
     args = ap.parse_args()
     args_dict = vars(args)
 
@@ -465,14 +468,60 @@ def main():
         logging.info(f"Trimmed negative pairs to the desired {len(neg_results)}.")
 
     results = pos_results + neg_results
-    random.shuffle(results)  # Shuffle the final dataset
+    random.shuffle(results)  # Shuffle the combined results before splitting
 
-    # --- 5. Save results and Log Final Statistics ---
-    output_jsonl_path = output_dir / "dataset.jsonl"
-    logging.info(f"Saving final dataset to {output_jsonl_path}...")
-    with open(output_jsonl_path, "w") as f:
-        for result in results:
-            f.write(json.dumps(result) + "\n")
+    # --- 5. Group-aware Splitting ---
+    logging.info("Performing group-aware split into train, validation, and test sets...")
+
+    # Get all unique superfamily IDs from positive pairs
+    superfamily_groups = defaultdict(list)
+    negative_pairs_final = []
+    for r in results:
+        if r["label"] == "positive":
+            superfamily_groups[r["group_id"]].append(r)
+        else:
+            negative_pairs_final.append(r)
+
+    unique_superfamilies = list(superfamily_groups.keys())
+    random.shuffle(unique_superfamilies)
+
+    # Split superfamily IDs
+    train_ratio, val_ratio, test_ratio = args.split_ratios
+    assert sum(args.split_ratios) == 1.0, "Split ratios must sum to 1.0"
+
+    n_train = int(len(unique_superfamilies) * train_ratio)
+    n_val = int(len(unique_superfamilies) * val_ratio)
+
+    sf_train = unique_superfamilies[:n_train]
+    sf_val = unique_superfamilies[n_train : n_train + n_val]
+    sf_test = unique_superfamilies[n_train + n_val :]
+
+    split_map = dict.fromkeys(sf_train, "train")
+    split_map.update(dict.fromkeys(sf_val, "validation"))
+    split_map.update(dict.fromkeys(sf_test, "test"))
+
+    # Assign pairs to splits
+    split_data = {"train": [], "validation": [], "test": []}
+    for sf_id, pairs in superfamily_groups.items():
+        split_name = split_map[sf_id]
+        split_data[split_name].extend(pairs)
+
+    # Distribute negative pairs proportionally
+    n_neg_train = int(len(negative_pairs_final) * train_ratio)
+    n_neg_val = int(len(negative_pairs_final) * val_ratio)
+
+    split_data["train"].extend(negative_pairs_final[:n_neg_train])
+    split_data["validation"].extend(negative_pairs_final[n_neg_train : n_neg_train + n_neg_val])
+    split_data["test"].extend(negative_pairs_final[n_neg_train + n_neg_val :])
+
+    # --- 6. Save results and Log Final Statistics ---
+    for split_name, data in split_data.items():
+        random.shuffle(data)
+        output_jsonl_path = output_dir / f"{split_name}.jsonl"
+        logging.info(f"Saving {len(data)} pairs to {output_jsonl_path}...")
+        with open(output_jsonl_path, "w") as f:
+            for record in data:
+                f.write(json.dumps(record) + "\n")
 
     # Final statistics
     final_pos_count = len(pos_results)

@@ -9,36 +9,52 @@ The dataset is composed of "positive" and "negative" pairs:
 - **Positive pairs**: Both domains belong to the same CATH Homologous Superfamily. These represent homologous relationships.
 - **Negative pairs**: The two domains belong to different CATH Homologous Superfamilies. These represent non-homologous relationships.
 
-Each entry in the dataset is a JSON object with the following structure:
+Each entry in the dataset is a JSON object with the following structure, consistent with the format used by other datasets in this project (e.g., SABmark):
 
 ```json
 {
-    "seq1_id": "1pm3A00",
-    "seq2_id": "2qggA02",
-    "label": "positive",
-    "tm_score": 0.57693,
-    "alignment": {
-        "seq1": "----HMRIVEEMVGKEVLDS----SAKVIGKVKDVEVDIESQAIESLVLGKG-----GGETIVPYE--MVKKIG---DKILLKGPEE--",
-        "seq2": "ADVDEYYWS-DLKGLTVLGLDDEEQEVNLGQIHELFETG-A--NDV-VVRATPDSIDSEER-IPWHKDVVQRVDLEAGRIYVNWG--VD"
-    }
+  "pair_id": "1.10.510.10:1c52A01-3o9hA01",
+  "group_id": "1.10.510.10",
+  "set_name": "cath",
+  "label": "positive",
+  "seq1_id": "1c52A01",
+  "seq2_id": "3o9hA01",
+  "seq1": "UNGAPPED_SEQUENCE_1",
+  "seq2": "UNGAPPED_SEQUENCE_2",
+  "ref_alignment": [[0, 0], [1, 1], [5, 6], ...],
+  "percent_identity": 25.4,
+  "cath_labels": ["superfamily:1.10.510.10"],
+  "meta": "{\"tm_score_1\": 0.95, \"tm_score_2\": 0.96, \"rmsd\": 1.5, \"length1\": 150, \"length2\": 148}"
 }
 ```
 
 ### Field Descriptions
 
-- `seq1_id`, `seq2_id`: The CATH domain IDs for the two proteins in the pair.
+- `pair_id`: A unique identifier for the pair, combining the group and sequence IDs.
+- `group_id`: The CATH Homologous Superfamily ID for positive pairs, or a generated ID for negative pairs.
+- `set_name`: The name of this dataset, always "cath".
 - `label`: "positive" for pairs from the same superfamily, "negative" for pairs from different superfamilies.
-- `tm_score`: The TM-score between the domains (which is normalized to the shorter one).
-- `alignment`: The ground-truth alignment of two sequences.
+- `seq1_id`, `seq2_id`: The CATH domain IDs for the two proteins in the pair.
+- `seq1`, `seq2`: The ungapped amino acid sequences.
+- `ref_alignment`: The ground-truth alignment as a list of `[index_seq1, index_seq2]` pairs in 0-based coordinates.
+- `percent_identity`: The percentage of identical residues in the aligned regions.
+- `cath_labels`: A list containing the CATH superfamily classification for the pair.
+- `meta`: A JSON string containing additional metadata, including TM-scores, RMSD, and original sequence lengths.
 
 ## How to Use
 
-The dataset is provided in JSONL format (`dataset.jsonl`). You can load it using the Hugging Face `datasets` library:
+The dataset is provided as three separate JSONL files for training, validation, and testing: `train.jsonl`, `validation.jsonl`, and `test.jsonl`.
+
+You can load them using the Hugging Face `datasets` library:
 
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("json", data_files="dataset.jsonl")
+# Load a single split
+train_dataset = load_dataset("json", data_files="train.jsonl", split="train")
+
+# Load all splits at once
+dataset = load_dataset("json", data_files={"train": "train.jsonl", "validation": "validation.jsonl", "test": "test.jsonl"})
 ```
 
 ## Generation Process
@@ -58,8 +74,13 @@ The dataset was generated using the `scripts/build_cath_dataset.py` script. The 
     - For each pair, TM-align was run to generate a structural alignment and a TM-score.
     - For negative pairs, those with a TM-score above a specified cutoff (e.g., 0.2) are discarded to ensure they are structurally dissimilar. The script oversamples and then trims the set to reach the desired number of hard negatives.
 
-5. **Output**:
-    - The final data is stored in a `dataset.jsonl` file. The script also outputs a `superfamily_composition.json` file detailing which domains from each superfamily were included in the final dataset.
+5. **Group-aware Splitting**:
+    - To prevent data leakage and ensure a fair evaluation of generalization performance, the dataset is split into training, validation, and test sets with a "group-aware" strategy.
+    - All pairs belonging to the same CATH superfamily (`group_id`) are guaranteed to be in the same split (train, validation, or test).
+    - Negative pairs are distributed proportionally across the splits.
+6. **Output**:
+    - The final data is stored in three separate files: `train.jsonl`, `validation.jsonl`, and `test.jsonl`.
+    - The script also outputs a `superfamily_composition.json` file detailing which domains from each superfamily were included in the final dataset.
 
 The generation script is configurable, allowing control over file paths, filtering criteria, pair counts, and parallelization settings. A random seed is used to ensure reproducibility.
 
