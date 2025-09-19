@@ -1,0 +1,247 @@
+"""
+Script to update the leaderboard data.ts file with evaluation results from CSV files.
+"""
+
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
+
+import pandas as pd
+
+
+def read_csv_data(eval_dir: str) -> Dict[str, pd.DataFrame]:
+    """Read all alignment metrics summary CSV files."""
+    datasets = ['malidup', 'malisam', 'sabmark-sup', 'sabmark-twi']
+    data = {}
+
+    for dataset in datasets:
+        csv_path = os.path.join(eval_dir, f"_{dataset}", "alignment_metrics_summary.csv")
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            data[dataset] = df
+            print(f"Loaded {dataset}: {len(df)} rows")
+        else:
+            print(f"Warning: {csv_path} not found")
+
+    return data
+
+
+def extract_metrics(data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, float]]:
+    """Extract F1 and Recall metrics for each model and dataset."""
+    results = {}
+
+    for dataset, df in data.items():
+        for _, row in df.iterrows():
+            model = row['label']
+            metric = row['metric']
+            mean_value = row['mean']
+            if model not in results:
+                results[model] = {}
+            # Map dataset and metric to the expected field names
+            if dataset == 'malidup' and metric == 'F1':
+                results[model]['malidup_f1'] = round(mean_value, 4)
+            elif dataset == 'malisam' and metric == 'F1':
+                results[model]['malisam_f1'] = round(mean_value, 4)
+            elif dataset == 'sabmark-sup' and metric == 'Recall':
+                results[model]['sabmark_sup_recall'] = round(mean_value, 4)
+            elif dataset == 'sabmark-twi' and metric == 'Recall':
+                results[model]['sabmark_twi_recall'] = round(mean_value, 4)
+            elif dataset == 'malidup' and metric == 'Recall':
+                results[model]['malidup_recall'] = round(mean_value, 4)
+            elif dataset == 'malisam' and metric == 'Recall':
+                results[model]['malisam_recall'] = round(mean_value, 4)
+
+    return results
+
+
+def calculate_average_f1(metrics: Dict[str, float]) -> Optional[float]:
+    """Calculate average F1 score from malidup_f1 and malisam_f1."""
+    f1_scores = []
+
+    if 'malidup_f1' in metrics and metrics['malidup_f1'] is not None:
+        f1_scores.append(metrics['malidup_f1'])
+
+    if 'malisam_f1' in metrics and metrics['malisam_f1'] is not None:
+        f1_scores.append(metrics['malisam_f1'])
+
+    if f1_scores:
+        return round(sum(f1_scores) / len(f1_scores), 4)
+
+    return None
+
+
+def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dict]:
+    """Create leaderboard entries from extracted metrics."""
+
+    # Model mapping
+    model_info = {
+        'AnkhCL': {
+            'model': 'OTalign (AnkhCL)',
+            'type': 'OTalign',
+            'description': 'Optimal Transport alignment with AnkhCL embeddings',
+            'organization': 'DeepFold',
+            'paper_url': '',
+            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        },
+        'ESM-1b': {
+            'model': 'OTalign (ESM-1b)',
+            'type': 'OTalign',
+            'description': 'Optimal Transport alignment with ESM-1b embeddings',
+            'organization': 'DeepFold',
+            'paper_url': '',
+            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        },
+        'ESM-2': {
+            'model': 'OTalign (ESM-2)',
+            'type': 'OTalign',
+            'description': 'Optimal Transport alignment with ESM-2 embeddings',
+            'organization': 'DeepFold',
+            'paper_url': '',
+            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        },
+        'ProtT5': {
+            'model': 'OTalign (ProtT5)',
+            'type': 'OTalign',
+            'description': 'Optimal Transport alignment with ProtT5 embeddings',
+            'organization': 'DeepFold',
+            'paper_url': '',
+            'code_url': 'https://github.com/DeepFoldProtein/OTalign'
+        },
+        'HHalign': {
+            'model': 'HHAlign',
+            'type': 'Traditional',
+            'description': 'Profile-profile alignment with MSAs',
+            'organization': 'Söding Lab',
+            'paper_url': 'https://doi.org/10.1093/bioinformatics/bti125',
+            'code_url': 'https://github.com/soedinglab/hh-suite'
+        },
+        'NW': {
+            'model': 'Needleman-Wunsch',
+            'type': 'Traditional',
+            'description': 'Dynamic programming with substitution matrices',
+            'organization': 'Zhang Lab',
+            'paper_url': 'https://doi.org/10.1016/0022-2836(70)90057-4',
+            'code_url': 'https://zhanggroup.org/NW-align/'
+        }
+    }
+
+    entries = []
+
+    for model_key, model_metrics in metrics.items():
+        if model_key not in model_info:
+            print(f"Warning: Unknown model {model_key}, skipping")
+            continue
+        info = model_info[model_key]
+        # Calculate average F1
+        avg_f1 = calculate_average_f1(model_metrics)
+
+        entry = {
+            'rank': 0,  # Will be set later based on sorting
+            'model': info['model'],
+            'type': info['type'],
+            'description': info['description'],
+            'paper_url': info['paper_url'],
+            'code_url': info['code_url'],
+            'average_f1': avg_f1,
+            'malidup_f1': model_metrics.get('malidup_f1'),
+            'malisam_f1': model_metrics.get('malisam_f1'),
+            'sabmark_sup_recall': model_metrics.get('sabmark_sup_recall'),
+            'sabmark_twi_recall': model_metrics.get('sabmark_twi_recall'),
+            'malidup_recall': model_metrics.get('malidup_recall'),
+            'malisam_recall': model_metrics.get('malisam_recall'),
+            'date_submitted': '2025-09-19',
+            'organization': info['organization']
+        }
+        entries.append(entry)
+
+    # Sort by average F1 (descending), with None values at the end
+    entries.sort(key=lambda x: x['average_f1'] if x['average_f1'] is not None else -1, reverse=True)
+
+    # Assign ranks
+    for i, entry in enumerate(entries):
+        entry['rank'] = i + 1
+
+    return entries
+
+
+def generate_typescript_content(entries: List[Dict]) -> str:
+    """Generate TypeScript content for data.ts file."""
+
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    content = '''import { LeaderboardData } from "./types";
+
+export const leaderboardData: LeaderboardData = {
+  leaderboard_data: [
+'''
+
+    for entry in entries:
+        content += f'''    {{
+      rank: {entry['rank']},
+      model: "{entry['model']}",
+      type: "{entry['type']}",
+      description: "{entry['description']}",
+      paper_url: "{entry['paper_url']}",
+      code_url: "{entry['code_url']}",
+      average_f1: {entry['average_f1'] if entry['average_f1'] is not None else 'null'},
+      malidup_f1: {entry['malidup_f1'] if entry['malidup_f1'] is not None else 'null'},
+      malisam_f1: {entry['malisam_f1'] if entry['malisam_f1'] is not None else 'null'},
+      sabmark_sup_recall: {entry['sabmark_sup_recall'] if entry['sabmark_sup_recall'] is not None else 'null'},
+      sabmark_twi_recall: {entry['sabmark_twi_recall'] if entry['sabmark_twi_recall'] is not None else 'null'},
+      malidup_recall: {entry['malidup_recall'] if entry['malidup_recall'] is not None else 'null'},
+      malisam_recall: {entry['malisam_recall'] if entry['malisam_recall'] is not None else 'null'},
+      date_submitted: "{entry['date_submitted']}",
+      organization: "{entry['organization']}",
+    }},
+'''
+
+    content += f'''  ],
+  metadata: {{
+    last_updated: "{timestamp}",
+    total_models: {len(entries)},
+    datasets: ["MALIDUP", "MALISAM", "SABmark"],
+    metrics: ["F1 Score", "Recall"],
+    version: "1.0.0",
+  }},
+}};
+'''
+
+    return content
+
+
+def main():
+    """Main function to update leaderboard data."""
+
+    # Paths
+    eval_dir = "/gpfs/deepfold/work/otalign/eval"
+    output_file = "/gpfs/deepfold/users/baehanjin/work/OTalign/nextjs-leaderboard/src/lib/data.ts"
+
+    print("Reading CSV data...")
+    csv_data = read_csv_data(eval_dir)
+
+    print("Extracting metrics...")
+    metrics = extract_metrics(csv_data)
+
+    print("Creating leaderboard entries...")
+    entries = create_leaderboard_entries(metrics)
+
+    print("Generating TypeScript content...")
+    ts_content = generate_typescript_content(entries)
+
+    print(f"Writing to {output_file}...")
+    with open(output_file, 'w') as f:
+        f.write(ts_content)
+
+    print("Done!")
+
+    # Print summary
+    print("\nLeaderboard Summary:")
+    print("=" * 50)
+    for entry in entries:
+        avg_f1 = entry['average_f1'] if entry['average_f1'] is not None else "N/A"
+        print(f"{entry['rank']}. {entry['model']}: {avg_f1}")
+
+
+if __name__ == "__main__":
+    main()
+    main()
