@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Set, cast
 
-from datasets import load_dataset
+from scripts.dataset_utils import iter_pairs_from_dataset
 
 
 def wrap(seq: str, width: int = 60) -> str:
@@ -24,9 +24,7 @@ def wrap(seq: str, width: int = 60) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dataset", required=True)
-    ap.add_argument("--name", required=True)
-    ap.add_argument("--split", default="test")
+    ap.add_argument("--dataset", required=True, help="Path to the dataset (JSONL or HF identifier).")
     ap.add_argument("--out_prefix", default="work/queries", help="Output prefix (path without extension)")
     ap.add_argument("--wrap", type=int, default=60)
     ap.add_argument("--ffindex_from_fasta", default="ffindex_from_fasta")
@@ -39,13 +37,13 @@ def main():
     names_file = out_prefix.with_suffix(".names")
     fasta_file = out_prefix.with_suffix(".fasta")
 
-    ds = load_dataset(args.dataset, name=args.name, split=args.split)
+    ds_iterator = iter_pairs_from_dataset(args.dataset)
 
     tmp = Path(tempfile.mkdtemp(prefix="ffq_"))
     try:
         seen: Set[str] = set()
         pairs: List[tuple[str, str]] = []
-        for ex_raw in ds:
+        for ex_raw in ds_iterator:
             ex = cast(dict, ex_raw)
             for sid, seq in ((ex["seq1_id"], ex["seq1"]), (ex["seq2_id"], ex["seq2"])):
                 if sid in seen:

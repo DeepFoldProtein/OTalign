@@ -8,7 +8,6 @@ from typing import Optional, Union, cast
 
 import numpy as np
 import torch
-from datasets import load_dataset
 from tqdm.auto import tqdm
 
 from otalign.align.sinkhorn import SinkhornUOT
@@ -19,6 +18,7 @@ from otalign.io.fasta_utils import reconstruct_alignment
 from otalign.metrics.alignment import alignment_scores
 from otalign.models.embedding import get_embeddings_for_sequences
 from otalign.quantize import quantize
+from scripts.dataset_utils import iter_pairs_from_dataset
 
 
 # Global cache for multiprocessing workers
@@ -33,20 +33,6 @@ def init_worker(cache_dir: str, cache_type: str):
         worker_cache = LMDBCache(cache_dir)
     else:
         worker_cache = NPZCache(cache_dir)
-
-
-def iter_hf(dataset: str, name: str, split: str):
-    ds = load_dataset(dataset, name=name, split=split)  # type: ignore
-    for ex_raw in ds:
-        ex = cast(dict, ex_raw)
-        yield {
-            "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
-            "seq1_id": ex["seq1_id"],
-            "seq2_id": ex["seq2_id"],
-            "seq1": ex["seq1"],
-            "seq2": ex["seq2"],
-            "ref_alignment": ex.get("ref_alignment"),
-        }
 
 
 def batch_iterator(iterable, batch_size):
@@ -365,12 +351,7 @@ def _worker(task):
 
 def main():
     ap = argparse.ArgumentParser(description="Run OTAlign over a dataset and export JSONL predictions.")
-    src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--hf_dataset", type=str, help="e.g. DeepFoldProtein/SABmark-dataset")
-    ap.add_argument("--name", type=str, default=None, help="HF config name, e.g. twi")
-    ap.add_argument("--split", type=str, default="test")
-    src.add_argument("--jsonl", type=str, help="Path to a JSONL file with sequence pairs.")
-
+    ap.add_argument("--dataset", type=str, required=True, help="Path to the dataset (JSONL or HF identifier).")
     # Model and cache
     ap.add_argument("--model", required=True, help="Name of the PLM to use (e.g., 'ankh-base').")
     ap.add_argument("--cache_dir", required=True, help="Directory for embedding cache.")
@@ -399,21 +380,10 @@ def main():
     args = ap.parse_args()
 
     # Load dataset iterator
-    if args.jsonl:
-        items = [json.loads(line) for line in open(args.jsonl, "r", encoding="utf-8")]
-        it = (
-            {
-                "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
-                "seq1_id": ex["seq1_id"],
-                "seq2_id": ex["seq2_id"],
-                "ref_alignment": ex.get("ref_alignment"),
-            }
-            for ex in items
-        )
-    else:
-        if load_dataset is None:
-            raise RuntimeError("datasets is not installed; install `datasets` or use --jsonl")
-        it = iter_hf(args.hf_dataset, args.name, args.split)  # type: ignore
+    it = iter_pairs_from_dataset(args.dataset)
+    # Convert iterator to list to get length for progress bar
+    items = list(it)
+    it = iter(items)
 
     args_dict = vars(args)
 
@@ -443,8 +413,7 @@ def main():
         if args.device == "cpu":
             # Use multiprocessing for CPU-bound tasks
             tasks = ((ex, args_dict) for ex in it)
-            # Get total for tqdm
-            total = len(items) if args.jsonl else len(load_dataset(args.hf_dataset, args.name, split=args.split))  # type: ignore
+            total = len(items)
             with mp.Pool(processes=args.workers, initializer=init_worker, initargs=(args.cache_dir, cache_type)) as pool:
                 for rec in tqdm(
                     pool.imap_unordered(_worker, tasks, chunksize=4),
@@ -456,14 +425,7 @@ def main():
             # Use batching for GPU-bound tasks
             batch_size = args.align_batch_size
             batched_it = batch_iterator(it, batch_size)
-
-            # Determine total number of items for tqdm
-            if args.jsonl:
-                total = len(items)
-            else:
-                # Re-load dataset to get length for progress bar
-                ds = load_dataset(args.hf_dataset, args.name, split=args.split)
-                total = len(ds)  # type: ignore
+            total = len(items)
 
             with tqdm(total=total, desc=f"Aligning pairs (GPU, batch_size={batch_size})") as pbar:
                 for batch in batched_it:

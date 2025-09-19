@@ -2,20 +2,18 @@ import argparse
 import typing
 
 import torch
-from datasets import Dataset, load_dataset
 from tqdm.auto import tqdm
 
 from otalign.cache.config import CacheConfig
 from otalign.cache.lmdb_writer import LMDBCacheWriter
 from otalign.cache.npz_writer import NPZCacheWriter
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
+from scripts.dataset_utils import iter_pairs_from_dataset
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dataset", required=True)  # e.g., DeepFoldProtein/SABmark-dataset
-    ap.add_argument("--name", required=True)  # e.g., twi
-    ap.add_argument("--split", default="test")
+    ap.add_argument("--dataset", required=True, help="Path to the dataset (JSONL or HF identifier).")
     ap.add_argument("--model", required=True)
     ap.add_argument("--dtype", default="fp32", choices=["fp16", "fp32", "bf16"])
     ap.add_argument("--output_root", required=True)
@@ -28,8 +26,10 @@ def main():
     adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.model)
 
     torch.set_grad_enabled(False)
+
+    dataset_name = args.dataset.split(",")[0].split("/")[-1]
     cfg = CacheConfig(
-        dataset_name=f"{args.dataset.split('/')[-1]}-{args.name}",
+        dataset_name=dataset_name,
         model_name=adaptor.model.name_or_path if hasattr(adaptor.model, "name_or_path") else str(adaptor.model),
         adaptor_name=adaptor_name,
         adaptor_version="1",
@@ -46,11 +46,11 @@ def main():
     else:
         raise ValueError(f"Unknown cache type: {args.cache_type}")
 
-    ds = typing.cast(Dataset, load_dataset(args.dataset, name=args.name, split=args.split))
+    ds_iterator = iter_pairs_from_dataset(args.dataset)
 
     id_set = set()
     pair_set = set()
-    for ex_raw in ds:
+    for ex_raw in ds_iterator:
         ex = typing.cast(dict, ex_raw)
         id_set.add(ex["seq1_id"])
         pair_set.add((ex["seq1_id"], ex["seq1"]))

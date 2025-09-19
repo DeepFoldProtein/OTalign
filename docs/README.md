@@ -48,8 +48,7 @@
 
 ```bash
 python scripts/build_cache.py \
-  --dataset DeepFoldProtein/malidup-dataset \
-  --name all --split test \
+  --dataset DeepFoldProtein/malidup-dataset,all,test \
   --model AnkhCL \
   --output_root .cache \
   --device cuda:2 --batch_size 8 \
@@ -63,7 +62,7 @@ python scripts/run_otalign_on_dataset.py \
   --dp_mode global \
   --device cuda --align_batch_size 16 \
   --output out/global.jsonl \
-  --hf_dataset DeepFoldProtein/SABmark-dataset --name sup --split test \
+  --dataset DeepFoldProtein/SABmark-dataset,sup,test \
   --model AnkhCL \
   --cache_dir CACHE_DIR
 ```
@@ -77,7 +76,7 @@ See [Zhang Lab](https://zhanggroup.org/NW-align/).
 ```bash
 # HF SABmark (twilight) -> NWalign predictions
 python scripts/run_nwalign_on_dataset.py \
-  --hf_dataset DeepFoldProtein/SABmark-dataset --name twi --split test \
+  --dataset DeepFoldProtein/SABmark-dataset,twi,test \
   --nwalign_bin NWalign --glocal 0 \
   --output out/nwalign_sabmark-twi.jsonl
 
@@ -98,8 +97,7 @@ See [repo](https://github.com/soedinglab/hh-suite).
 export HHDB=/path/to/hhsuite/db/uniclust/UniRef30_2023_02
 
 python scripts/make_ffindex_from_hf.py \
-  --dataset <DATASET> \
-  --name all --split test \
+  --dataset DeepFoldProtein/SABmark-dataset,twi,test \
   --out_prefix work/queries
 
 sbatch scripts/slurm_hhblits_mpi_ffindex.sh

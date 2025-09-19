@@ -3,10 +3,10 @@ import json
 from pathlib import Path
 from typing import cast
 
-from datasets import load_dataset
 from tqdm.auto import tqdm
 
 from otalign.io.fasta_utils import reconstruct_alignment
+from scripts.dataset_utils import iter_pairs_from_dataset
 
 
 def load_sequences(dataset_path: str) -> dict[str, dict]:
@@ -14,21 +14,7 @@ def load_sequences(dataset_path: str) -> dict[str, dict]:
     Loads sequences from a dataset into a dictionary keyed by pair_id.
     """
     sequences = {}
-    print(f"Loading sequences from {dataset_path}...")
-
-    if Path(dataset_path).is_file() and dataset_path.endswith(".jsonl"):
-        with open(dataset_path, "r", encoding="utf-8") as f:
-            data_iterable = [json.loads(line) for line in f]
-    else:
-        # Assuming it's a Hugging Face dataset identifier
-        # The format might be "dataset_name" or "dataset_name,config_name,split_name"
-        parts = dataset_path.split(",")
-        ds_name = parts[0]
-        config_name = parts[1] if len(parts) > 1 else None
-        split = parts[2] if len(parts) > 2 else "test"
-
-        print(f"Loading Hugging Face dataset: {ds_name} (config: {config_name}, split: {split})")
-        data_iterable = load_dataset(ds_name, name=config_name, split=split)
+    data_iterable = iter_pairs_from_dataset(dataset_path)
 
     for ex_raw in tqdm(data_iterable, desc="Loading sequences"):
         ex = cast(dict, ex_raw)
