@@ -1,7 +1,8 @@
 import torch
 
+from otalign.functional.sinkhorn_uot import unbalanced_sinkhorn
+
 from .cost import pairwise_cosine
-from .uot import unbalanced_sinkhorn
 
 
 @torch.no_grad()

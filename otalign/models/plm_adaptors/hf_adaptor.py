@@ -86,7 +86,7 @@ class HFEncoderAdaptor(BasePLMAdaptor):
                 # keep_mask: [B, T] True where original token should be kept as a residue
                 # Select hidden states
                 B, _, D = hidden.shape
-                maxL = keep_mask.sum(dim=1).max().item() if B > 0 else 0
+                maxL = int(keep_mask.sum(dim=1).max().item()) if B > 0 else 0
                 # assert isinstance(maxL, int)
                 # pack kept positions per row into a padded [B, maxL, D]
                 kept_embeds = []
@@ -108,7 +108,16 @@ class HFEncoderAdaptor(BasePLMAdaptor):
             model.train()
 
         # Concatenate
-        residue_embeddings = torch.cat(all_embeds, dim=0) if all_embeds else torch.empty((0, 0, 0), device=device, dtype=dtype)
-        attention_mask = torch.cat(all_masks, dim=0) if all_masks else torch.empty((0, 0), device=device, dtype=torch.bool)
+        if all_embeds:
+            max_len = max(e.shape[1] for e in all_embeds)
+
+            padded_embeds = [torch.nn.functional.pad(e, (0, 0, 0, max_len - e.shape[1])) for e in all_embeds]
+            residue_embeddings = torch.cat(padded_embeds, dim=0)
+
+            padded_masks = [torch.nn.functional.pad(m, (0, max_len - m.shape[1])) for m in all_masks]
+            attention_mask = torch.cat(padded_masks, dim=0)
+        else:
+            residue_embeddings = torch.empty((0, 0, 0), device=device, dtype=dtype)
+            attention_mask = torch.empty((0, 0), device=device, dtype=torch.bool)
 
         return EmbeddingOutput(residue_embeddings=residue_embeddings.to(dtype=dtype), attention_mask=attention_mask, per_sequence_lengths=all_lengths, extras={})

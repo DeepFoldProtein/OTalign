@@ -15,24 +15,47 @@ from otalign.align.uot_alignment import hard_alignment_from_transport, uot_align
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
 from otalign.io.fasta_utils import reconstruct_alignment
-from otalign.metrics.alignment import alignment_scores
+from otalign.metrics.alignment import alignment_scores, in_band_mass, recall_in_band
 from otalign.models.embedding import get_embeddings_for_sequences
+from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 from otalign.quantize import quantize
+from otalign.utils.checkpointing import load_peft_model_from_checkpoint
 from scripts.dataset_utils import iter_pairs_from_dataset
 
 
 # Global cache for multiprocessing workers
-AnyCache = Union[NPZCache, LMDBCache]
-worker_cache: Optional[AnyCache] = None
+AnyCache = Union[NPZCache, LMDBCache, None]
+worker_cache: AnyCache = None
+worker_model_objects: dict = {}
 
 
-def init_worker(cache_dir: str, cache_type: str):
-    """Initializer for multiprocessing pool to create a shared cache object."""
-    global worker_cache
-    if cache_type == "lmdb":
-        worker_cache = LMDBCache(cache_dir)
+def init_worker(cache_dir: Optional[str], cache_type: Optional[str], args_dict: dict):
+    """Initializer for multiprocessing pool to create a shared cache object and model."""
+    global worker_cache, worker_model_objects
+    if cache_dir and cache_type:
+        if cache_type == "lmdb":
+            worker_cache = LMDBCache(cache_dir)
+        else:
+            worker_cache = NPZCache(cache_dir)
     else:
-        worker_cache = NPZCache(cache_dir)
+        worker_cache = None
+
+    device = torch.device(args_dict["device"])
+    model_path = Path(args_dict["model"])
+    model = None
+    model_name_for_adaptor = args_dict["model"]
+    adaptor = None
+    if model_path.is_dir():
+        base_model_name = args_dict["base_model_for_checkpoint"]
+        plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name)
+        if plm_adaptor:
+            model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
+            model_name_for_adaptor = base_model_name
+            adaptor = plm_adaptor
+
+    worker_model_objects["model"] = model
+    worker_model_objects["model_name_for_adaptor"] = model_name_for_adaptor
+    worker_model_objects["adaptor"] = adaptor
 
 
 def batch_iterator(iterable, batch_size):
@@ -55,7 +78,14 @@ def alignment_metrics(pred: list[tuple[int, int]], ref: Optional[list[list[int]]
     return asdict(metrics)
 
 
-def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[dict]:
+def _process_batch(
+    batch: list[dict],
+    args_dict: dict,
+    cache: AnyCache,
+    model: Optional[torch.nn.Module],
+    model_name_for_adaptor: str,
+    adaptor: Optional[torch.nn.Module] = None,
+) -> list[dict]:
     """
     Processes a batch of sequence pairs on a GPU.
     """
@@ -76,15 +106,17 @@ def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[
         embeddings = get_embeddings_for_sequences(
             sequences=all_seqs,
             seq_ids=all_seq_ids,
-            model_name=args_dict["model"],
+            model_name=model_name_for_adaptor,
             cache_dir=args_dict["cache_dir"],
             device=args_dict["device"],
             batch_size=args_dict["align_batch_size"] * 2,
             dtype=args_dict["dtype"],
             cache=cache,
+            model=model,
+            adaptor=adaptor,
         )
 
-        # 2. Pad and batch embeddings
+        # 3. Pad and batch embeddings
         batch_size = len(batch)
         emb1_list = embeddings[:batch_size]
         emb2_list = embeddings[batch_size:]
@@ -172,6 +204,7 @@ def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[
             # Save transport plan if requested
             save_transport_plan_dir_str = args_dict.get("save_transport_plan_dir")
             if save_transport_plan_dir_str:
+                Path(save_transport_plan_dir_str).mkdir(parents=True, exist_ok=True)
                 plan_dtype = np.uint8 if args_dict["plan_dtype"] == "uint8" else np.uint16
                 quantized_data = quantize(P_np, dtype=plan_dtype)
                 pair_id = ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}")
@@ -193,6 +226,22 @@ def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[
             # Compute standard alignment metrics
             std_metrics = alignment_metrics(pred_pairs, ex.get("ref_alignment"))
 
+            # Compute new metrics if reference alignment is available
+            new_metrics = {}
+            ref_alignment = ex.get("ref_alignment")
+            if ref_alignment:
+                true_plan = torch.zeros_like(res_ab_i["transport_plan"][0], device=device)
+                for r, c in ref_alignment:
+                    if r < true_plan.shape[0] and c < true_plan.shape[1]:
+                        true_plan[r, c] = 1.0
+
+                # Normalize transport plan for in-band mass
+                plan_sum = res_ab_i["transport_plan"][0].sum().clamp(min=1e-8)
+                normalized_plan = res_ab_i["transport_plan"][0] / plan_sum
+                precision_like_score = in_band_mass(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
+                recall_like_score = recall_in_band(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
+                new_metrics = {f"in_band_mass_w_{args_dict['eval_band_width']}": precision_like_score, f"recall_in_band_w_{args_dict['eval_band_width']}": recall_like_score}
+
             # Assemble record
             rec = {
                 "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
@@ -200,6 +249,7 @@ def _process_batch(batch: list[dict], args_dict: dict, cache: AnyCache) -> list[
                 "seq2_id": ex["seq2_id"],
                 "pred_alignment": pred_pairs,
                 "metrics": std_metrics,
+                "new_metrics": new_metrics,
                 "ot_metrics": ot_metrics_serializable,
                 "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k != "device"}},
             }
@@ -233,21 +283,26 @@ def _worker(task):
     """
     (ex, args_dict) = task
     try:
-        # 1. Get embeddings for the pair
+        # 1. Get embeddings
+        device = torch.device(args_dict["device"])
+        dtype_map = {"fp16": torch.float16, "fp32": torch.float32, "bf16": torch.bfloat16}
+        torch_dtype = dtype_map[args_dict["dtype"]]
+
         seqs = [ex["seq1"], ex["seq2"]]
         seq_ids = [ex["seq1_id"], ex["seq2_id"]]
 
         embeddings = get_embeddings_for_sequences(
             sequences=seqs,
             seq_ids=seq_ids,
-            model_name=args_dict["model"],
+            model_name=worker_model_objects["model_name_for_adaptor"],
             cache_dir=args_dict["cache_dir"],
             device=args_dict["device"],
             batch_size=2,
             dtype=args_dict["dtype"],
             cache=worker_cache,
+            model=worker_model_objects["model"],
+            adaptor=worker_model_objects.get("adaptor"),
         )
-
         emb1_tensor, emb2_tensor = embeddings[0], embeddings[1]
 
         # Convert to torch tensors
@@ -298,6 +353,7 @@ def _worker(task):
         # Save transport plan if requested
         save_transport_plan_dir_str = args_dict.get("save_transport_plan_dir")
         if save_transport_plan_dir_str:
+            Path(save_transport_plan_dir_str).mkdir(parents=True, exist_ok=True)
             plan_dtype = np.uint8 if args_dict["plan_dtype"] == "uint8" else np.uint16
             quantized_data = quantize(P_np, dtype=plan_dtype)
             pair_id = ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}")
@@ -320,15 +376,35 @@ def _worker(task):
         # 6. Compute standard alignment metrics
         std_metrics = alignment_metrics(pred_pairs, ex.get("ref_alignment"))
 
-        # 7. Assemble record
+        # 7. Compute new metrics
+        new_metrics = {}
+        ref_alignment = ex.get("ref_alignment")
+        if ref_alignment:
+            true_plan = torch.zeros_like(res_ab["transport_plan"][0], device=device)
+            for r, c in ref_alignment:
+                if r < true_plan.shape[0] and c < true_plan.shape[1]:
+                    true_plan[r, c] = 1.0
+
+            plan_sum = res_ab["transport_plan"][0].sum().clamp(min=1e-8)
+            normalized_plan = res_ab["transport_plan"][0] / plan_sum
+            precision_like_score = in_band_mass(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
+            recall_like_score = recall_in_band(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
+            new_metrics = {f"in_band_mass_w_{args_dict['eval_band_width']}": precision_like_score, f"recall_in_band_w_{args_dict['eval_band_width']}": recall_like_score}
+
+        # 8. Assemble record
         rec = {
             "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
             "seq1_id": ex["seq1_id"],
             "seq2_id": ex["seq2_id"],
             "pred_alignment": pred_pairs,
             "metrics": std_metrics,
+            "new_metrics": new_metrics,
             "ot_metrics": ot_metrics_serializable,
-            "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": args_dict},
+            "meta": {
+                "tool": "OTAlign",
+                "model": args_dict["model"],
+                "params": {k: v for k, v in args_dict.items() if k != "device"},
+            },
         }
 
         # Export FASTA if requested
@@ -353,8 +429,9 @@ def main():
     ap = argparse.ArgumentParser(description="Run OTAlign over a dataset and export JSONL predictions.")
     ap.add_argument("--dataset", type=str, required=True, help="Path to the dataset (JSONL or HF identifier).")
     # Model and cache
-    ap.add_argument("--model", required=True, help="Name of the PLM to use (e.g., 'ankh-base').")
-    ap.add_argument("--cache_dir", required=True, help="Directory for embedding cache.")
+    ap.add_argument("--model", required=True, help="Name of the PLM to use (e.g., 'ankh-base') or path to a PEFT checkpoint directory.")
+    ap.add_argument("--base_model_for_checkpoint", type=str, help="Base model name if --model is a checkpoint path.")
+    ap.add_argument("--cache_dir", help="Directory for embedding cache.")
     ap.add_argument("--device", type=str, default="cpu", help="Device to run inference on.")
     ap.add_argument("--dtype", default="fp32", choices=["fp16", "fp32", "bf16"])
 
@@ -370,6 +447,9 @@ def main():
     ap.add_argument("--go_base", type=float, default=8.0, help="Base gap open penalty.")
     ap.add_argument("--ge_base", type=float, default=1.0, help="Base gap extend penalty.")
 
+    # New metric parameters
+    ap.add_argument("--eval_band_width", type=int, default=2, help="Band width for In-band mass.")
+
     # Output and processing
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for GPU alignment.")
@@ -378,6 +458,16 @@ def main():
     ap.add_argument("--save_transport_plan_dir", type=str, default=None, help="If provided, save transport plans to this directory.")
     ap.add_argument("--plan_dtype", type=str, default="uint8", choices=["uint8", "uint16"], help="Data type for quantizing transport plans.")
     args = ap.parse_args()
+
+    # Add logging about the model being used
+    model_path = Path(args.model)
+    if model_path.is_dir():
+        print(f"INFO: Loading fine-tuned checkpoint from: {args.model}")
+        if not args.base_model_for_checkpoint:
+            raise ValueError("--base_model_for_checkpoint is required when --model is a directory.")
+        print(f"INFO: Using base model for checkpoint: {args.base_model_for_checkpoint}")
+    else:
+        print(f"INFO: Using base model: {args.model}")
 
     # Load dataset iterator
     it = iter_pairs_from_dataset(args.dataset)
@@ -399,22 +489,44 @@ def main():
         Path(args.save_transport_plan_dir).mkdir(parents=True, exist_ok=True)
 
     # Auto-detect cache type and initialize
-    cache_dir_path = Path(args.cache_dir)
-    if (cache_dir_path / "data.lmdb").exists():
-        cache = LMDBCache(args.cache_dir)
-        cache_type = "lmdb"
-        print("Using LMDBCache")
+    if args.cache_dir is not None:
+        cache_dir_path = Path(args.cache_dir)
+        if (cache_dir_path / "data.lmdb").exists():
+            cache = LMDBCache(args.cache_dir)
+            cache_type = "lmdb"
+            print("Using LMDBCache")
+        else:
+            cache = NPZCache(args.cache_dir)
+            cache_type = "npz"
+            print("Using NPZCache")
     else:
-        cache = NPZCache(args.cache_dir)
-        cache_type = "npz"
-        print("Using NPZCache")
+        cache = None
+        cache_type = None
 
     with out_path.open("w", encoding="utf-8") as fout:
-        if args.device == "cpu":
-            # Use multiprocessing for CPU-bound tasks
+        model_path = Path(args.model)
+        is_dl_model = model_path.is_dir()
+
+        if args.device == "cpu" and is_dl_model:
+            # Process pairs sequentially for DL models on CPU
+            print("INFO: Using deep learning model on CPU, processing sequentially.")
+            init_worker(args.cache_dir, cache_type, args_dict)
+            total = len(items)
+            with tqdm(items, total=total, desc="Aligning pairs (CPU, sequential)") as pbar:
+                for ex in pbar:
+                    pair_id = ex.get("pair_id", "N/A")
+                    tqdm.write(f"INFO: Processing pair: {pair_id}")
+                    rec = _worker((ex, args_dict))
+                    if "error" in rec:
+                        tqdm.write(f"ERROR: Pair {pair_id} failed with error: {rec['error']}")
+                    fout.write(json.dumps(rec) + "\n")
+
+        elif args.device == "cpu" and not is_dl_model:
+            # Use multiprocessing for non-DL CPU-bound tasks
+            print("INFO: Using multiprocessing for CPU-bound tasks.")
             tasks = ((ex, args_dict) for ex in it)
             total = len(items)
-            with mp.Pool(processes=args.workers, initializer=init_worker, initargs=(args.cache_dir, cache_type)) as pool:
+            with mp.Pool(processes=args.workers, initializer=init_worker, initargs=(args.cache_dir, cache_type, args_dict)) as pool:
                 for rec in tqdm(
                     pool.imap_unordered(_worker, tasks, chunksize=4),
                     total=total,
@@ -423,13 +535,30 @@ def main():
                     fout.write(json.dumps(rec) + "\n")
         else:
             # Use batching for GPU-bound tasks
+            print("INFO: Using GPU for batch processing.")
+            device = torch.device(args.device)
+            model = None
+            model_name_for_adaptor = args.model
+            adaptor = None
+            if is_dl_model:
+                base_model_name = args.base_model_for_checkpoint
+                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name)
+                if plm_adaptor:
+                    model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
+                    model_name_for_adaptor = base_model_name
+                    adaptor = plm_adaptor
+
+            # Ensure the adaptor is not None before proceeding
+            if is_dl_model and not adaptor:
+                raise ValueError("Failed to initialize PLM adaptor for GPU processing.")
+
             batch_size = args.align_batch_size
             batched_it = batch_iterator(it, batch_size)
             total = len(items)
 
             with tqdm(total=total, desc=f"Aligning pairs (GPU, batch_size={batch_size})") as pbar:
                 for batch in batched_it:
-                    records = _process_batch(list(batch), args_dict, cache)
+                    records = _process_batch(list(batch), args_dict, cache, model, model_name_for_adaptor, adaptor)
                     for rec in records:
                         fout.write(json.dumps(rec) + "\n")
                     pbar.update(len(batch))

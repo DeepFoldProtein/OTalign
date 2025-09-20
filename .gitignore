@@ -236,3 +236,4 @@ Temporary Items
 /out
 /datasets
 .cache/
+/wandb
