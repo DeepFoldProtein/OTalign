@@ -77,6 +77,15 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
 
     # Model mapping - keys match the exact labels from CSV data
     model_info = {
+        "ProteinGLM_100B_INT4": {
+            "model": "OTalign (ProteinGLM 100B INT4)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with ProteinGLM 100B INT4 embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "100B INT4",
+        },
         "AnkhCL": {
             "model": "OTalign (AnkhCL)",
             "type": "OTalign",
