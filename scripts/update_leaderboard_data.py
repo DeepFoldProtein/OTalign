@@ -105,9 +105,9 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "parameters": "650M",
         },
         "ESM2_12_35M": {
-            "model": "OTalign (ESM-2 12M)",
+            "model": "OTalign (ESM-2 35M)",
             "type": "OTalign",
-            "description": "Optimal Transport alignment with ESM-2 12M embeddings",
+            "description": "Optimal Transport alignment with ESM-2 35M embeddings",
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",

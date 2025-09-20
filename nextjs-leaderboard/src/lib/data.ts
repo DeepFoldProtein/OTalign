@@ -22,7 +22,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 2,
       model: "OTalign (ProtT5_XL_UniRef50)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
+      description:
+        "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "3B",
@@ -68,9 +69,9 @@ export const leaderboardData: LeaderboardData = {
     },
     {
       rank: 5,
-      model: "OTalign (ESM-2 12M)",
+      model: "OTalign (ESM-2 35M)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ESM-2 12M embeddings",
+      description: "Optimal Transport alignment with ESM-2 35M embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "35M",
@@ -86,7 +87,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 6,
       model: "OTalign (ProteinGLM 100B INT4)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ProteinGLM 100B INT4 embeddings",
+      description:
+        "Optimal Transport alignment with ProteinGLM 100B INT4 embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "100B INT4",
