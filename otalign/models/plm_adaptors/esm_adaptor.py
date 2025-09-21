@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoTokenizer, EsmForMaskedLM
 
 from .hf_adaptor import HFEncoderAdaptor
 
@@ -28,9 +28,12 @@ def esm_trim_first_last_policy(input_ids: torch.Tensor, attention_mask: torch.Te
     return trimmed, lengths, keep_mask
 
 
-def build_esm_adaptor(model_name: str = "facebook/esm2_t33_650M_UR50D") -> HFEncoderAdaptor:
+def build_esm_adaptor(model_name: str = "facebook/esm2_t33_650M_UR50D", for_masked_lm: bool = False) -> HFEncoderAdaptor:
     tok = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-    model = AutoModel.from_pretrained(model_name)
+    if for_masked_lm:
+        model = EsmForMaskedLM.from_pretrained(model_name)
+    else:
+        model = AutoModel.from_pretrained(model_name)
     return HFEncoderAdaptor(
         tokenizer=tok,
         model=model,

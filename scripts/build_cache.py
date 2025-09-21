@@ -1,5 +1,6 @@
 import argparse
 import typing
+from pathlib import Path
 
 import torch
 from tqdm.auto import tqdm
@@ -8,13 +9,15 @@ from otalign.cache.config import CacheConfig
 from otalign.cache.lmdb_writer import LMDBCacheWriter
 from otalign.cache.npz_writer import NPZCacheWriter
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
+from otalign.utils.checkpointing import load_peft_model_from_checkpoint
 from scripts.dataset_utils import iter_pairs_from_dataset
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, help="Path to the dataset (JSONL or HF identifier).")
-    ap.add_argument("--model", required=True)
+    ap.add_argument("--model", required=True, help="Name of the PLM to use (e.g., 'ankh-base') or path to a PEFT checkpoint directory.")
+    ap.add_argument("--base_model_for_checkpoint", type=str, help="Base model name if --model is a checkpoint path.")
     ap.add_argument("--dtype", default="fp32", choices=["fp16", "fp32", "bf16"])
     ap.add_argument("--output_root", required=True)
     ap.add_argument("--batch_size", type=int, default=4)
@@ -23,14 +26,31 @@ def main():
     ap.add_argument("--cache_type", type=str, default="lmdb", choices=["npz", "lmdb"])
     args = ap.parse_args()
 
-    adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.model)
+    device = torch.device(args.device)
+    model_path = Path(args.model)
+    model_name_for_config: str
+
+    if model_path.is_dir():
+        print(f"INFO: Loading fine-tuned checkpoint from: {args.model}")
+        if not args.base_model_for_checkpoint:
+            raise ValueError("--base_model_for_checkpoint is required when --model is a directory.")
+        print(f"INFO: Using base model for checkpoint: {args.base_model_for_checkpoint}")
+
+        model_name_for_config = args.base_model_for_checkpoint
+        adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.base_model_for_checkpoint, for_masked_lm=True)
+        model = load_peft_model_from_checkpoint(adaptor.model, str(model_path))
+        adaptor.model = model
+    else:
+        print(f"INFO: Using base model: {args.model}")
+        model_name_for_config = args.model
+        adaptor, policy, adaptor_name = get_plm_adaptor_and_configs(args.model)
 
     torch.set_grad_enabled(False)
 
     dataset_name = args.dataset.split(",")[0].split("/")[-1]
     cfg = CacheConfig(
         dataset_name=dataset_name,
-        model_name=adaptor.model.name_or_path if hasattr(adaptor.model, "name_or_path") else str(adaptor.model),
+        model_name=model_name_for_config,
         adaptor_name=adaptor_name,
         adaptor_version="1",
         dtype=args.dtype,
@@ -60,7 +80,6 @@ def main():
     if len(id_set) != len(pair_set):
         raise ValueError("More than two sequences are matched to a single id.")
 
-    device = torch.device(args.device)
     adaptor.model.to(device)
 
     pairs = list(pair_set)

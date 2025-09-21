@@ -70,21 +70,19 @@ def in_band_mass(pred_plan: torch.Tensor, true_plan: torch.Tensor, band_width: i
     Returns:
         float: 밴드 내의 총 확률 질량 (0과 1 사이의 값).
     """
-    # 정답이 없는 경우, 밴드 내 질량은 0입니다.
     if true_plan.sum() == 0:
         return 0.0
 
-    # 밴드 영역을 표시할 마스크를 생성합니다.
-    band_mask = torch.zeros_like(true_plan, dtype=torch.bool)
-    true_coords = torch.nonzero(true_plan > 0.5, as_tuple=False)
+    # 2D Max Pooling을 사용하여 밴드 마스크를 효율적으로 생성합니다.
+    kernel_size = 2 * band_width + 1
+    padding = band_width
+    # true_plan을 4D 텐서로 변환: (N, C, H, W)
+    true_plan_4d = true_plan.unsqueeze(0).unsqueeze(0)
 
-    # 각 정답 좌표 주변의 (2w+1) x (2w+1) 영역을 마스크에 1로 표시합니다.
-    for r, c in true_coords:
-        r_min = max(0, r - band_width)
-        r_max = min(band_mask.shape[0], r + band_width + 1)
-        c_min = max(0, c - band_width)
-        c_max = min(band_mask.shape[1], c + band_width + 1)
-        band_mask[r_min:r_max, c_min:c_max] = True
+    # max_pool2d를 적용하여 각 픽셀 주변의 최대값을 찾습니다.
+    # 정답 위치(1)가 있으면 주변 영역이 1로 채워진 밴드 마스크가 생성됩니다.
+    band_mask = F.max_pool2d(true_plan_4d, kernel_size=kernel_size, stride=1, padding=padding)
+    band_mask = band_mask.squeeze(0).squeeze(0) > 0.5
 
     # 예측 확률 행렬과 밴드 마스크를 곱하여 밴드 내의 확률만 남깁니다.
     mass = torch.sum(pred_plan * band_mask.float())
@@ -94,40 +92,97 @@ def in_band_mass(pred_plan: torch.Tensor, true_plan: torch.Tensor, band_width: i
 
 def recall_in_band(pred_plan: torch.Tensor, true_plan: torch.Tensor, band_width: int) -> float:
     """
-    각 정답 위치 주변의 국소 밴드에 포함된 예측 확률의 평균을 계산합니다. (Recall-like)
+    Hard threshold 없이, 각 정답 위치 주변에 포착된 확률 질량의 평균을
+    'Soft'한 점수로 계산합니다. (Robust & Soft Recall-like)
 
     Args:
-        pred_plan (torch.Tensor): 정규화된(총합=1) 예측 확률 행렬.
-        true_plan (torch.Tensor): 정답 정렬 행렬 (0 또는 1).
-        band_width (int): 국소 밴드의 절반 폭 (w).
+        pred_plan (torch.Tensor): 정규화된 예측 확률 행렬.
+        true_plan (torch.Tensor): 정답 정렬 행렬.
+        band_width (int): 국소 밴드의 절반 폭.
 
     Returns:
-        float: 정답 위치 당 평균적으로 포착된 확률 질량.
+        float: Soft Recall 점수.
     """
-    # 정답이 없는 경우, 모든 정답을 찾았다고 간주하여 1.0을 반환합니다.
-    if true_plan.sum() == 0:
+    num_true = true_plan.sum()
+    if num_true == 0:
         return 1.0
 
-    # 커널(밴드) 크기를 정의합니다.
     kernel_size = 2 * band_width + 1
-
-    # F.avg_pool2d는 4D 텐서(N, C, H, W)를 입력으로 받으므로 차원을 추가합니다.
-    # (H, W) -> (1, 1, H, W)
     plan_4d = pred_plan.unsqueeze(0).unsqueeze(0)
 
-    # Average Pooling을 사용하여 각 위치 주변의 '합계'를 효율적으로 계산합니다.
-    # padding을 추가하여 행렬 경계에서도 밴드 크기를 동일하게 유지합니다.
-    # avg_pool2d의 결과에 커널 넓이를 곱하면 sum_pool2d와 동일한 효과를 냅니다.
     sum_pooled = F.avg_pool2d(plan_4d, kernel_size=kernel_size, stride=1, padding=band_width) * (kernel_size * kernel_size)
 
-    # 정답 좌표를 가져옵니다.
     true_coords = torch.nonzero(true_plan > 0.5, as_tuple=False)
 
-    # pooling된 결과에서 정답 좌표에 해당하는 값들만 추출합니다.
-    # sum_pooled는 (1, 1, H, W) 형태이므로, 인덱싱을 맞춥니다.
     captured_masses = sum_pooled[0, 0, true_coords[:, 0], true_coords[:, 1]]
 
-    # 추출된 값들의 평균을 계산하여 최종 점수를 얻습니다.
+    # [수정된 부분] 각 정답 위치의 점수가 1.0을 넘지 않도록 보정합니다.
+    # 중복 계산으로 인해 합계가 1을 약간 넘는 경우를 방지하여 안정성을 높입니다.
+    captured_masses.clamp_(max=1.0)
+
+    # Hard threshold 없이, 포착된 확률 질량의 평균을 그대로 사용합니다.
     recall = torch.mean(captured_masses)
 
     return recall.item()
+
+
+def vectorized_in_band_mass(pred_plans: torch.Tensor, true_plans: torch.Tensor, band_width: int) -> torch.Tensor:
+    """
+    Vectorized version of in_band_mass for a batch of plans.
+    """
+    if true_plans.sum() == 0:
+        return torch.zeros(pred_plans.shape[0], device=pred_plans.device)
+
+    kernel_size = 2 * band_width + 1
+    padding = band_width
+
+    # Add channel dimension for pooling
+    true_plans_4d = true_plans.unsqueeze(1)  # (B, 1, H, W)
+
+    band_mask = F.max_pool2d(true_plans_4d, kernel_size=kernel_size, stride=1, padding=padding)
+    band_mask = band_mask.squeeze(1) > 0.5  # (B, H, W)
+
+    mass = torch.sum(pred_plans * band_mask.float(), dim=(1, 2))  # (B,)
+    return mass
+
+
+def vectorized_recall_in_band(pred_plans: torch.Tensor, true_plans: torch.Tensor, band_width: int) -> torch.Tensor:
+    """
+    Fully vectorized version of recall_in_band.
+    """
+    num_true = true_plans.sum(dim=(1, 2))
+    # Create a mask for samples that have true alignments
+    has_true = num_true > 0
+
+    # Initialize recalls with 1.0 for samples with no true alignments
+    recalls = torch.ones(pred_plans.shape[0], device=pred_plans.device)
+
+    if not has_true.any():
+        return recalls
+
+    # Filter plans that have true alignments
+    pred_plans_filt = pred_plans[has_true]
+    true_plans_filt = true_plans[has_true]
+    num_true_filt = num_true[has_true]
+
+    kernel_size = 2 * band_width + 1
+    padding = band_width
+
+    plans_4d = pred_plans_filt.unsqueeze(1)  # (B_filt, 1, H, W)
+
+    sum_pooled = F.avg_pool2d(plans_4d, kernel_size=kernel_size, stride=1, padding=padding) * (kernel_size * kernel_size)
+    sum_pooled = sum_pooled.squeeze(1)  # (B_filt, H, W)
+
+    # Clamp to avoid scores > 1.0
+    sum_pooled.clamp_(max=1.0)
+
+    # Multiply by the true plan to get captured mass at each true location
+    captured_mass_total = torch.sum(sum_pooled * true_plans_filt, dim=(1, 2))
+
+    # Calculate mean recall for each sample
+    recall_filt = captured_mass_total / num_true_filt
+
+    # Update the recalls tensor at the correct indices
+    recalls[has_true] = recall_filt
+
+    return recalls

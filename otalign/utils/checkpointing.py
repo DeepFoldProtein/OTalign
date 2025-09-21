@@ -32,13 +32,8 @@ def load_peft_model_from_checkpoint(base_model, checkpoint_path: str):
         peft_config = LoraConfig.from_pretrained(checkpoint_path)
     except Exception:
         logging.warning(f"Could not load LoraConfig from {checkpoint_path}. Using default values. This may fail if the architecture has changed.")
-        peft_config = LoraConfig(
-            r=8,
-            lora_alpha=16,
-            lora_dropout=0.1,
-            target_modules=["q_proj", "v_proj"],  # Placeholder
-        )
+        peft_config = LoraConfig(r=8, lora_alpha=16, lora_dropout=0.1, target_modules=["q_proj", "v_proj"])
 
-    peft_model = PeftModel.from_pretrained(base_model, checkpoint_path, config=peft_config)
+    peft_model = PeftModel.from_pretrained(base_model, checkpoint_path, config=peft_config, is_trainable=False)
     logging.info("Successfully loaded PEFT model from checkpoint.")
     return peft_model

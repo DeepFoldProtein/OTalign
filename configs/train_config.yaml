@@ -1,9 +1,9 @@
 # Training Configuration for OTalign
 
 # -- Experiment Settings --
-project_name: "otalign-finetune"
-run_name: "esm1b-lora-finetune"
 log_dir: "work/logs"
+run_name: "esm1b-lora-finetune-2"
+report_to: "wandb"
 
 # -- Checkpoint Settings --
 checkpoint_dir: "work/checkpoints"
@@ -25,25 +25,29 @@ lora:
 # -- Data Settings --
 data_root: "work/cath_dataset"
 num_workers: 4
+max_len1: 1024
+max_len2: 1024
 
 # -- Training Settings --
+train_full_head: true # Whether to train the full language model head or just LoRA adapters
 epochs: 100
-batch_size: 4
+batch_size: 2
 lr: 1.0e-4
-device: "cuda"
 log_interval: 10
-gradient_accumulation_steps: 4
+gradient_accumulation_steps: 8
 
 # -- Evaluation Settings --
+eval_before_train: true # Whether to run an evaluation before starting the training
 eval_band_width: 2
 
 # -- Loss Function Settings --
 loss:
   lambda_pos: 0.1 # Sparsity regularization for positive pairs
   lambda_neg: 1.0 # Emptiness regularization for negative pairs
+  lambda_mlm: 1.0 # Weight for the Masked Language Model loss
 
 # -- UOT Settings --
 uot:
-  reg: 0.1          # Entropy regularization
-  reg_m: 1.0        # Marginal relaxation
-  num_iter: 1_000   # Sinkhorn iterations
+  reg: 0.1 # Entropy regularization
+  reg_m: 1.0 # Marginal relaxation
+  num_iter: 1_000 # Sinkhorn iterations

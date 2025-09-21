@@ -47,9 +47,10 @@ def init_worker(cache_dir: Optional[str], cache_type: Optional[str], args_dict: 
     adaptor = None
     if model_path.is_dir():
         base_model_name = args_dict["base_model_for_checkpoint"]
-        plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name)
+        plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=True)
         if plm_adaptor:
             model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
+            plm_adaptor.model = model  # Use the loaded PEFT model in the adaptor
             model_name_for_adaptor = base_model_name
             adaptor = plm_adaptor
 
@@ -542,9 +543,10 @@ def main():
             adaptor = None
             if is_dl_model:
                 base_model_name = args.base_model_for_checkpoint
-                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name)
+                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=True)
                 if plm_adaptor:
                     model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
+                    plm_adaptor.model = model  # Use the loaded PEFT model in the adaptor
                     model_name_for_adaptor = base_model_name
                     adaptor = plm_adaptor
 

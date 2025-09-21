@@ -1,5 +1,5 @@
 import torch
-from transformers import T5EncoderModel, T5Tokenizer
+from transformers import T5EncoderModel, T5ForConditionalGeneration, T5Tokenizer
 
 from .hf_adaptor import HFEncoderAdaptor
 
@@ -28,9 +28,12 @@ def t5_trim_last_policy(input_ids: torch.Tensor, attention_mask: torch.Tensor) -
     return trimmed, lengths, keep_mask
 
 
-def build_prott5_adaptor(model_name="Rostlab/prot_t5_xl_uniref50"):
+def build_prott5_adaptor(model_name="Rostlab/prot_t5_xl_uniref50", for_masked_lm: bool = False):
     tok = T5Tokenizer.from_pretrained(model_name, do_lower_case=False, legacy=True)
-    model = T5EncoderModel.from_pretrained(model_name)
+    if for_masked_lm:
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
+    else:
+        model = T5EncoderModel.from_pretrained(model_name)
 
     def preproc_batch(seqs: list[str]) -> list[str]:
         # Replace uncommon AA with X (common in ProtT5 recipes)

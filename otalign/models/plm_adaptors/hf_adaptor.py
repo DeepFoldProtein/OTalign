@@ -72,14 +72,18 @@ class HFEncoderAdaptor(BasePLMAdaptor):
                 if hasattr(self, "preproc_batch") and callable(getattr(self, "preproc_batch")):
                     seq_batch = self.preproc_batch(seq_batch)
 
-                enc = tok(seq_batch, return_tensors="pt", padding=True, truncation=False, add_special_tokens=True, pad_to_multiple_of=self.pad_to_multiple_of)
+                enc = tok(seq_batch, return_tensors="pt", padding=True, truncation=True, max_length=1024, add_special_tokens=True, pad_to_multiple_of=self.pad_to_multiple_of)
                 input_ids: torch.Tensor = enc[self.token_field].to(device)
                 attn_mask: torch.Tensor = enc[self.attention_mask_field].to(device)
 
                 # Forward
                 with torch.autocast(device_type=str(device).split(":")[0], dtype=autocast_dtype) if fp16 else torch.enable_grad():
-                    outputs = model(**{self.token_field: input_ids, self.attention_mask_field: attn_mask})  # type: ignore
-                    hidden: torch.Tensor = getattr(outputs, self.model_output_field)  # [B, T, D]
+                    outputs = model(**{self.token_field: input_ids, self.attention_mask_field: attn_mask, "output_hidden_states": True})  # type: ignore
+                    if hasattr(outputs, self.model_output_field):
+                        hidden: torch.Tensor = getattr(outputs, self.model_output_field)
+                    else:
+                        # Fallback for MaskedLMOutput which has 'hidden_states' tuple
+                        hidden: torch.Tensor = outputs.hidden_states[-1]
 
                 # Trim specials on token_ids, then select same positions in hidden
                 trimmed_ids, lengths, keep_mask = self.trim_policy(enc["input_ids"].to(device), enc["attention_mask"].to(device))

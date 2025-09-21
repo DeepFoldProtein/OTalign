@@ -55,7 +55,8 @@ echo "=========================================================="
 # The 'train.py' script is expected to handle DDP initialization internally
 # using the environment variables (MASTER_ADDR, etc.) and SLURM variables (SLURM_PROCID, etc.).
 
-echo "Starting DDP training..."
-srun python scripts/train.py configs/train_config.yaml --eval_before_train
+export WANDB_PROJECT="otalign-finetune"
 
-echo "Training finished."
+echo "[$(date)] Starting DDP training..."
+accelerate launch --config_file accelerate_config.yaml scripts/train.py configs/train_config.yaml
+echo "[$(date)] Training finished."

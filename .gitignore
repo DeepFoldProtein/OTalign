@@ -232,8 +232,8 @@ Temporary Items
 .ionide
 
 ### Experiments ###
-/data
-/out
-/datasets
 .cache/
 /wandb
+/data
+/work
+/out

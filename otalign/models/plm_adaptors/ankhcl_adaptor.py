@@ -1,14 +1,20 @@
 from transformers import AutoTokenizer
 
+from otalign.models.ankh_for_masked_lm import AnkhForMaskedLM
 from otalign.procl.model.ankh import AnkhCL
 
 from .hf_adaptor import HFEncoderAdaptor
 from .t5_adaptor import t5_trim_last_policy
 
 
-def build_ankhcl_adaptor():
-    tok = AutoTokenizer.from_pretrained("DeepFoldProtein/Ankh-Large-Contrastive", do_lower_case=False)
-    model = AnkhCL.from_pretrained("DeepFoldProtein/Ankh-Large-Contrastive", freeze_base=True, is_scratch=False)
+def build_ankhcl_adaptor(for_masked_lm: bool = False):
+    model_name = "DeepFoldProtein/Ankh-Large-Contrastive"
+    tok = AutoTokenizer.from_pretrained(model_name, do_lower_case=False)
+
+    if for_masked_lm:
+        model = AnkhForMaskedLM.from_pretrained(model_name)
+    else:
+        model = AnkhCL.from_pretrained(model_name, freeze_base=True, is_scratch=False)
 
     def preproc_batch(seqs: list[str]) -> list[str]:
         # Replace uncommon AA with X (common in ProtT5 recipes)
