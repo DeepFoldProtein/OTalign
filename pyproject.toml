@@ -33,6 +33,7 @@ dependencies = [
     "lmdb (>=1.4.1,<2.0.0)",
     "peft (>=0.17.1,<0.18.0)",
     "deepspeed (==0.17.5)",
+    "torchvision (>=0.23.0,<0.24.0)",
 ]
 
 [project.optional-dependencies]
