@@ -142,6 +142,8 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2"
@@ -150,48 +152,63 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2"
 
 # 5. Plotting Configuration
+# Defines the plots to be generated for each test group.
+# The top-level keys must match the keys in the 'tests' section.
 plotting:
   sabmark:
-    title: "SABmark Benchmark"
-    metrics: ["recall", "precision", "f1", "jaccard"]
-    # Special plot for SABmark focusing on recall
-    custom_plots:
-      - name: "sabmark_recall"
-        type: "barplot"
-        metrics: ["recall"]
-        title: "SABmark Recall Comparison"
-      - name: "sabmark_box"
+    plots:
+      - name: "sabmark_metrics_box"
         type: "boxplot"
-        metrics: ["recall", "precision", "f1", "jaccard"]
         title: "SABmark Benchmark"
-
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "sabmark_recall_bar"
+        type: "barplot"
+        title: "SABmark Recall Comparison"
+        metrics: ["recall"]
   malidup:
-    title: "Malidup Benchmark (F1 Score)"
-    metrics: ["f1"]
-    custom_plots:
-      - name: "malidup_bar"
-        type: "barplot"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-        title: "Malidup Benchmark"
-      - name: "malidup_box"
+    plots:
+      - name: "malidup_metrics_box"
         type: "boxplot"
-        metrics: ["recall", "precision", "f1", "jaccard"]
         title: "Malidup Benchmark"
-
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "malidup_f1_bar"
+        type: "barplot"
+        title: "Malidup Benchmark (F1 Score)"
+        metrics: ["f1"]
   malisam:
-    title: "Malisam Benchmark (F1 Score)"
-    metrics: ["f1"]
-    custom_plots:
-      - name: "malisam_bar"
-        type: "barplot"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-        title: "Malisam Benchmark"
-      - name: "malisam_box"
+    plots:
+      - name: "malisam_metrics_box"
         type: "boxplot"
-        metrics: ["recall", "precision", "f1", "jaccard"]
         title: "Malisam Benchmark"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "malisam_f1_bar"
+        type: "barplot"
+        title: "Malisam Benchmark (F1 Score)"
+        metrics: ["f1"]
+  finetune-sab:
+    plots:
+      - name: "finetune-sab_metrics_box"
+        type: "boxplot"
+        title: "SABmark Finetune Comparison"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "finetune-sab_metrics_bar"
+        type: "barplot"
+        title: "SABmark Finetune Comparison"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+  finetune-mali:
+    plots:
+      - name: "finetune-mali_metrics_box"
+        type: "boxplot"
+        title: "Mali-dup/sam Finetune Comparison"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "finetune-mali_metrics_bar"
+        type: "barplot"
+        title: "Mali-dup/sam Finetune Comparison"
+        metrics: ["recall", "precision", "f1", "jaccard"]

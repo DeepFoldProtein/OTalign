@@ -27,7 +27,8 @@ out/
 └── plots/                   # Generated plots for analysis
     └── <dataset_name>/
         ├── all_metrics.png
-        └── recall_vs_precision.png
+        ├── sabmark_recall_bar.png
+        └── sabmark_metrics_box.png
 ```
 
 ## Core Concepts
@@ -40,6 +41,7 @@ All aspects of the benchmark are controlled by `config.yaml`. This file defines:
 - **Datasets**: Lists the HuggingFace dataset identifiers for `SABmark`, `Malidup`, and `Malisam`.
 - **Tests**: Maps which models should be run on which datasets.
 - **Paths**: Defines the locations for output directories, caches, and executables.
+- **Plotting**: Defines how to generate plots for each benchmark group, including titles, metrics, and plot types.
 
 ### 2. Modular Evaluators
 
@@ -83,15 +85,52 @@ The benchmark suite is run through a command-line interface, invoked using `pyth
   python -m benchmark plot
   ```
 
-- **Generate plots for a specific dataset:**
+- **Generate plots for a specific test group:**
 
   ```bash
-  python -m benchmark plot --dataset sabmark_twi
+  python -m benchmark plot --test sabmark
   ```
 
-### 5. Plotting
+  This command will generate all plots defined under the `sabmark` key in the `plotting` section of `config.yaml`.
 
-The plotting functionality generates publication-quality figures based on the results. It automatically uses the labels and colors defined in `config.yaml` to create:
+### 5. Plotting and Configuration
 
-- A comprehensive plot showing all relevant metrics (F1, Precision, Recall, Jaccard).
-- Individual plots for key metrics, such as Recall on SABmark, for more detailed analysis.
+The plotting functionality is highly configurable via the `plotting` section in `config.yaml`, allowing for the creation of publication-quality figures. The generated plots are saved in `out/plots/<test_name>/`.
+
+The `plotter.py` script aggregates results for all datasets within a specified test group and generates the plots defined for that group.
+
+#### Plotting Configuration (`config.yaml`)
+
+The `plotting` section is organized by **test groups**, where each key must match a key from the `tests` section. For each test group, you can define a list of `plots` to generate.
+
+Here is an example for the `sabmark` and `finetune-sab` test groups:
+
+```yaml
+# 5. Plotting Configuration
+plotting:
+  sabmark:
+    plots:
+      - name: "sabmark_metrics_box"
+        type: "boxplot"
+        title: "SABmark Benchmark"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "sabmark_recall_bar"
+        type: "barplot"
+        title: "SABmark Recall Comparison"
+        metrics: ["recall"]
+  
+  finetune-sab:
+    plots:
+      - name: "finetune-sab_metrics_box"
+        type: "boxplot"
+        title: "SABmark Finetune Comparison"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+```
+
+- **`plots`**: A list of plot objects to generate for the test group.
+  - **`name`**: The filename for the generated plot (e.g., `sabmark_metrics_box.png`).
+  - **`type`**: The type of plot, typically `boxplot` or `barplot`.
+  - **`title`**: The title displayed on the plot.
+  - **`metrics`**: A list of metrics to include in the plot.
+
+This intuitive structure allows you to explicitly define which plots are generated for each test run, giving you full control over the output.

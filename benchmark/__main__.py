@@ -57,7 +57,8 @@ def main():
 
     # --- 'plot' command ---
     plot_parser = subparsers.add_parser("plot", help="Generate plots from benchmark results")
-    plot_parser.add_argument("--dataset", type=str, help="Generate plots only for a specific dataset")
+    plot_parser.add_argument("--test", type=str, help="Generate plots only for a specific test group (e.g., 'sabmark', 'finetune-sab')")
+    plot_parser.add_argument("--plot-format", type=str, default="png", help="Output format for plots (e.g., 'png', 'svg', 'pdf')")
     plot_parser.set_defaults(func=generate_plots)
 
     args = parser.parse_args()
