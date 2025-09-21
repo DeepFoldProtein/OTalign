@@ -66,7 +66,10 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
 
-    it = iter_pairs_from_dataset(args.dataset)
+    dataset_iterator = list(iter_pairs_from_dataset(args.dataset))
+    total_pairs = len(dataset_iterator)
+    success_count = 0
+    fail_count = 0
 
     args_dict = {
         "hhm_dir": args.hhm_dir,
@@ -80,9 +83,18 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as fout:
         with mp.Pool(processes=args.workers) as pool:
-            for rec in pool.imap_unordered(_worker, ((ex, args_dict) for ex in it), chunksize=4):
-                fout.write(json.dumps(rec) + "\n")
+            tasks = ((ex, args_dict) for ex in dataset_iterator)
+            for rec in pool.imap_unordered(_worker, tasks, chunksize=4):
+                if "error" in rec:
+                    print(f"  - Warning: Pair {rec['pair_id']} failed with error: {rec['error']}")
+                    fail_count += 1
+                else:
+                    fout.write(json.dumps(rec) + "\n")
+                    success_count += 1
 
+    print(f"  - Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
+    if fail_count > 0:
+        print(f"  - Failed pairs: {fail_count}")
     print(f"[ok] wrote predictions -> {out}")
 
 

@@ -458,6 +458,7 @@ def main():
     ap.add_argument("--export_fasta_dir", type=str, default=None, help="If provided, export alignments as FASTA files to this directory.")
     ap.add_argument("--save_transport_plan_dir", type=str, default=None, help="If provided, save transport plans to this directory.")
     ap.add_argument("--plan_dtype", type=str, default="uint8", choices=["uint8", "uint16"], help="Data type for quantizing transport plans.")
+    ap.add_argument("--no-tqdm", action="store_true", help="Disable tqdm progress bars.")
     args = ap.parse_args()
 
     # Add logging about the model being used
@@ -471,12 +472,13 @@ def main():
         print(f"INFO: Using base model: {args.model}")
 
     # Load dataset iterator
-    it = iter_pairs_from_dataset(args.dataset)
-    # Convert iterator to list to get length for progress bar
-    items = list(it)
+    items = list(iter_pairs_from_dataset(args.dataset))
+    total_pairs = len(items)
     it = iter(items)
 
     args_dict = vars(args)
+    success_count = 0
+    fail_count = 0
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -512,28 +514,34 @@ def main():
             # Process pairs sequentially for DL models on CPU
             print("INFO: Using deep learning model on CPU, processing sequentially.")
             init_worker(args.cache_dir, cache_type, args_dict)
-            total = len(items)
-            with tqdm(items, total=total, desc="Aligning pairs (CPU, sequential)") as pbar:
+            with tqdm(items, total=total_pairs, desc="Aligning pairs (CPU, sequential)", disable=args.no_tqdm) as pbar:
                 for ex in pbar:
                     pair_id = ex.get("pair_id", "N/A")
                     tqdm.write(f"INFO: Processing pair: {pair_id}")
                     rec = _worker((ex, args_dict))
                     if "error" in rec:
                         tqdm.write(f"ERROR: Pair {pair_id} failed with error: {rec['error']}")
-                    fout.write(json.dumps(rec) + "\n")
+                        fail_count += 1
+                    else:
+                        fout.write(json.dumps(rec) + "\n")
+                        success_count += 1
 
         elif args.device == "cpu" and not is_dl_model:
             # Use multiprocessing for non-DL CPU-bound tasks
             print("INFO: Using multiprocessing for CPU-bound tasks.")
             tasks = ((ex, args_dict) for ex in it)
-            total = len(items)
             with mp.Pool(processes=args.workers, initializer=init_worker, initargs=(args.cache_dir, cache_type, args_dict)) as pool:
                 for rec in tqdm(
-                    pool.imap_unordered(_worker, tasks, chunksize=4),
-                    total=total,
+                    pool.imap_unordered(_worker, tasks, chunksize=32),
+                    total=total_pairs,
                     desc="Aligning pairs (CPU)",
+                    disable=args.no_tqdm,
                 ):
-                    fout.write(json.dumps(rec) + "\n")
+                    if "error" in rec:
+                        fail_count += 1
+                    else:
+                        fout.write(json.dumps(rec) + "\n")
+                        success_count += 1
         else:
             # Use batching for GPU-bound tasks
             print("INFO: Using GPU for batch processing.")
@@ -546,25 +554,30 @@ def main():
                 plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=bool(args.base_model_for_checkpoint))
                 if plm_adaptor:
                     model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
-                    plm_adaptor.model = model  # Use the loaded PEFT model in the adaptor
+                    plm_adaptor.model = model
                     model_name_for_adaptor = base_model_name
                     adaptor = plm_adaptor
 
-            # Ensure the adaptor is not None before proceeding
             if is_dl_model and not adaptor:
                 raise ValueError("Failed to initialize PLM adaptor for GPU processing.")
 
             batch_size = args.align_batch_size
             batched_it = batch_iterator(it, batch_size)
-            total = len(items)
 
-            with tqdm(total=total, desc=f"Aligning pairs (GPU, batch_size={batch_size})") as pbar:
+            with tqdm(total=total_pairs, desc=f"Aligning pairs (GPU, batch_size={batch_size})", disable=args.no_tqdm) as pbar:
                 for batch in batched_it:
                     records = _process_batch(list(batch), args_dict, cache, model, model_name_for_adaptor, adaptor)
                     for rec in records:
-                        fout.write(json.dumps(rec) + "\n")
+                        if "error" in rec:
+                            fail_count += 1
+                        else:
+                            fout.write(json.dumps(rec) + "\n")
+                            success_count += 1
                     pbar.update(len(batch))
 
+    print(f"  - Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
+    if fail_count > 0:
+        print(f"  - Failed pairs: {fail_count}")
     print(f"[ok] wrote predictions -> {out_path}")
 
 

@@ -24,6 +24,7 @@ def main():
     ap.add_argument("--shard_size", type=int, default=2000)
     ap.add_argument("--device", type=str, default="cpu")
     ap.add_argument("--cache_type", type=str, default="lmdb", choices=["npz", "lmdb"])
+    ap.add_argument("--no-tqdm", action="store_true", help="Disable tqdm progress bars.")
     args = ap.parse_args()
 
     device = torch.device(args.device)
@@ -84,7 +85,7 @@ def main():
 
     pairs = list(pair_set)
     # batch over sequences
-    pbar = tqdm(total=len(pairs))
+    pbar = tqdm(total=len(pairs), disable=args.no_tqdm)
     for i in range(0, len(pairs), args.batch_size):
         batch = pairs[i : i + args.batch_size]
         seqs = [s for _, s in batch]
