@@ -2,7 +2,7 @@
 
 # -- Experiment Settings --
 log_dir: "work/logs"
-run_name: "esm1b-lora-finetune-2"
+run_name: "esm1b-lora-finetune-1"
 report_to: "wandb"
 
 # -- Checkpoint Settings --

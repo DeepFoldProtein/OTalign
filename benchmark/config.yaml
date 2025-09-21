@@ -46,7 +46,7 @@ models:
     tool: "otalign"
     plm: "ESM1b_33_650M"
     label: "OTalign (ESM-1b)"
-    color: "#1f77b4"
+    color: "#2171b5"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -55,7 +55,7 @@ models:
     tool: "otalign"
     plm: "ESM2_33_650M"
     label: "OTalign (ESM-2)"
-    color: "#ff7f0e"
+    color: "#6baed6"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -64,7 +64,7 @@ models:
     tool: "otalign"
     plm: "AnkhCL"
     label: "OTalign (AnkhCL)"
-    color: "#2ca02c"
+    color: "#238b45"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -73,7 +73,7 @@ models:
     tool: "otalign"
     plm: "ProtT5_XL_UniRef50"
     label: "OTalign (ProtT5)"
-    color: "#d62728"
+    color: "#66c2a5"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -85,7 +85,7 @@ models:
     checkpoint_path: "work/checkpoints/esm1b-lora-finetune-2/checkpoint-epoch-2" # Checkpoint path
     base_model: "ESM1b_33_650M"
     label: "OTalign (ESM-1b-LoRA-FT2)"
-    color: "#e377c2"
+    color: "#08519c"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -95,13 +95,13 @@ models:
   hhalign:
     tool: "hhalign"
     label: "HHalign"
-    color: "#9467bd"
+    color: "#808080"
     params:
       mode: "global"
   nwalign:
     tool: "nwalign"
     label: "NWalign"
-    color: "#8c564b"
+    color: "#A9A9A9"
     params:
       glocal: 0 # 0 for global alignment
 
@@ -127,8 +127,17 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-  sabmark:
-    datasets: ["sabmark_sup", "sabmark_twi"]
+  sabmark-sup:
+    datasets: ["sabmark_sup"]
+    models:
+      - "nwalign"
+      - "hhalign"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
+      - "otalign_esm2"
+      - "otalign_esm1b"
+  sabmark-twi:
+    datasets: ["sabmark_twi"]
     models:
       - "nwalign"
       - "hhalign"
@@ -137,8 +146,8 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
 
-  finetune-sab:
-    datasets: ["sabmark_sup", "sabmark_twi"]
+  finetune-sabmark-sup:
+    datasets: ["sabmark_sup"]
     models:
       - "nwalign"
       - "hhalign"
@@ -147,8 +156,28 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2"
-  finetune-mali:
-    datasets: ["malidup", "malisam"]
+  finetune-sabmark-twi:
+    datasets: ["sabmark_twi"]
+    models:
+      - "nwalign"
+      - "hhalign"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
+      - "otalign_esm2"
+      - "otalign_esm1b"
+      - "otalign_esm1b_lora_ft2"
+  finetune-malidup:
+    datasets: ["malidup"]
+    models:
+      - "nwalign"
+      - "hhalign"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
+      - "otalign_esm2"
+      - "otalign_esm1b"
+      - "otalign_esm1b_lora_ft2"
+  finetune-malisam:
+    datasets: ["malisam"]
     models:
       - "nwalign"
       - "hhalign"
@@ -162,15 +191,25 @@ tests:
 # Defines the plots to be generated for each test group.
 # The top-level keys must match the keys in the 'tests' section.
 plotting:
-  sabmark:
+  sabmark-sup:
     plots:
       - name: "sabmark_metrics_box"
         type: "boxplot"
-        title: "SABmark Benchmark"
+        title: "SABmark (Superfamlies) Benchmark"
         metrics: ["recall", "precision", "f1", "jaccard"]
       - name: "sabmark_recall_bar"
         type: "barplot"
-        title: "SABmark Recall Comparison"
+        title: "SABmark (Superfamlies) Recall Comparison"
+        metrics: ["recall"]
+  sabmark-twi:
+    plots:
+      - name: "sabmark_metrics_box"
+        type: "boxplot"
+        title: "SABmark (Twilights) Benchmark"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "sabmark_recall_bar"
+        type: "barplot"
+        title: "SABmark (Twilights) Recall Comparison"
         metrics: ["recall"]
   malidup:
     plots:
@@ -192,23 +231,44 @@ plotting:
         type: "barplot"
         title: "Malisam Benchmark (F1 Score)"
         metrics: ["f1"]
-  finetune-sab:
+
+  finetune-sabmark-sup:
     plots:
-      - name: "finetune-sab_metrics_box"
+      - name: "sabmark_metrics_box"
         type: "boxplot"
-        title: "SABmark Finetune Comparison"
+        title: "SABmark (Superfamlies) Benchmark"
         metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "finetune-sab_metrics_bar"
+      - name: "sabmark_recall_bar"
         type: "barplot"
-        title: "SABmark Finetune Comparison"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-  finetune-mali:
+        title: "SABmark (Superfamlies) Recall Comparison"
+        metrics: ["recall"]
+  finetune-sabmark-twi:
     plots:
-      - name: "finetune-mali_metrics_box"
+      - name: "sabmark_metrics_box"
         type: "boxplot"
-        title: "Mali-dup/sam Finetune Comparison"
+        title: "SABmark (Twilights) Benchmark"
         metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "finetune-mali_metrics_bar"
+      - name: "sabmark_recall_bar"
         type: "barplot"
-        title: "Mali-dup/sam Finetune Comparison"
+        title: "SABmark (Twilights) Recall Comparison"
+        metrics: ["recall"]
+  finetune-malidup:
+    plots:
+      - name: "malidup_metrics_box"
+        type: "boxplot"
+        title: "Malidup Benchmark"
         metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "malidup_f1_bar"
+        type: "barplot"
+        title: "Malidup Benchmark (F1 Score)"
+        metrics: ["f1"]
+  finetune-malisam:
+    plots:
+      - name: "malisam_metrics_box"
+        type: "boxplot"
+        title: "Malisam Benchmark"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "malisam_f1_bar"
+        type: "barplot"
+        title: "Malisam Benchmark (F1 Score)"
+        metrics: ["f1"]
