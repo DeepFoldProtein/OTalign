@@ -138,10 +138,10 @@ A state-of-the-art profile-profile aligner that leverages MSAs. Serves as a stro
 
 The overall workflow is:
 
-1.  Generate a sequence database from your dataset.
-2.  Run `hhblits` to generate Multiple Sequence Alignments (MSAs).
-3.  Run `hhmake` to create HMM profiles from MSAs.
-4.  Run `hhalign` using the HMM profiles.
+1. Generate a sequence database from your dataset.
+2. Run `hhblits` to generate Multiple Sequence Alignments (MSAs).
+3. Run `hhmake` to create HMM profiles from MSAs.
+4. Run `hhalign` using the HMM profiles.
 
 #### 1. Generate Sequence Database
 
