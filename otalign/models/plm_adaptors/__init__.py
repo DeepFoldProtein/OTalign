@@ -2,6 +2,7 @@ from functools import partial
 
 from .ankhcl_adaptor import build_ankhcl_adaptor
 from .esm_adaptor import build_esm_adaptor
+from .proteinglm_int4_adaptor import build_proteinglm_int4_adaptor
 from .t5_adaptor import build_prott5_adaptor
 
 
@@ -46,6 +47,11 @@ def get_plm_adaptor_and_configs(name: str, for_masked_lm: bool = False):
             "builder": partial(build_prott5_adaptor, "Rostlab/prot_t5_xl_uniref50", for_masked_lm=for_masked_lm),
             "policy": "drop_last_active",
             "adaptor_name": "ProtT5_XL_UniRef50",
+        },
+        "ProteinGLM_100B_INT4": {
+            "builder": partial(build_proteinglm_int4_adaptor, "Bo1015/proteinglm-100b-int4"),
+            "policy": "drop_last_active",
+            "adaptor_name": "ProteinGLM-100B",
         },
     }
 

@@ -15,6 +15,8 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  ReferenceLine,
+  LabelList,
 } from "recharts";
 import { usePerformanceChart } from "@/hooks/usePerformanceChart";
 
@@ -28,6 +30,7 @@ interface ScatterDataPoint {
   model: string;
   type: string;
   organization: string;
+  parameters: string;
 }
 
 export default function PerformanceChart({ data }: PerformanceChartProps) {
@@ -39,6 +42,30 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
     getTypeColor,
     setSelectedModel,
   } = usePerformanceChart({ data });
+
+  // Separate data with valid parameters and N/A parameters
+  const validParameterData = scatterData.filter((d) => d.x >= 0);
+  const naParameterData = scatterData.filter((d) => d.x === -1);
+
+  // Format parameter count for display
+  const formatParameterCount = (value: number) => {
+    if (value === -1) return "N/A";
+    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return value.toString();
+  };
+
+  // Get specific colors for N/A parameter models to avoid overlapping
+  const getNALineColor = (modelName: string) => {
+    if (modelName.includes("Needleman-Wunsch")) {
+      return "#EF4444"; // red
+    } else if (modelName.includes("HHAlign")) {
+      return "#F97316"; // orange
+    } else {
+      return "#6B7280"; // gray for other N/A models
+    }
+  };
 
   const CustomTooltip = ({
     active,
@@ -60,8 +87,8 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Type: {data.type}
           </p>
-          <p className="text-sm">MALIDUP F1: {data.x.toFixed(4)}</p>
-          <p className="text-sm">MALISAM F1: {data.y.toFixed(4)}</p>
+          <p className="text-sm">Parameters: {data.parameters}</p>
+          <p className="text-sm">Average Score: {data.y.toFixed(4)}</p>
         </div>
       );
     }
@@ -71,63 +98,113 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
   return (
     <div className="space-y-8">
       {/* Scatter Plot */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 w-[800px]">
         <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-          Performance Comparison: F1 Scores
+          Parameter Count vs Average Performance
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Compare MALIDUP F1 (true homologs) vs MALISAM F1 (non-homologs).
-          Higher is better for both metrics.
+          Compare model parameter counts against average performance scores.
         </p>
 
         {scatterData.length > 0 ? (
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart
-                margin={{ top: 60, right: 20, bottom: 60, left: 60 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis
-                  type="number"
-                  dataKey="x"
-                  name="MALIDUP F1"
-                  domain={["dataMin - 0.01", "dataMax + 0.01"]}
-                  tickFormatter={(value) => value.toFixed(2)}
-                  label={{
-                    value: "MALIDUP F1 (True Homologs) ↑",
-                    position: "insideBottom",
-                    offset: -25,
-                  }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="y"
-                  name="MALISAM F1"
-                  domain={["dataMin - 0.01", "dataMax + 0.01"]}
-                  tickFormatter={(value) => value.toFixed(2)}
-                  label={{
-                    value: "MALISAM F1 (Non-homologs) ↑",
-                    angle: -90,
-                    position: "insideLeft",
-                  }}
-                />
-                <Tooltip content={<CustomTooltip />} animationDuration={0} />
-                <Legend verticalAlign="top" height={36} />
-                {Array.from(new Set(scatterData.map((d) => d.type))).map(
-                  (type) => (
+          <>
+            <div className="h-[500px] w-full max-w-4xl mx-auto">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart
+                  margin={{ top: 60, right: 100, bottom: 60, left: 80 }}
+                  data={[...validParameterData, ...naParameterData]}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis
+                    type="number"
+                    dataKey="x"
+                    name="Parameters"
+                    domain={
+                      validParameterData.length > 0
+                        ? [1000000, 15000000000]
+                        : [0, 1]
+                    }
+                    scale="log"
+                    tickFormatter={formatParameterCount}
+                    ticks={Array.from(
+                      new Set(validParameterData.map((d) => d.x))
+                    ).sort((a, b) => a - b)}
+                    label={{
+                      value: "Parameter Count",
+                      position: "insideBottom",
+                      offset: -25,
+                    }}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="y"
+                    name="Average Score"
+                    domain={[0, 1]}
+                    tickFormatter={(value) => value.toFixed(2)}
+                    label={{
+                      value: "Average Score",
+                      angle: -90,
+                      position: "insideLeft",
+                      style: { textAnchor: "middle" },
+                    }}
+                  />
+                  <Tooltip content={<CustomTooltip />} animationDuration={0} />
+                  <Legend verticalAlign="top" height={36} />
+
+                  {/* Reference lines for N/A parameter models */}
+                  {naParameterData.map((item, index) => (
+                    <ReferenceLine
+                      key={`na-${index}`}
+                      y={item.y}
+                      stroke={getNALineColor(item.model)}
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      label={false}
+                    />
+                  ))}
+
+                  {/* Scatter points for models with valid parameter counts */}
+                  {Array.from(
+                    new Set(validParameterData.map((d) => d.type))
+                  ).map((type) => (
                     <Scatter
                       key={type}
                       name={type}
-                      data={scatterData.filter((d) => d.type === type)}
+                      data={validParameterData.filter((d) => d.type === type)}
                       fill={getTypeColor(type)}
                       strokeWidth={2}
                       stroke={getTypeColor(type)}
                     />
-                  )
-                )}
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+                  ))}
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Custom legend for N/A parameter models */}
+            {naParameterData.length > 0 && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                  Reference Methods without Protein Language Models
+                </h4>
+                <div className="flex flex-wrap gap-4">
+                  {naParameterData.map((item, index) => (
+                    <div
+                      key={`legend-${index}`}
+                      className="flex items-center gap-2"
+                    >
+                      <div
+                        className="w-6 h-0.5 border-dashed border-2"
+                        style={{ borderColor: getNALineColor(item.model) }}
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {item.model} (Score: {item.y.toFixed(3)})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-400">
             <div className="text-center">

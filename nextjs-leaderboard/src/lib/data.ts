@@ -22,7 +22,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 2,
       model: "OTalign (ProtT5_XL_UniRef50)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
+      description:
+        "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "3B",
@@ -68,9 +69,9 @@ export const leaderboardData: LeaderboardData = {
     },
     {
       rank: 5,
-      model: "OTalign (ESM-2 12M)",
+      model: "OTalign (ESM-2 35M)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ESM-2 12M embeddings",
+      description: "Optimal Transport alignment with ESM-2 35M embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "35M",
@@ -84,6 +85,23 @@ export const leaderboardData: LeaderboardData = {
     },
     {
       rank: 6,
+      model: "OTalign (ProteinGLM 100B INT4)",
+      type: "OTalign",
+      description:
+        "Optimal Transport alignment with ProteinGLM 100B INT4 embeddings",
+      paper_url: "",
+      code_url: "https://github.com/DeepFoldProtein/OTalign",
+      parameters: "100B INT4",
+      average: 0.3593,
+      malidup_f1: 0.4935,
+      malisam_f1: 0.0754,
+      sabmark_sup_recall: 0.5637,
+      sabmark_twi_recall: 0.3045,
+      date_submitted: "2025-09-19",
+      organization: "DeepFold",
+    },
+    {
+      rank: 7,
       model: "OTalign (ESM-2 3B)",
       type: "OTalign",
       description: "Optimal Transport alignment with ESM-2 3B embeddings",
@@ -99,7 +117,7 @@ export const leaderboardData: LeaderboardData = {
       organization: "DeepFold",
     },
     {
-      rank: 7,
+      rank: 8,
       model: "OTalign (ESM-2 8M)",
       type: "OTalign",
       description: "Optimal Transport alignment with ESM-2 8M embeddings",
@@ -115,7 +133,7 @@ export const leaderboardData: LeaderboardData = {
       organization: "DeepFold",
     },
     {
-      rank: 8,
+      rank: 9,
       model: "OTalign (ESM-1b)",
       type: "OTalign",
       description: "Optimal Transport alignment with ESM-1b embeddings",
@@ -131,7 +149,7 @@ export const leaderboardData: LeaderboardData = {
       organization: "DeepFold",
     },
     {
-      rank: 9,
+      rank: 10,
       model: "Needleman-Wunsch",
       type: "Traditional",
       description: "Dynamic programming with substitution matrices",
@@ -147,7 +165,7 @@ export const leaderboardData: LeaderboardData = {
       organization: "Zhang Lab",
     },
     {
-      rank: 10,
+      rank: 11,
       model: "HHAlign",
       type: "Traditional",
       description: "Profile-profile alignment with MSAs",
@@ -164,8 +182,8 @@ export const leaderboardData: LeaderboardData = {
     },
   ],
   metadata: {
-    last_updated: "2025-09-19T17:29:46Z",
-    total_models: 10,
+    last_updated: "2025-09-20T21:46:57Z",
+    total_models: 11,
     datasets: ["MALIDUP", "MALISAM", "SABmark"],
     metrics: ["F1 Score", "Recall"],
     version: "1.0.0",

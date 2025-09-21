@@ -127,7 +127,7 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                 onClick={() => handleSort("average")}
               >
                 <div className="flex items-center gap-1">
-                  Avg F1
+                  Avg
                   <SortIcon field="average" />
                 </div>
               </th>

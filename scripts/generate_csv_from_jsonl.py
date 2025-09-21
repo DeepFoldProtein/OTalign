@@ -50,6 +50,7 @@ def extract_model_name(filename: str) -> str:
         "ESM2_6_8M": "ESM2_6_8M",
         "AnkhCL": "AnkhCL",
         "ProtT5_XL_UniRef50": "ProtT5_XL_UniRef50",
+        "ProteinGLM_100B_INT4": "ProteinGLM_100B_INT4",
         "hhalign": "hhalign",
         "nwalign": "nwalign",
         "baseline": "baseline",
