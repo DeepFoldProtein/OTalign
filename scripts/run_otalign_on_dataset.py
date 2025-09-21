@@ -516,10 +516,9 @@ def main():
             init_worker(args.cache_dir, cache_type, args_dict)
             with tqdm(items, total=total_pairs, desc="Aligning pairs (CPU, sequential)", disable=args.no_tqdm) as pbar:
                 for ex in pbar:
-                    pair_id = ex.get("pair_id", "N/A")
-                    tqdm.write(f"INFO: Processing pair: {pair_id}")
                     rec = _worker((ex, args_dict))
                     if "error" in rec:
+                        pair_id = rec.get("pair_id", "N/A")
                         tqdm.write(f"ERROR: Pair {pair_id} failed with error: {rec['error']}")
                         fail_count += 1
                     else:
