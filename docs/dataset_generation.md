@@ -86,4 +86,4 @@ The generation script is configurable, allowing control over file paths, filteri
 
 ## Citation
 
-If you use this dataset in your research, please cite the CATH database and TM-align.
+If you use this dataset in your research, please cite the [CATH database](https://www.cathdb.info/) and TM-align.
