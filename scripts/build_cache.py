@@ -24,6 +24,7 @@ def main():
     ap.add_argument("--shard_size", type=int, default=2000)
     ap.add_argument("--device", type=str, default="cpu")
     ap.add_argument("--cache_type", type=str, default="lmdb", choices=["npz", "lmdb"])
+    ap.add_argument("--map_size", type=int, default=10 * 1024**3, help="LMDB map size in bytes. Default is 10GB.")
     ap.add_argument("--no-tqdm", action="store_true", help="Disable tqdm progress bars.")
     args = ap.parse_args()
 
@@ -63,38 +64,51 @@ def main():
     if args.cache_type == "npz":
         writer = NPZCacheWriter(args.output_root, cfg)
     elif args.cache_type == "lmdb":
-        writer = LMDBCacheWriter(args.output_root, cfg)
+        writer = LMDBCacheWriter(args.output_root, cfg, map_size=args.map_size)
     else:
         raise ValueError(f"Unknown cache type: {args.cache_type}")
 
     ds_iterator = iter_pairs_from_dataset(args.dataset)
 
-    id_set = set()
-    pair_set = set()
-    for ex_raw in ds_iterator:
-        ex = typing.cast(dict, ex_raw)
-        id_set.add(ex["seq1_id"])
-        pair_set.add((ex["seq1_id"], ex["seq1"]))
-        id_set.add(ex["seq2_id"])
-        pair_set.add((ex["seq2_id"], ex["seq2"]))
-
-    if len(id_set) != len(pair_set):
-        raise ValueError("More than two sequences are matched to a single id.")
-
     adaptor.model.to(device)
 
-    pairs = list(pair_set)
-    # batch over sequences
-    pbar = tqdm(total=len(pairs), disable=args.no_tqdm)
-    for i in range(0, len(pairs), args.batch_size):
-        batch = pairs[i : i + args.batch_size]
+    processed_ids = set()
+    batch_to_process = []
+    pbar = tqdm(disable=args.no_tqdm)
+
+    def process_and_write_batch(batch):
+        if not batch:
+            return
         seqs = [s for _, s in batch]
-        out = adaptor.encode(seqs, batch_size=len(batch), device=device, fp16=args.dtype == "fp16")
         ids = [i for i, _ in batch]
+        out = adaptor.encode(seqs, batch_size=len(batch), device=device, fp16=args.dtype == "fp16")
         writer.append_batch(ids, out.residue_embeddings, out.attention_mask, out.per_sequence_lengths)
         pbar.update(len(batch))
-    pbar.close()
 
+    for ex_raw in ds_iterator:
+        ex = typing.cast(dict, ex_raw)
+
+        # Process seq1
+        seq1_id, seq1 = ex["seq1_id"], ex["seq1"]
+        if seq1_id not in processed_ids:
+            batch_to_process.append((seq1_id, seq1))
+            processed_ids.add(seq1_id)
+
+        # Process seq2
+        seq2_id, seq2 = ex["seq2_id"], ex["seq2"]
+        if seq2_id not in processed_ids:
+            batch_to_process.append((seq2_id, seq2))
+            processed_ids.add(seq2_id)
+
+        # Write batch if full
+        if len(batch_to_process) >= args.batch_size:
+            process_and_write_batch(batch_to_process)
+            batch_to_process = []
+
+    # Write the final batch
+    process_and_write_batch(batch_to_process)
+
+    pbar.close()
     writer.close()
     print("Cache built:", writer.root)
 
