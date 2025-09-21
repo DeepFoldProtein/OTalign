@@ -543,7 +543,7 @@ def main():
             adaptor = None
             if is_dl_model:
                 base_model_name = args.base_model_for_checkpoint
-                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=True)
+                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=bool(args.base_model_for_checkpoint))
                 if plm_adaptor:
                     model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
                     plm_adaptor.model = model  # Use the loaded PEFT model in the adaptor
