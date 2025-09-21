@@ -12,7 +12,7 @@ from .config import CacheConfig
 
 
 class LMDBCacheWriter:
-    def __init__(self, root: str | Path, cfg: CacheConfig, map_size: int = 1024**4):  # 1TB
+    def __init__(self, root: str | Path, cfg: CacheConfig, map_size: int = 10 * 1024**3):  # Default to 10GB
         self.cfg = cfg
         key = _short_key(asdict(cfg))
         self.root = Path(root) / f"{cfg.dataset_name}__{cfg.model_name.split('/')[-1]}__{cfg.dtype}_{key}__v2_lmdb"
