@@ -6,7 +6,9 @@ This directory contains a comprehensive, modular suite for benchmarking the perf
 
 ```text
 benchmark/
-├── runner.py                # Main CLI entry point for running benchmarks and plotting
+├── __main__.py              # Main CLI entry point for the benchmark suite
+├── runner.py                # Core logic for running benchmarks
+├── plotter.py               # Core logic for generating plots
 ├── config.yaml              # Central configuration for all benchmarks
 └── modules/                 # Pluggable evaluation modules for each tool
     ├── __init__.py
@@ -14,8 +16,8 @@ benchmark/
     ├── otalign_evaluator.py # Evaluator for OTalign
     ├── hhalign_evaluator.py # Evaluator for HHalign
     └── ...                  # Other evaluators
-.cache/                      # Caches for embeddings and intermediate results
 out/
+├── cache/                   # Caches for embeddings and intermediate results
 ├── results/                 # Raw output data from benchmark runs
 │   └── <dataset_name>/
 │       └── <model_name>/
@@ -51,40 +53,40 @@ The suite is designed to be efficient:
 - **`--update` Flag**: When this flag is used, the runner will intelligently re-compute results only if the underlying data or configuration has changed, by checking modification times or checksums.
 - **Raw Data Storage**: All raw outputs, including transport plans (`.npz` files), are stored in a structured `results/` directory to ensure full reproducibility.
 
-### 4. Command-Line Interface (`runner.py`)
+### 4. Command-Line Interface (`__main__.py`)
 
-The `runner.py` script provides a simple yet powerful CLI to manage the benchmark process.
+The benchmark suite is run through a command-line interface, invoked using `python -m benchmark`. This entry point is managed by `__main__.py`, which provides two main commands: `run` and `plot`.
 
 **Usage:**
 
 - **Run all benchmarks defined in `config.yaml`:**
 
   ```bash
-  python benchmark/runner.py run
+  python -m benchmark run
   ```
 
 - **Run benchmarks for a specific dataset:**
 
   ```bash
-  python benchmark/runner.py run --dataset malidup
+  python -m benchmark run --dataset malidup
   ```
 
 - **Force re-computation of all results:**
 
   ```bash
-  python benchmark/runner.py run --update
+  python -m benchmark run --update
   ```
 
 - **Generate all plots:**
 
   ```bash
-  python benchmark/runner.py plot
+  python -m benchmark plot
   ```
 
 - **Generate plots for a specific dataset:**
 
   ```bash
-  python benchmark/runner.py plot --dataset sabmark_twi
+  python -m benchmark plot --dataset sabmark_twi
   ```
 
 ### 5. Plotting

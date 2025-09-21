@@ -1,8 +1,11 @@
 import json
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, Iterator, cast
+from typing import Any, Dict, Iterator, List, Optional, Tuple, cast
 
 from datasets import load_dataset
+
+from otalign.metrics.alignment import alignment_scores
 
 
 def iter_pairs_from_dataset(dataset_path: str) -> Iterator[Dict[str, Any]]:
@@ -25,3 +28,13 @@ def iter_pairs_from_dataset(dataset_path: str) -> Iterator[Dict[str, Any]]:
         ds = load_dataset(ds_name, name=config_name, split=split)
         for ex_raw in ds:
             yield cast(dict, ex_raw)
+
+
+def alignment_metrics(pred: List[Tuple[int, int]], ref: Optional[List[List[int]]]) -> Dict[str, float]:
+    """
+    Computes alignment scores (precision, recall, F1) between predicted and reference alignments.
+    """
+    ref_pairs = {cast(tuple[int, int], tuple(p)) for p in ref} if ref else set()
+    pred_pairs = set(pred) if pred else set()
+    metrics = alignment_scores(pred_pairs, ref_pairs)
+    return asdict(metrics)

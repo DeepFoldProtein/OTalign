@@ -1,34 +1,22 @@
 import argparse
 import json
+import logging
 import multiprocessing as mp
-from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
+
+from tqdm import tqdm
 
 from otalign.baselines.nwalign import run_nwalign_for_pair
-from otalign.metrics.alignment import alignment_scores
-from scripts.dataset_utils import iter_pairs_from_dataset
+from scripts.dataset_utils import alignment_metrics, iter_pairs_from_dataset
 
 
-def gapped_len_from_pairs(pairs: List[Tuple[int, int]]) -> Tuple[int, int]:
+def gapped_len_from_pairs(pairs: list[tuple[int, int]]) -> tuple[int, int]:
     if not pairs:
         return 0, 0
     i_max = max(i for i, _ in pairs)
     j_max = max(j for _, j in pairs)
     return i_max + 1, j_max + 1
-
-
-def alignment_metrics(pred: List[Tuple[int, int]], ref: Optional[List[List[int]]]) -> Dict[str, float]:
-    ref_pairs = set()
-    if ref:
-        for x, y in ref:
-            ref_pairs.add((x, y))
-    pred_pairs = set()
-    if pred:
-        for x, y in pred:
-            pred_pairs.add((x, y))
-    metrics = alignment_scores(pred_pairs, ref_pairs)
-    return asdict(metrics)
 
 
 def _worker(task):
@@ -63,6 +51,69 @@ def _worker(task):
         }
 
 
+def run_nwalign_evaluation(
+    dataset: str,
+    nwalign_bin: str,
+    output: str,
+    infmt1: int = 4,
+    infmt2: int = 4,
+    glocal: int = 0,
+    extra_args: Optional[list] = None,
+    out_dir: Optional[str] = None,
+    workers: int = 4,
+    pbar: Optional[tqdm] = None,
+):
+    """Runs NWalign evaluation on a dataset and writes results to a file."""
+    if extra_args is None:
+        extra_args = []
+
+    dataset_iterator = list(iter_pairs_from_dataset(dataset))
+    total_pairs = len(dataset_iterator)
+    success_count = 0
+    fail_count = 0
+
+    args_dict = {
+        "nwalign_bin": nwalign_bin,
+        "infmt1": infmt1,
+        "infmt2": infmt2,
+        "glocal": glocal,
+        "extra_args": extra_args,
+        "out_dir": out_dir,
+    }
+
+    out_path = Path(output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Setup progress bar
+    local_pbar = pbar is None
+    if local_pbar:
+        pbar = tqdm(total=total_pairs, desc="Aligning with NWalign")
+    else:
+        pbar.total = total_pairs
+        pbar.set_description("Aligning with NWalign")
+        pbar.reset()
+
+    with out_path.open("w", encoding="utf-8") as fout:
+        with mp.Pool(processes=workers) as pool:
+            tasks = ((ex, args_dict) for ex in dataset_iterator)
+            for rec in pool.imap_unordered(_worker, tasks, chunksize=4):
+                if "error" in rec:
+                    logging.warning(f"Pair {rec['pair_id']} failed with error: {rec['error']}")
+                    fail_count += 1
+                else:
+                    fout.write(json.dumps(rec) + "\n")
+                    success_count += 1
+                pbar.update(1)
+
+    if local_pbar:
+        pbar.close()
+
+    logging.info(f"Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
+    if fail_count > 0:
+        logging.warning(f"Failed pairs: {fail_count}")
+    logging.info(f"[ok] wrote predictions -> {out_path}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Run NWalign over a dataset and export JSONL predictions.")
     ap.add_argument("--dataset", type=str, required=True, help="Path to the dataset (JSONL or HF identifier).")
@@ -76,25 +127,17 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
 
-    it = iter_pairs_from_dataset(args.dataset)
-
-    args_dict = {
-        "nwalign_bin": args.nwalign_bin,
-        "infmt1": args.infmt1,
-        "infmt2": args.infmt2,
-        "glocal": args.glocal,
-        "extra_args": args.extra_args,
-        "out_dir": args.out_dir,
-    }
-
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as fout:
-        with mp.Pool(processes=args.workers) as pool:
-            for rec in pool.imap_unordered(_worker, ((ex, args_dict) for ex in it), chunksize=4):
-                fout.write(json.dumps(rec) + "\n")
-
-    print(f"[ok] wrote predictions -> {out_path}")
+    run_nwalign_evaluation(
+        dataset=args.dataset,
+        nwalign_bin=args.nwalign_bin,
+        output=args.output,
+        infmt1=args.infmt1,
+        infmt2=args.infmt2,
+        glocal=args.glocal,
+        extra_args=args.extra_args,
+        out_dir=args.out_dir,
+        workers=args.workers,
+    )
 
 
 if __name__ == "__main__":

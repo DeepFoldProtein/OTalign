@@ -1,5 +1,5 @@
 import abc
-import time
+import logging
 from pathlib import Path
 
 
@@ -49,7 +49,7 @@ class BaseEvaluator(abc.ABC):
         if not self.results_file.exists() or self.results_file.stat().st_size == 0:
             return True
 
-        print(f"Results for {self.model_name} on {self.dataset_config['name']} already exist. Skipping.")
+        logging.info(f"Results for {self.model_name} on {self.dataset_config['name']} already exist. Skipping.")
         return False
 
     def _get_model_name_for_dir(self) -> str:
@@ -66,16 +66,3 @@ class BaseEvaluator(abc.ABC):
         This method must be implemented by all subclasses.
         """
         raise NotImplementedError
-
-    def _log_start(self):
-        """Logs the start of the evaluation."""
-        print("-" * 80)
-        print(f"Running benchmark for: {self.model_config['label']}")
-        print(f"  - Dataset: {self.dataset_config['name']}")
-        print(f"  - Output file: {self.results_file}")
-        print("-" * 80)
-
-    def _log_end(self, start_time):
-        """Logs the end of the evaluation."""
-        elapsed = time.time() - start_time
-        print(f"Finished benchmark for {self.model_config['label']} in {elapsed:.2f} seconds.")

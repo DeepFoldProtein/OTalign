@@ -1,8 +1,11 @@
-import subprocess
-import time
+import logging
 from pathlib import Path
 
+from tqdm import tqdm
+
 from benchmark.modules.base_evaluator import BaseEvaluator
+from scripts.build_cache import build_cache
+from scripts.run_otalign_on_dataset import run_otalign_evaluation
 
 
 class OtalignEvaluator(BaseEvaluator):
@@ -16,179 +19,74 @@ class OtalignEvaluator(BaseEvaluator):
 
     def run(self):
         """
-        Executes the OTalign benchmark by calling the existing run_otalign_on_dataset.py script.
+        Executes the OTalign benchmark by calling the run_otalign_on_dataset.py script.
         """
         if not self.should_run():
             return
 
-        self._log_start()
-        start_time = time.time()
-
-        # Construct the dataset identifier for the script
         dataset_id = self.dataset_config["id"]
         if "config" in self.dataset_config:
             dataset_id += f",{self.dataset_config['config']}"
         if "split" in self.dataset_config:
             dataset_id += f",{self.dataset_config['split']}"
 
-        # Define a base cache directory for this model and dataset
         base_cache_dir = Path(self.global_paths["cache_dir"]) / self.dataset_config["name"] / self.model_name
 
-        # Check if the cache exists, if not, build it
         if not base_cache_dir.exists() or not any(base_cache_dir.iterdir()):
-            print(f"Cache not found for {self.model_name} on {self.dataset_config['name']}. Building cache...")
-            self._build_cache(base_cache_dir, dataset_id)
+            logging.info(f"Cache not found for {self.model_name} on {self.dataset_config['name']}. Building cache...")
+            self._build_cache_internal(base_cache_dir, dataset_id)
 
-        # The build script creates a subdirectory; we need to find it.
         try:
             actual_cache_dir = next(d for d in base_cache_dir.iterdir() if d.is_dir())
-            print(f"Found actual cache directory: {actual_cache_dir}")
+            logging.info(f"Found actual cache directory: {actual_cache_dir}")
         except StopIteration:
-            print(f"Error: Cache directory '{base_cache_dir}' is empty or contains no subdirectories after build attempt.")
+            logging.error(f"Cache directory '{base_cache_dir}' is empty or contains no subdirectories after build attempt.")
             raise FileNotFoundError(f"Cache not built correctly in {base_cache_dir}")
 
-        # Path to the script to be executed
-        script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "run_otalign_on_dataset.py"
-
-        # Build the command-line arguments
         device = self.cli_args.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
 
-        cmd = [
-            "python",
-            str(script_path),
-            "--dataset",
-            dataset_id,
-            "--output",
-            str(self.results_file),
-            "--cache_dir",
-            str(actual_cache_dir),
-            "--no-tqdm",
-            "--save_transport_plan_dir",
-            str(self.transport_plan_dir),
-            "--device",
-            device,
-        ]
-
-        # Handle trained checkpoints vs. base models
-        if "checkpoint_path" in self.model_config:
-            cmd.extend(
-                [
-                    "--model",
-                    self.model_config["checkpoint_path"],
-                    "--base_model_for_checkpoint",
-                    self.model_config["base_model"],
-                ]
-            )
-        else:
-            cmd.extend(
-                [
-                    "--model",
-                    self.model_config["plm"],
-                ]
-            )
-
-        # Add OT-specific parameters from config
-        cmd.extend(
-            [
-                "--reg",
-                str(self.model_config["params"].get("epsilon", 0.1)),
-                "--lambda1",
-                str(self.model_config["params"].get("tau", 1.0)),  # Pass tau directly as lambda1
-                "--lambda2",
-                str(self.model_config["params"].get("tau", 1.0)),  # Pass tau directly as lambda2
-            ]
-        )
-
-        # Add align_batch_size if specified
-        if "align_batch_size" in self.model_config["params"]:
-            cmd.extend(["--align_batch_size", str(self.model_config["params"]["align_batch_size"])])
-
-        # Use Popen for better stream handling to avoid deadlocks
-        cmd.insert(1, "-u")  # Add unbuffered flag for python
+        model_path = self.model_config.get("checkpoint_path", self.model_config["plm"])
+        base_model = self.model_config.get("base_model")
 
         try:
-            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False, bufsize=0) as process:
-                # Use communicate to read stdout and stderr, preventing pipe buffer deadlocks
-                stdout, stderr = process.communicate(timeout=3600)  # Generous timeout
-
-                if stdout:
-                    print(stdout.decode("utf-8", errors="ignore"))
-                if stderr:
-                    print("--- STDERR ---")
-                    print(stderr.decode("utf-8", errors="ignore"))
-
-                if process.returncode != 0:
-                    # Manually create an error message similar to CalledProcessError
-                    print(f"Error running OTalign for {self.model_config['label']}.")
-                    print(f"  - Command: {' '.join(cmd)}")
-                    print(f"  - Return Code: {process.returncode}")
-                    # Optionally re-raise
-                    # raise subprocess.CalledProcessError(process.returncode, cmd, stdout, stderr)
-
+            with tqdm(total=1, desc=f"Evaluating {self.model_config['label']}", leave=False) as pbar:
+                run_otalign_evaluation(
+                    dataset=dataset_id,
+                    model=model_path,
+                    output=str(self.results_file),
+                    base_model_for_checkpoint=base_model,
+                    cache_dir=str(actual_cache_dir),
+                    device=device,
+                    no_tqdm=False,  # Enable tqdm in the script
+                    save_transport_plan_dir=str(self.transport_plan_dir),
+                    reg=self.model_config["params"].get("epsilon", 0.1),
+                    lambda1=self.model_config["params"].get("tau", 1.0),
+                    lambda2=self.model_config["params"].get("tau", 1.0),
+                    align_batch_size=self.model_config["params"].get("align_batch_size", 16),
+                    pbar=pbar,  # Pass the progress bar
+                )
         except Exception as e:
-            print(f"An unexpected error occurred while running the OTalign subprocess for {self.model_config['label']}.")
-            print(f"  - Command: {' '.join(cmd)}")
-            print(f"  - Error: {e}")
-            # raise e
+            logging.error(f"An unexpected error occurred while running the OTalign evaluation for {self.model_config['label']}: {e}")
 
-        self._log_end(start_time)
-
-    def _build_cache(self, cache_dir, dataset_id):
-        """Builds the embedding cache using scripts/build_cache.py."""
-        build_script_path = Path(__file__).resolve().parent.parent.parent / "scripts" / "build_cache.py"
+    def _build_cache_internal(self, cache_dir, dataset_id):
+        """Builds the embedding cache using the imported build_cache function."""
         device = self.cli_args.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
-        cmd = [
-            "python",
-            str(build_script_path),
-            "--dataset",
-            dataset_id,
-            "--output_root",
-            str(cache_dir),
-            "--no-tqdm",
-            "--device",
-            device,
-        ]
-
-        if "checkpoint_path" in self.model_config:
-            cmd.extend(
-                [
-                    "--model",
-                    self.model_config["checkpoint_path"],
-                    "--base_model_for_checkpoint",
-                    self.model_config["base_model"],
-                ]
-            )
-        else:
-            cmd.extend(
-                [
-                    "--model",
-                    self.model_config["plm"],
-                ]
-            )
-
-        # Use Popen for better stream handling to avoid deadlocks
-        cmd.insert(1, "-u")  # Add unbuffered flag for python
+        model_path = self.model_config.get("checkpoint_path", self.model_config["plm"])
+        base_model = self.model_config.get("base_model")
 
         try:
-            print(f"  - Running cache build command: {' '.join(cmd)}")
-            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False, bufsize=0) as process:
-                stdout, stderr = process.communicate(timeout=3600)  # Generous timeout
-
-                if stdout:
-                    print(stdout.decode("utf-8", errors="ignore"))
-                if stderr:
-                    print("--- STDERR (Cache Build) ---")
-                    print(stderr.decode("utf-8", errors="ignore"))
-
-                if process.returncode != 0:
-                    print(f"Error building cache for {self.model_config['label']}.")
-                    print(f"  - Command: {' '.join(cmd)}")
-                    print(f"  - Return Code: {process.returncode}")
-                    raise subprocess.CalledProcessError(process.returncode, cmd, stdout, stderr)
-
-            print("Cache build complete.")
+            logging.info(f"  - Building cache with model: {model_path}")
+            with tqdm(total=1, desc=f"Building cache for {self.model_config['label']}", leave=False) as pbar:
+                build_cache(
+                    dataset=dataset_id,
+                    model=model_path,
+                    output_root=str(cache_dir),
+                    base_model_for_checkpoint=base_model,
+                    device=device,
+                    no_tqdm=False,  # Enable tqdm
+                    pbar=pbar,  # Pass the progress bar
+                )
+            logging.info("Cache build complete.")
         except Exception as e:
-            print(f"Error building cache for {self.model_config['label']}.")
-            print(f"  - Command: {' '.join(cmd)}")
-            print(f"  - Error: {e}")
+            logging.error(f"Error building cache for {self.model_config['label']}: {e}")
             raise e

@@ -1,9 +1,11 @@
 import json
+import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from tqdm import tqdm
 
 
 class Plotter:
@@ -18,17 +20,20 @@ class Plotter:
 
     def generate_all_plots(self):
         """Generates all plots defined in the configuration."""
-        print("Generating all plots...")
-        for test_name, test_config in self.config["tests"].items():
-            if self.cli_args.dataset and test_name != self.cli_args.dataset:
-                continue
+        logging.info("Generating all plots...")
+        tests_to_plot = self.config["tests"]
+        if self.cli_args.dataset and self.cli_args.dataset in tests_to_plot:
+            tests_to_plot = {self.cli_args.dataset: tests_to_plot[self.cli_args.dataset]}
 
-            for dataset_name in test_config["datasets"]:
-                self.generate_plots_for_dataset(dataset_name, test_config["models"])
+        with tqdm(tests_to_plot.items(), desc="Generating Plot Groups") as pbar:
+            for test_name, test_config in pbar:
+                pbar.set_description(f"Plotting group: {test_name}")
+                for dataset_name in test_config["datasets"]:
+                    self.generate_plots_for_dataset(dataset_name, test_config["models"])
 
     def generate_plots_for_dataset(self, dataset_name, model_keys):
         """Generates plots for a single dataset."""
-        print(f"  - Generating plots for dataset: {dataset_name}")
+        logging.info(f"  - Generating plots for dataset: {dataset_name}")
 
         # Load data for all models for this dataset
         all_data = []
@@ -40,7 +45,7 @@ class Plotter:
             results_file = self.results_dir / dataset_name / model_name_for_dir / "results.jsonl"
 
             if not results_file.exists() or results_file.stat().st_size == 0:
-                print(f"    - Warning: Results file not found or is empty for {model_config['label']}. Skipping.")
+                logging.warning(f"    - Results file not found or is empty for {model_config['label']}. Skipping.")
                 continue
 
             with open(results_file, "r") as f:
@@ -53,7 +58,7 @@ class Plotter:
                             all_data.append({"label": model_config["label"], "metric": metric_name, "value": value, "color": model_config["color"]})
 
         if not all_data:
-            print(f"    - No data found for dataset {dataset_name}. Skipping plot generation.")
+            logging.warning(f"    - No data found for dataset {dataset_name}. Skipping plot generation.")
             return
 
         df = pd.DataFrame(all_data)
@@ -62,7 +67,7 @@ class Plotter:
         # Get plotting configuration for this dataset
         plot_config = self.config["plotting"].get(dataset_name.split("_")[0])  # e.g., 'sabmark' from 'sabmark_twilight'
         if not plot_config:
-            print(f"    - No plotting configuration for {dataset_name}. Skipping.")
+            logging.warning(f"    - No plotting configuration for {dataset_name}. Skipping.")
             return
 
         # Generate the main plot with all metrics
@@ -95,7 +100,7 @@ class Plotter:
         elif plot_type == "barplot" or plot_type == "bar":
             plot = sns.barplot(data=plot_df, x="metric", y="value", hue="label", palette=palette, capsize=0.1, errorbar=("ci", 95))
         else:
-            print(f"    - Unknown plot type '{plot_type}'. Skipping.")
+            logging.warning(f"    - Unknown plot type '{plot_type}'. Skipping.")
             return
 
         plot.set_title(plot_config.get("title", f"{dataset_name.replace('_', ' ').title()} Comparison"), fontsize=16)
@@ -111,4 +116,4 @@ class Plotter:
         output_path = output_dir / f"{plot_name}.png"
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()
-        print(f"    - Plot saved to {output_path}")
+        logging.info(f"    - Plot saved to {output_path}")

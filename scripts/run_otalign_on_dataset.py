@@ -2,9 +2,8 @@ import argparse
 import itertools
 import json
 import multiprocessing as mp
-from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -15,12 +14,12 @@ from otalign.align.uot_alignment import hard_alignment_from_transport, uot_align
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
 from otalign.io.fasta_utils import reconstruct_alignment
-from otalign.metrics.alignment import alignment_scores, in_band_mass, recall_in_band
+from otalign.metrics.alignment import in_band_mass, recall_in_band
 from otalign.models.embedding import get_embeddings_for_sequences
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 from otalign.quantize import quantize
 from otalign.utils.checkpointing import load_peft_model_from_checkpoint
-from scripts.dataset_utils import iter_pairs_from_dataset
+from scripts.dataset_utils import alignment_metrics, iter_pairs_from_dataset
 
 
 # Global cache for multiprocessing workers
@@ -67,16 +66,6 @@ def batch_iterator(iterable, batch_size):
         if not chunk:
             return
         yield chunk
-
-
-def alignment_metrics(pred: list[tuple[int, int]], ref: Optional[list[list[int]]]) -> dict[str, float]:
-    """
-    Computes alignment scores (precision, recall, F1) between predicted and reference alignments.
-    """
-    ref_pairs = {cast(tuple[int, int], tuple(p)) for p in ref} if ref else set()
-    pred_pairs = set(pred) if pred else set()
-    metrics = alignment_scores(pred_pairs, ref_pairs)
-    return asdict(metrics)
 
 
 def _process_batch(
@@ -252,7 +241,7 @@ def _process_batch(
                 "metrics": std_metrics,
                 "new_metrics": new_metrics,
                 "ot_metrics": ot_metrics_serializable,
-                "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k != "device"}},
+                "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]}},
             }
 
             # Export FASTA if requested
@@ -404,7 +393,7 @@ def _worker(task):
             "meta": {
                 "tool": "OTAlign",
                 "model": args_dict["model"],
-                "params": {k: v for k, v in args_dict.items() if k != "device"},
+                "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]},
             },
         }
 
@@ -426,32 +415,168 @@ def _worker(task):
         }
 
 
+def run_otalign_evaluation(
+    dataset: str,
+    model: str,
+    output: str,
+    base_model_for_checkpoint: Optional[str] = None,
+    cache_dir: Optional[str] = None,
+    device: str = "cpu",
+    dtype: str = "fp32",
+    reg: float = 0.1,
+    lambda1: float = 1.0,
+    lambda2: float = 1.0,
+    num_iter: int = 1000,
+    dp_mode: str = "global",
+    score_scale: float = 1.0,
+    go_base: float = 8.0,
+    ge_base: float = 1.0,
+    eval_band_width: int = 2,
+    workers: int = 4,
+    align_batch_size: int = 16,
+    export_fasta_dir: Optional[str] = None,
+    save_transport_plan_dir: Optional[str] = None,
+    plan_dtype: str = "uint8",
+    no_tqdm: bool = False,
+    pbar: Optional[tqdm] = None,
+):
+    """Runs OTAlign evaluation on a dataset and writes results to a file."""
+    # Create a dictionary of arguments to pass to worker processes.
+    # pbar is excluded as it is not serializable and not used by workers.
+    args_dict = {k: v for k, v in locals().items() if k != "pbar"}
+
+    model_path = Path(model)
+    if model_path.is_dir():
+        print(f"INFO: Loading fine-tuned checkpoint from: {model}")
+        if not base_model_for_checkpoint:
+            raise ValueError("--base_model_for_checkpoint is required when --model is a directory.")
+        print(f"INFO: Using base model for checkpoint: {base_model_for_checkpoint}")
+    else:
+        print(f"INFO: Using base model: {model}")
+
+    items = list(iter_pairs_from_dataset(dataset))
+    total_pairs = len(items)
+    it = iter(items)
+
+    success_count = 0
+    fail_count = 0
+
+    out_path = Path(output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if export_fasta_dir:
+        Path(export_fasta_dir).mkdir(parents=True, exist_ok=True)
+    if save_transport_plan_dir:
+        Path(save_transport_plan_dir).mkdir(parents=True, exist_ok=True)
+
+    cache: AnyCache = None
+    cache_type: Optional[str] = None
+    if cache_dir is not None:
+        cache_dir_path = Path(cache_dir)
+        if (cache_dir_path / "data.lmdb").exists():
+            cache = LMDBCache(cache_dir)
+            cache_type = "lmdb"
+            print("Using LMDBCache")
+        else:
+            cache = NPZCache(cache_dir)
+            cache_type = "npz"
+            print("Using NPZCache")
+
+    with out_path.open("w", encoding="utf-8") as fout:
+        is_dl_model = model_path.is_dir()
+
+        # Setup progress bar
+        local_pbar = pbar is None
+        if local_pbar:
+            pbar = tqdm(total=total_pairs, desc="Aligning pairs", disable=no_tqdm)
+        else:
+            pbar.total = total_pairs
+            pbar.set_description("Aligning pairs")
+            pbar.reset()
+
+        if device == "cpu" and is_dl_model:
+            print("INFO: Using deep learning model on CPU, processing sequentially.")
+            init_worker(cache_dir, cache_type, args_dict)
+            pbar.set_description("Aligning pairs (CPU, sequential)")
+            for ex in items:
+                rec = _worker((ex, args_dict))
+                if "error" in rec:
+                    pair_id = rec.get("pair_id", "N/A")
+                    tqdm.write(f"ERROR: Pair {pair_id} failed with error: {rec['error']}")
+                    fail_count += 1
+                else:
+                    fout.write(json.dumps(rec) + "\n")
+                    success_count += 1
+                pbar.update(1)
+
+        elif device == "cpu" and not is_dl_model:
+            print("INFO: Using multiprocessing for CPU-bound tasks.")
+            tasks = ((ex, args_dict) for ex in it)
+            pbar.set_description("Aligning pairs (CPU)")
+            with mp.Pool(processes=workers, initializer=init_worker, initargs=(cache_dir, cache_type, args_dict)) as pool:
+                for rec in pool.imap_unordered(_worker, tasks, chunksize=32):
+                    if "error" in rec:
+                        fail_count += 1
+                    else:
+                        fout.write(json.dumps(rec) + "\n")
+                        success_count += 1
+                    pbar.update(1)
+        else:  # GPU
+            print("INFO: Using GPU for batch processing.")
+            gpu_device = torch.device(device)
+            loaded_model = None
+            model_name_for_adaptor = model
+            adaptor = None
+            if is_dl_model:
+                if not base_model_for_checkpoint:
+                    raise ValueError("base_model_for_checkpoint must be provided for deep learning models")
+                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_for_checkpoint, for_masked_lm=bool(base_model_for_checkpoint))
+                if plm_adaptor:
+                    loaded_model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(gpu_device)
+                    plm_adaptor.model = loaded_model
+                    model_name_for_adaptor = base_model_for_checkpoint
+                    adaptor = plm_adaptor
+            if is_dl_model and not adaptor:
+                raise ValueError("Failed to initialize PLM adaptor for GPU processing.")
+
+            batched_it = batch_iterator(it, align_batch_size)
+            pbar.set_description(f"Aligning pairs (GPU, batch_size={align_batch_size})")
+            for batch in batched_it:
+                records = _process_batch(list(batch), args_dict, cache, loaded_model, model_name_for_adaptor, adaptor)
+                for rec in records:
+                    if "error" in rec:
+                        fail_count += 1
+                    else:
+                        fout.write(json.dumps(rec) + "\n")
+                        success_count += 1
+                pbar.update(len(batch))
+
+        if local_pbar:
+            pbar.close()
+
+    print(f"  - Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
+    if fail_count > 0:
+        print(f"  - Failed pairs: {fail_count}")
+    print(f"[ok] wrote predictions -> {out_path}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Run OTAlign over a dataset and export JSONL predictions.")
     ap.add_argument("--dataset", type=str, required=True, help="Path to the dataset (JSONL or HF identifier).")
-    # Model and cache
     ap.add_argument("--model", required=True, help="Name of the PLM to use (e.g., 'ankh-base') or path to a PEFT checkpoint directory.")
     ap.add_argument("--base_model_for_checkpoint", type=str, help="Base model name if --model is a checkpoint path.")
     ap.add_argument("--cache_dir", help="Directory for embedding cache.")
     ap.add_argument("--device", type=str, default="cpu", help="Device to run inference on.")
     ap.add_argument("--dtype", default="fp32", choices=["fp16", "fp32", "bf16"])
-
-    # OTAlign parameters
     ap.add_argument("--reg", type=float, default=0.1)
     ap.add_argument("--lambda1", type=float, default=1.0)
     ap.add_argument("--lambda2", type=float, default=1.0)
     ap.add_argument("--num_iter", type=int, default=1000)
-
-    # DP parameters
     ap.add_argument("--dp_mode", type=str, default="global", choices=["global", "glocal", "local"])
     ap.add_argument("--score_scale", type=float, default=1.0)
     ap.add_argument("--go_base", type=float, default=8.0, help="Base gap open penalty.")
     ap.add_argument("--ge_base", type=float, default=1.0, help="Base gap extend penalty.")
-
-    # New metric parameters
     ap.add_argument("--eval_band_width", type=int, default=2, help="Band width for In-band mass.")
-
-    # Output and processing
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for GPU alignment.")
     ap.add_argument("--output", type=str, required=True, help="Path to write output JSONL file.")
@@ -461,123 +586,30 @@ def main():
     ap.add_argument("--no-tqdm", action="store_true", help="Disable tqdm progress bars.")
     args = ap.parse_args()
 
-    # Add logging about the model being used
-    model_path = Path(args.model)
-    if model_path.is_dir():
-        print(f"INFO: Loading fine-tuned checkpoint from: {args.model}")
-        if not args.base_model_for_checkpoint:
-            raise ValueError("--base_model_for_checkpoint is required when --model is a directory.")
-        print(f"INFO: Using base model for checkpoint: {args.base_model_for_checkpoint}")
-    else:
-        print(f"INFO: Using base model: {args.model}")
-
-    # Load dataset iterator
-    items = list(iter_pairs_from_dataset(args.dataset))
-    total_pairs = len(items)
-    it = iter(items)
-
-    args_dict = vars(args)
-    success_count = 0
-    fail_count = 0
-
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Create FASTA export directory if specified
-    if args.export_fasta_dir:
-        Path(args.export_fasta_dir).mkdir(parents=True, exist_ok=True)
-
-    # Create transport plan export directory if specified
-    if args.save_transport_plan_dir:
-        Path(args.save_transport_plan_dir).mkdir(parents=True, exist_ok=True)
-
-    # Auto-detect cache type and initialize
-    if args.cache_dir is not None:
-        cache_dir_path = Path(args.cache_dir)
-        if (cache_dir_path / "data.lmdb").exists():
-            cache = LMDBCache(args.cache_dir)
-            cache_type = "lmdb"
-            print("Using LMDBCache")
-        else:
-            cache = NPZCache(args.cache_dir)
-            cache_type = "npz"
-            print("Using NPZCache")
-    else:
-        cache = None
-        cache_type = None
-
-    with out_path.open("w", encoding="utf-8") as fout:
-        model_path = Path(args.model)
-        is_dl_model = model_path.is_dir()
-
-        if args.device == "cpu" and is_dl_model:
-            # Process pairs sequentially for DL models on CPU
-            print("INFO: Using deep learning model on CPU, processing sequentially.")
-            init_worker(args.cache_dir, cache_type, args_dict)
-            with tqdm(items, total=total_pairs, desc="Aligning pairs (CPU, sequential)", disable=args.no_tqdm) as pbar:
-                for ex in pbar:
-                    rec = _worker((ex, args_dict))
-                    if "error" in rec:
-                        pair_id = rec.get("pair_id", "N/A")
-                        tqdm.write(f"ERROR: Pair {pair_id} failed with error: {rec['error']}")
-                        fail_count += 1
-                    else:
-                        fout.write(json.dumps(rec) + "\n")
-                        success_count += 1
-
-        elif args.device == "cpu" and not is_dl_model:
-            # Use multiprocessing for non-DL CPU-bound tasks
-            print("INFO: Using multiprocessing for CPU-bound tasks.")
-            tasks = ((ex, args_dict) for ex in it)
-            with mp.Pool(processes=args.workers, initializer=init_worker, initargs=(args.cache_dir, cache_type, args_dict)) as pool:
-                for rec in tqdm(
-                    pool.imap_unordered(_worker, tasks, chunksize=32),
-                    total=total_pairs,
-                    desc="Aligning pairs (CPU)",
-                    disable=args.no_tqdm,
-                ):
-                    if "error" in rec:
-                        fail_count += 1
-                    else:
-                        fout.write(json.dumps(rec) + "\n")
-                        success_count += 1
-        else:
-            # Use batching for GPU-bound tasks
-            print("INFO: Using GPU for batch processing.")
-            device = torch.device(args.device)
-            model = None
-            model_name_for_adaptor = args.model
-            adaptor = None
-            if is_dl_model:
-                base_model_name = args.base_model_for_checkpoint
-                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=bool(args.base_model_for_checkpoint))
-                if plm_adaptor:
-                    model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
-                    plm_adaptor.model = model
-                    model_name_for_adaptor = base_model_name
-                    adaptor = plm_adaptor
-
-            if is_dl_model and not adaptor:
-                raise ValueError("Failed to initialize PLM adaptor for GPU processing.")
-
-            batch_size = args.align_batch_size
-            batched_it = batch_iterator(it, batch_size)
-
-            with tqdm(total=total_pairs, desc=f"Aligning pairs (GPU, batch_size={batch_size})", disable=args.no_tqdm) as pbar:
-                for batch in batched_it:
-                    records = _process_batch(list(batch), args_dict, cache, model, model_name_for_adaptor, adaptor)
-                    for rec in records:
-                        if "error" in rec:
-                            fail_count += 1
-                        else:
-                            fout.write(json.dumps(rec) + "\n")
-                            success_count += 1
-                    pbar.update(len(batch))
-
-    print(f"  - Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
-    if fail_count > 0:
-        print(f"  - Failed pairs: {fail_count}")
-    print(f"[ok] wrote predictions -> {out_path}")
+    run_otalign_evaluation(
+        dataset=args.dataset,
+        model=args.model,
+        output=args.output,
+        base_model_for_checkpoint=args.base_model_for_checkpoint,
+        cache_dir=args.cache_dir,
+        device=args.device,
+        dtype=args.dtype,
+        reg=args.reg,
+        lambda1=args.lambda1,
+        lambda2=args.lambda2,
+        num_iter=args.num_iter,
+        dp_mode=args.dp_mode,
+        score_scale=args.score_scale,
+        go_base=args.go_base,
+        ge_base=args.ge_base,
+        eval_band_width=args.eval_band_width,
+        workers=args.workers,
+        align_batch_size=args.align_batch_size,
+        export_fasta_dir=args.export_fasta_dir,
+        save_transport_plan_dir=args.save_transport_plan_dir,
+        plan_dtype=args.plan_dtype,
+        no_tqdm=args.no_tqdm,
+    )
 
 
 if __name__ == "__main__":

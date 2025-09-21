@@ -1,27 +1,15 @@
 import argparse
 import json
+import logging
 import multiprocessing as mp
-from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
+
+from tqdm import tqdm
 
 from otalign.baselines.hhalign import run_hhalign_hhm_pair
 from otalign.io.parser import gapped_to_pairs
-from otalign.metrics.alignment import alignment_scores
-from scripts.dataset_utils import iter_pairs_from_dataset
-
-
-def metrics(pred: List[Tuple[int, int]], ref: Optional[List[List[int]]]) -> Dict[str, float]:
-    ref_pairs = set()
-    if ref:
-        for x, y in ref:
-            ref_pairs.add((x, y))
-    pred_pairs = set()
-    if pred:
-        for x, y in pred:
-            pred_pairs.add((x, y))
-    metrics = alignment_scores(pred_pairs, ref_pairs)
-    return asdict(metrics)
+from scripts.dataset_utils import alignment_metrics, iter_pairs_from_dataset
 
 
 def _worker(task):
@@ -41,7 +29,7 @@ def _worker(task):
             extra_args=args["extra_args"],
         )
         pairs = gapped_to_pairs(a1, a2, start1, start2)
-        met = metrics(pairs, ex.get("ref_alignment"))
+        met = alignment_metrics(pairs, ex.get("ref_alignment"))
         return {
             "pair_id": ex["pair_id"],
             "seq1_id": ex["seq1_id"],
@@ -52,6 +40,67 @@ def _worker(task):
         }
     except Exception as e:
         return {"pair_id": ex["pair_id"], "error": str(e)}
+
+
+def run_hhalign_evaluation(
+    dataset: str,
+    hhm_dir: str,
+    hhalign_bin: str,
+    output: str,
+    mode: str = "local",
+    extra_args: Optional[list] = None,
+    out_dir: Optional[str] = None,
+    workers: int = 4,
+    pbar: Optional[tqdm] = None,
+):
+    """Runs HHalign evaluation on a dataset and writes results to a file."""
+    if extra_args is None:
+        extra_args = []
+
+    dataset_iterator = list(iter_pairs_from_dataset(dataset))
+    total_pairs = len(dataset_iterator)
+    success_count = 0
+    fail_count = 0
+
+    args_dict = {
+        "hhm_dir": hhm_dir,
+        "hhalign_bin": hhalign_bin,
+        "mode": mode,
+        "extra_args": extra_args,
+        "out_dir": out_dir,
+    }
+
+    out = Path(output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    # Setup progress bar
+    local_pbar = pbar is None
+    if local_pbar:
+        pbar = tqdm(total=total_pairs, desc="Aligning with HHalign")
+    else:
+        pbar.total = total_pairs
+        pbar.set_description("Aligning with HHalign")
+        pbar.reset()
+
+    with out.open("w", encoding="utf-8") as fout:
+        with mp.Pool(processes=workers) as pool:
+            tasks = ((ex, args_dict) for ex in dataset_iterator)
+            for rec in pool.imap_unordered(_worker, tasks, chunksize=4):
+                if "error" in rec:
+                    logging.warning(f"Pair {rec['pair_id']} failed with error: {rec['error']}")
+                    fail_count += 1
+                else:
+                    fout.write(json.dumps(rec) + "\n")
+                    success_count += 1
+                pbar.update(1)
+
+    if local_pbar:
+        pbar.close()
+
+    logging.info(f"Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
+    if fail_count > 0:
+        logging.warning(f"Failed pairs: {fail_count}")
+    logging.info(f"[ok] wrote predictions -> {out}")
 
 
 def main():
@@ -66,36 +115,16 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
 
-    dataset_iterator = list(iter_pairs_from_dataset(args.dataset))
-    total_pairs = len(dataset_iterator)
-    success_count = 0
-    fail_count = 0
-
-    args_dict = {
-        "hhm_dir": args.hhm_dir,
-        "hhalign_bin": args.hhalign_bin,
-        "mode": args.mode,
-        "extra_args": args.extra_args,
-        "out_dir": args.out_dir,
-    }
-
-    out = Path(args.output)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", encoding="utf-8") as fout:
-        with mp.Pool(processes=args.workers) as pool:
-            tasks = ((ex, args_dict) for ex in dataset_iterator)
-            for rec in pool.imap_unordered(_worker, tasks, chunksize=4):
-                if "error" in rec:
-                    print(f"  - Warning: Pair {rec['pair_id']} failed with error: {rec['error']}")
-                    fail_count += 1
-                else:
-                    fout.write(json.dumps(rec) + "\n")
-                    success_count += 1
-
-    print(f"  - Evaluation Summary: {success_count}/{total_pairs} pairs processed successfully.")
-    if fail_count > 0:
-        print(f"  - Failed pairs: {fail_count}")
-    print(f"[ok] wrote predictions -> {out}")
+    run_hhalign_evaluation(
+        dataset=args.dataset,
+        hhm_dir=args.hhm_dir,
+        hhalign_bin=args.hhalign_bin,
+        output=args.output,
+        mode=args.mode,
+        extra_args=args.extra_args,
+        out_dir=args.out_dir,
+        workers=args.workers,
+    )
 
 
 if __name__ == "__main__":

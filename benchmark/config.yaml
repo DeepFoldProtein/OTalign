@@ -80,7 +80,7 @@ models:
       align_batch_size: 16
 
   # --- Trained OTalign Model ---
-  otalign_trained:
+  otalign_esm1b_lora_ft2:
     tool: "otalign"
     checkpoint_path: "work/checkpoints/esm1b-lora-finetune-2/checkpoint-epoch-2" # Checkpoint path
     base_model: "ESM1b_33_650M"
@@ -112,31 +112,47 @@ tests:
   malidup:
     datasets: ["malidup"]
     models:
-      - "otalign_esm1b"
-      - "otalign_esm2"
+      - "nwalign"
+      - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
-      - "hhalign"
-      - "nwalign"
+      - "otalign_esm2"
+      - "otalign_esm1b"
   malisam:
     datasets: ["malisam"]
     models:
-      - "otalign_esm1b"
-      - "otalign_esm2"
+      - "nwalign"
+      - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
-      - "hhalign"
-      - "nwalign"
+      - "otalign_esm2"
+      - "otalign_esm1b"
   sabmark:
     datasets: ["sabmark_sup", "sabmark_twi"]
     models:
-      - "otalign_esm1b"
-      - "otalign_esm2"
+      - "nwalign"
+      - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
-      - "otalign_trained"
-      - "hhalign"
+      - "otalign_esm2"
+      - "otalign_esm1b"
+
+  finetune-sab:
+    datasets: ["sabmark_sup", "sabmark_twi"]
+    models:
       - "nwalign"
+      - "hhalign"
+      - "otalign_esm2"
+      - "otalign_esm1b"
+      - "otalign_esm1b_lora_ft2"
+  finetune-mali:
+    datasets: ["malidup", "malisam"]
+    models:
+      - "nwalign"
+      - "hhalign"
+      - "otalign_esm2"
+      - "otalign_esm1b"
+      - "otalign_esm1b_lora_ft2"
 
 # 5. Plotting Configuration
 plotting:
@@ -146,12 +162,36 @@ plotting:
     # Special plot for SABmark focusing on recall
     custom_plots:
       - name: "sabmark_recall"
-        type: "bar"
+        type: "barplot"
         metrics: ["recall"]
         title: "SABmark Recall Comparison"
+      - name: "sabmark_box"
+        type: "boxplot"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+        title: "SABmark Benchmark"
+
   malidup:
     title: "Malidup Benchmark (F1 Score)"
     metrics: ["f1"]
+    custom_plots:
+      - name: "malidup_bar"
+        type: "barplot"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+        title: "Malidup Benchmark"
+      - name: "malidup_box"
+        type: "boxplot"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+        title: "Malidup Benchmark"
+
   malisam:
     title: "Malisam Benchmark (F1 Score)"
     metrics: ["f1"]
+    custom_plots:
+      - name: "malisam_bar"
+        type: "barplot"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+        title: "Malisam Benchmark"
+      - name: "malisam_box"
+        type: "boxplot"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+        title: "Malisam Benchmark"
