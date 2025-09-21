@@ -38,20 +38,33 @@ class NwalignEvaluator(BaseEvaluator):
             str(self.results_file),
             "--glocal",
             str(self.model_config["params"].get("glocal", 0)),
+            "--workers",
+            str(self.cli_args.workers),
         ]
 
-        try:
-            process = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            print(process.stdout)
-            if process.stderr:
-                print("--- STDERR ---")
-                print(process.stderr)
+        # Use Popen for better stream handling to avoid deadlocks
+        cmd.insert(1, "-u")  # Add unbuffered flag for python
 
-        except subprocess.CalledProcessError as e:
-            print(f"Error running NWalign for {self.model_config['label']}.")
+        try:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False, bufsize=0) as process:
+                # Use communicate to read stdout and stderr, preventing pipe buffer deadlocks
+                stdout, stderr = process.communicate(timeout=3600)  # Generous timeout
+
+                if stdout:
+                    print(stdout.decode("utf-8", errors="ignore"))
+                if stderr:
+                    print("--- STDERR ---")
+                    print(stderr.decode("utf-8", errors="ignore"))
+
+                if process.returncode != 0:
+                    # Manually create an error message similar to CalledProcessError
+                    print(f"Error running NWalign for {self.model_config['label']}.")
+                    print(f"  - Command: {' '.join(cmd)}")
+                    print(f"  - Return Code: {process.returncode}")
+
+        except Exception as e:
+            print(f"An unexpected error occurred while running the NWalign subprocess for {self.model_config['label']}.")
             print(f"  - Command: {' '.join(cmd)}")
-            print(f"  - Return Code: {e.returncode}")
-            print(f"  - STDOUT: {e.stdout}")
-            print(f"  - STDERR: {e.stderr}")
+            print(f"  - Error: {e}")
 
         self._log_end(start_time)

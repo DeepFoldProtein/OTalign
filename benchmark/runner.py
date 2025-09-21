@@ -59,6 +59,7 @@ def main():
     run_parser.add_argument("--dataset", type=str, help="Run benchmarks only for a specific dataset (e.g., 'malidup')")
     run_parser.add_argument("--update", action="store_true", help="Force re-computation of results")
     run_parser.add_argument("--device", type=str, default="cuda", help="Device to run evaluation on (e.g., 'cpu', 'cuda'). Auto-detects if not set.")
+    run_parser.add_argument("--workers", type=int, default=1, help="Number of workers for tools like NWalign and HHalign.")
     run_parser.set_defaults(func=run_benchmarks)
 
     # --- 'plot' command ---
