@@ -45,7 +45,9 @@ class OtalignEvaluator(BaseEvaluator):
 
         device = self.cli_args.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
 
-        model_path = self.model_config.get("checkpoint_path", self.model_config["plm"])
+        model_path = self.model_config.get("checkpoint_path")
+        if not model_path:
+            model_path = self.model_config["plm"]
         base_model = self.model_config.get("base_model")
 
         try:
@@ -71,7 +73,9 @@ class OtalignEvaluator(BaseEvaluator):
     def _build_cache_internal(self, cache_dir, dataset_id):
         """Builds the embedding cache using the imported build_cache function."""
         device = self.cli_args.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
-        model_path = self.model_config.get("checkpoint_path", self.model_config["plm"])
+        model_path = self.model_config.get("checkpoint_path")
+        if not model_path:
+            model_path = self.model_config["plm"]
         base_model = self.model_config.get("base_model")
 
         try:

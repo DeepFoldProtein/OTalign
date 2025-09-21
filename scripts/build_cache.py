@@ -92,6 +92,8 @@ def build_cache(
         pbar.update(len(batch))
 
     for ex_raw in ds_iterator:
+        if not ex_raw:
+            continue
         ex = typing.cast(dict, ex_raw)
 
         # Process seq1
@@ -131,7 +133,7 @@ def main():
     ap.add_argument("--device", type=str, default="cpu")
     ap.add_argument("--cache_type", type=str, default="lmdb", choices=["npz", "lmdb"])
     ap.add_argument("--map_size", type=int, default=10 * 1024**3, help="LMDB map size in bytes. Default is 10GB.")
-    ap.add_argument("--no-tqdm", action="store_true", help="Disable tqdm progress bars.")
+    ap.add_argument("--no_tqdm", action="store_true", help="Disable tqdm progress bars.")
     args = ap.parse_args()
 
     build_cache(

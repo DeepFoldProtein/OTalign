@@ -1,4 +1,3 @@
-import inspect
 from typing import Callable, List, Optional, Sequence, Tuple
 
 import torch
@@ -79,11 +78,11 @@ class HFEncoderAdaptor(BasePLMAdaptor):
 
                 # Forward
                 with torch.autocast(device_type=str(device).split(":")[0], dtype=autocast_dtype) if fp16 else torch.enable_grad():
-                    forward_params = inspect.signature(model.forward).parameters
                     model_kwargs = {self.token_field: input_ids, self.attention_mask_field: attn_mask}
-                    if "output_hidden_states" in forward_params:
-                        model_kwargs["output_hidden_states"] = True
-                    outputs = model(**model_kwargs)  # type: ignore
+                    try:
+                        outputs = model(**model_kwargs, output_hidden_states=True)
+                    except TypeError:
+                        outputs = model(**model_kwargs)
                     if hasattr(outputs, self.model_output_field):
                         hidden: torch.Tensor = getattr(outputs, self.model_output_field)
                     else:

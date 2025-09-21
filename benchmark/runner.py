@@ -34,7 +34,7 @@ def run_benchmarks(config, args):
                 except ImportError as e:
                     logging.error(f"Failed to get evaluator for tool '{model_config['tool']}'. Error: {e}")
                 except Exception as e:
-                    logging.error(f"An error occurred while running the benchmark for {model_key} on {dataset_name}: {e}")
+                    logging.error(f"An error occurred while running the benchmark for {model_key} on {dataset_name}: {e.__class__.__name__}: {e}")
 
 
 from benchmark.plotter import Plotter
