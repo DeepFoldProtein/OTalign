@@ -42,9 +42,12 @@ class ProteinGLMAdaptor(BasePLMAdaptor):
     ProteinGLM requires output_hidden_states=True and uses hidden_states[-1] for embeddings.
     """
 
-    def __init__(self, model_name: str = "Bo1015/proteinglm-100b-int4") -> None:
+    def __init__(self, model_name: str = "Bo1015/proteinglm-100b-int4", for_masked_lm: bool = False) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=True)
-        self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.half)
+        if for_masked_lm:
+            raise NotImplementedError("Training ProteinGLM model is not supported.")
+        else:
+            self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.half)
 
     def encode(
         self,
@@ -119,8 +122,8 @@ class ProteinGLMAdaptor(BasePLMAdaptor):
         return EmbeddingOutput(residue_embeddings=residue_embeddings.to(dtype=dtype), attention_mask=attention_mask, per_sequence_lengths=all_lengths, extras={})
 
 
-def build_proteinglm_int4_adaptor(model_name: str = "Bo1015/proteinglm-100b-int4") -> ProteinGLMAdaptor:
+def build_proteinglm_int4_adaptor(model_name: str = "Bo1015/proteinglm-100b-int4", for_masked_lm: bool = False) -> ProteinGLMAdaptor:
     """
     Build ProteinGLM adaptor with trust_remote_code and appropriate configuration.
     """
-    return ProteinGLMAdaptor(model_name)
+    return ProteinGLMAdaptor(model_name, for_masked_lm=for_masked_lm)

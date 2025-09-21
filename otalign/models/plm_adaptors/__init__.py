@@ -49,7 +49,7 @@ def get_plm_adaptor_and_configs(name: str, for_masked_lm: bool = False):
             "adaptor_name": "ProtT5_XL_UniRef50",
         },
         "ProteinGLM_100B_INT4": {
-            "builder": partial(build_proteinglm_int4_adaptor, "Bo1015/proteinglm-100b-int4"),
+            "builder": partial(build_proteinglm_int4_adaptor, "Bo1015/proteinglm-100b-int4", for_masked_lm=for_masked_lm),
             "policy": "drop_last_active",
             "adaptor_name": "ProteinGLM-100B",
         },
