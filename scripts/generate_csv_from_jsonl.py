@@ -41,8 +41,9 @@ def extract_model_name(filename: str) -> str:
 
     # Clean up model names to match existing format
     model_mapping = {
-        "ESM1b": "ESM1b",
-        "esm1b": "ESM1b",
+        "ESM1b_33_650M": "ESM1b_33_650M",
+        "ESM1b": "ESM1b_33_650M",
+        "esm1b": "ESM1b_33_650M",
         "ESM2_12_35M": "ESM2_12_35M",
         "ESM2_30_150M": "ESM2_30_150M",
         "ESM2_33_650M": "ESM2_33_650M",

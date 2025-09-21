@@ -33,7 +33,7 @@ def get_plm_adaptor_and_configs(name: str, for_masked_lm: bool = False):
             "policy": "drop_first_last_active",
             "adaptor_name": "ESM-2 (6L-8M)",
         },
-        "ESM1b": {
+        "ESM1b_33_650M": {
             "builder": partial(build_esm_adaptor, "facebook/esm1b_t33_650M_UR50S", for_masked_lm=for_masked_lm),
             "policy": "drop_first_last_active",
             "adaptor_name": "ESM-1b",
