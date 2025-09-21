@@ -49,7 +49,8 @@ export function usePerformanceChart({
     }
 
     const cleanStr = paramStr.toLowerCase().replace(/[,\s]/g, "");
-    const match = cleanStr.match(/^(\d+(?:\.\d+)?)(k|m|b)?$/);
+    // Updated regex to handle cases like "100B INT4" by matching the number and unit at the beginning
+    const match = cleanStr.match(/^(\d+(?:\.\d+)?)(k|m|b)/);
 
     if (!match) return -1;
 

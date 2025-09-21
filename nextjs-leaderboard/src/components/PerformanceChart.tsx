@@ -121,7 +121,7 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                     name="Parameters"
                     domain={
                       validParameterData.length > 0
-                        ? [1000000, 15000000000]
+                        ? [1000000, 120000000000]
                         : [0, 1]
                     }
                     scale="log"
