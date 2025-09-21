@@ -91,7 +91,7 @@ class HFEncoderAdaptor(BasePLMAdaptor):
                         hidden: torch.Tensor = outputs.hidden_states[-1]
 
                 # Trim specials on token_ids, then select same positions in hidden
-                trimmed_ids, lengths, keep_mask = self.trim_policy(enc["input_ids"].to(device), enc["attention_mask"].to(device))
+                trimmed_ids, lengths, keep_mask = self.trim_policy(input_ids, attn_mask)
                 # keep_mask: [B, T] True where original token should be kept as a residue
                 # Select hidden states
                 B, _, D = hidden.shape
@@ -101,10 +101,7 @@ class HFEncoderAdaptor(BasePLMAdaptor):
                 kept_embeds = []
                 for b in range(B):
                     sel = hidden[b][keep_mask[b]]  # [L_b, D]
-                    if sel.numel() == 0:
-                        pad = torch.zeros((0, D), device=hidden.device, dtype=hidden.dtype)
-                    else:
-                        pad = sel
+                    pad = sel
                     if sel.size(0) < maxL:
                         pad = torch.cat([pad, hidden.new_zeros((maxL - sel.size(0), D))], dim=0)
                     kept_embeds.append(pad.unsqueeze(0))

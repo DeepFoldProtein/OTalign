@@ -1,6 +1,5 @@
 from transformers import AutoTokenizer
 
-from otalign.models.ankh_for_masked_lm import AnkhForMaskedLM
 from otalign.procl.model.ankh import AnkhCL
 
 from .hf_adaptor import HFEncoderAdaptor
@@ -12,14 +11,14 @@ def build_ankhcl_adaptor(for_masked_lm: bool = False):
     tok = AutoTokenizer.from_pretrained(model_name, do_lower_case=False)
 
     if for_masked_lm:
-        model = AnkhForMaskedLM.from_pretrained(model_name)
+        raise NotImplementedError("Training AnkhCL model is not supported.")
     else:
         model = AnkhCL.from_pretrained(model_name, freeze_base=True, is_scratch=False)
 
     def preproc_batch(seqs: list[str]) -> list[str]:
         # Replace uncommon AA with X (common in ProtT5 recipes)
         table = str.maketrans({"U": "X", "O": "X", "B": "X", "Z": "X"})
-        return ["".join(list(s.translate(table))) for s in seqs]
+        return [s.translate(table) for s in seqs]
 
     adaptor = HFEncoderAdaptor(
         tokenizer=tok,
