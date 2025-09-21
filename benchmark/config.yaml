@@ -1,0 +1,157 @@
+# OTalign Benchmark Suite Configuration
+
+# 1. Global Paths and Settings
+paths:
+  # Root directory for storing raw benchmark results
+  results_dir: "out/results"
+  # Root directory for caching embeddings and other intermediate data
+  cache_dir: "out/cache"
+  # Root directory for saving generated plots
+  plots_dir: "out/plots"
+  # Path to the HHalign executable
+  hhalign_bin: "hhalign"
+  # Path to the NWalign executable
+  nwalign_bin: "NWalign"
+
+# 2. Datasets
+# Define the benchmark datasets to be used.
+# The identifier should be a HuggingFace dataset identifier.
+datasets:
+  sabmark_sup:
+    id: "DeepFoldProtein/SABmark-dataset"
+    config: "sup"
+    split: "test"
+    hhm_dir: "data/hhsuite/sabmark-sup_fp/hhm"
+  sabmark_twi:
+    id: "DeepFoldProtein/SABmark-dataset"
+    config: "twi"
+    split: "test"
+    hhm_dir: "data/hhsuite/sabmark-twi_fp/hhm"
+  malidup:
+    id: "DeepFoldProtein/malidup-dataset"
+    config: "all"
+    split: "test"
+    hhm_dir: "data/hhsuite/malidup/hhm"
+  malisam:
+    id: "DeepFoldProtein/malisam-dataset"
+    config: "all"
+    split: "test"
+    hhm_dir: "data/hhsuite/malisam/hhm"
+
+# 3. Models and Tools
+# Define all models and alignment tools to be benchmarked.
+models:
+  # --- OTalign Models ---
+  otalign_esm1b:
+    tool: "otalign"
+    plm: "ESM1b_33_650M"
+    label: "OTalign (ESM-1b)"
+    color: "#1f77b4"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_esm2:
+    tool: "otalign"
+    plm: "ESM2_33_650M"
+    label: "OTalign (ESM-2)"
+    color: "#ff7f0e"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_ankhcl:
+    tool: "otalign"
+    plm: "AnkhCL"
+    label: "OTalign (AnkhCL)"
+    color: "#2ca02c"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_prott5:
+    tool: "otalign"
+    plm: "ProtT5_XL_UniRef50"
+    label: "OTalign (ProtT5)"
+    color: "#d62728"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+
+  # --- Trained OTalign Model ---
+  otalign_trained:
+    tool: "otalign"
+    checkpoint_path: "work/checkpoints/esm1b-lora-finetune-2/checkpoint-epoch-2" # Checkpoint path
+    base_model: "ESM1b_33_650M"
+    label: "OTalign (ESM-1b-LoRA-FT2)"
+    color: "#e377c2"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+
+  # --- Baseline Models ---
+  hhalign:
+    tool: "hhalign"
+    label: "HHalign"
+    color: "#9467bd"
+    params:
+      mode: "global"
+  nwalign:
+    tool: "nwalign"
+    label: "NWalign"
+    color: "#8c564b"
+    params:
+      glocal: 0 # 0 for global alignment
+
+# 4. Benchmark Tests
+# Define which models to run on which datasets.
+# This allows for flexible and targeted benchmarking.
+tests:
+  malidup:
+    datasets: ["malidup"]
+    models:
+      - "otalign_esm1b"
+      - "otalign_esm2"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
+      - "hhalign"
+      - "nwalign"
+  malisam:
+    datasets: ["malisam"]
+    models:
+      - "otalign_esm1b"
+      - "otalign_esm2"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
+      - "hhalign"
+      - "nwalign"
+  sabmark:
+    datasets: ["sabmark_sup", "sabmark_twi"]
+    models:
+      - "otalign_esm1b"
+      - "otalign_esm2"
+      - "otalign_ankhcl"
+      - "otalign_prott5"
+      - "otalign_trained"
+      - "hhalign"
+      - "nwalign"
+
+# 5. Plotting Configuration
+plotting:
+  sabmark:
+    title: "SABmark Benchmark"
+    metrics: ["recall", "precision", "f1", "jaccard"]
+    # Special plot for SABmark focusing on recall
+    custom_plots:
+      - name: "sabmark_recall"
+        type: "bar"
+        metrics: ["recall"]
+        title: "SABmark Recall Comparison"
+  malidup:
+    title: "Malidup Benchmark (F1 Score)"
+    metrics: ["f1"]
+  malisam:
+    title: "Malisam Benchmark (F1 Score)"
+    metrics: ["f1"]
