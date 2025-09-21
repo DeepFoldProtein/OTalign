@@ -1,7 +1,6 @@
 import argparse
 import itertools
 import json
-import multiprocessing as mp
 from pathlib import Path
 from typing import Optional, Union
 
@@ -22,40 +21,7 @@ from otalign.utils.checkpointing import load_peft_model_from_checkpoint
 from scripts.dataset_utils import alignment_metrics, iter_pairs_from_dataset
 
 
-# Global cache for multiprocessing workers
 AnyCache = Union[NPZCache, LMDBCache, None]
-worker_cache: AnyCache = None
-worker_model_objects: dict = {}
-
-
-def init_worker(cache_dir: Optional[str], cache_type: Optional[str], args_dict: dict):
-    """Initializer for multiprocessing pool to create a shared cache object and model."""
-    global worker_cache, worker_model_objects
-    if cache_dir and cache_type:
-        if cache_type == "lmdb":
-            worker_cache = LMDBCache(cache_dir)
-        else:
-            worker_cache = NPZCache(cache_dir)
-    else:
-        worker_cache = None
-
-    device = torch.device(args_dict["device"])
-    model_path = Path(args_dict["model"])
-    model = None
-    model_name_for_adaptor = args_dict["model"]
-    adaptor = None
-    if model_path.is_dir():
-        base_model_name = args_dict["base_model_for_checkpoint"]
-        plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_name, for_masked_lm=True)
-        if plm_adaptor:
-            model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(device)
-            plm_adaptor.model = model  # Use the loaded PEFT model in the adaptor
-            model_name_for_adaptor = base_model_name
-            adaptor = plm_adaptor
-
-    worker_model_objects["model"] = model
-    worker_model_objects["model_name_for_adaptor"] = model_name_for_adaptor
-    worker_model_objects["adaptor"] = adaptor
 
 
 def batch_iterator(iterable, batch_size):
@@ -267,154 +233,6 @@ def _process_batch(
         ]
 
 
-def _worker(task):
-    """
-    Worker function to process a single sequence pair.
-    """
-    (ex, args_dict) = task
-    try:
-        # 1. Get embeddings
-        device = torch.device(args_dict["device"])
-        dtype_map = {"fp16": torch.float16, "fp32": torch.float32, "bf16": torch.bfloat16}
-        torch_dtype = dtype_map[args_dict["dtype"]]
-
-        seqs = [ex["seq1"], ex["seq2"]]
-        seq_ids = [ex["seq1_id"], ex["seq2_id"]]
-
-        embeddings = get_embeddings_for_sequences(
-            sequences=seqs,
-            seq_ids=seq_ids,
-            model_name=worker_model_objects["model_name_for_adaptor"],
-            cache_dir=args_dict["cache_dir"],
-            device=args_dict["device"],
-            batch_size=2,
-            dtype=args_dict["dtype"],
-            cache=worker_cache,
-            model=worker_model_objects["model"],
-            adaptor=worker_model_objects.get("adaptor"),
-        )
-        emb1_tensor, emb2_tensor = embeddings[0], embeddings[1]
-
-        # Convert to torch tensors
-        device = torch.device(args_dict["device"])
-        dtype_map = {"fp16": torch.float16, "fp32": torch.float32, "bf16": torch.bfloat16}
-        torch_dtype = dtype_map[args_dict["dtype"]]
-        emb1 = emb1_tensor.to(device, dtype=torch_dtype).unsqueeze(0)
-        emb2 = emb2_tensor.to(device, dtype=torch_dtype).unsqueeze(0)
-        mask1 = torch.ones(emb1.shape[:2], dtype=torch.bool, device=device)
-        mask2 = torch.ones(emb2.shape[:2], dtype=torch.bool, device=device)
-
-        # 2. Initialize aligner
-        aligner = SinkhornUOT()
-
-        # 3. Perform alignments (A:B, A:A, B:B)
-        reg = args_dict["reg"]
-        lambda1 = args_dict["lambda1"]
-        lambda2 = args_dict["lambda2"]
-        num_iter = args_dict["num_iter"]
-
-        res_ab = aligner(emb1, emb2, mask1, mask2, num_iter, reg, lambda1, lambda2)
-        res_aa = aligner(emb1, emb1, mask1, mask1, num_iter, reg, lambda1, lambda2)
-        res_bb = aligner(emb2, emb2, mask2, mask2, num_iter, reg, lambda1, lambda2)
-
-        # 4. Compute OT metrics
-        ot_metrics = uot_alignment_metrics_with_sinkhorn(
-            a=res_ab["mu"],
-            b=res_ab["nu"],
-            cost_matrix=res_ab["cost_matrix"],
-            transport_plan=res_ab["transport_plan"],
-            mask_a=mask1,
-            mask_b=mask2,
-            plan_xx=res_aa["transport_plan"],
-            cost_xx=res_aa["cost_matrix"],
-            plan_yy=res_bb["transport_plan"],
-            cost_yy=res_bb["cost_matrix"],
-            reg=reg,
-            lambda1=lambda1,
-            lambda2=lambda2,
-        )
-        ot_metrics_serializable = {k: v.item() for k, v in ot_metrics.items()}
-
-        # 5. Get hard alignment
-        P_np = res_ab["transport_plan"][0].cpu().numpy()
-        f_np = res_ab["scaling_u"][0].log().cpu().numpy()
-        g_np = res_ab["scaling_v"][0].log().cpu().numpy()
-
-        # Save transport plan if requested
-        save_transport_plan_dir_str = args_dict.get("save_transport_plan_dir")
-        if save_transport_plan_dir_str:
-            Path(save_transport_plan_dir_str).mkdir(parents=True, exist_ok=True)
-            plan_dtype = np.uint8 if args_dict["plan_dtype"] == "uint8" else np.uint16
-            quantized_data = quantize(P_np, dtype=plan_dtype)
-            pair_id = ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}")
-            output_path = Path(save_transport_plan_dir_str) / f"{pair_id}.npz"
-            np.savez_compressed(output_path, **quantized_data, f=f_np, g=g_np)
-
-        hard_aln = hard_alignment_from_transport(
-            P=P_np,
-            f=f_np,
-            g=g_np,
-            mode=args_dict["dp_mode"],
-            score_scale=args_dict["score_scale"],
-            go_base=args_dict["go_base"],
-            ge_base=args_dict["ge_base"],
-        )
-
-        # Convert 1-based path from DP to 0-based pairs
-        pred_pairs = [(i - 1, j - 1) for i, j, op in hard_aln["path"] if op == "M"]
-
-        # 6. Compute standard alignment metrics
-        std_metrics = alignment_metrics(pred_pairs, ex.get("ref_alignment"))
-
-        # 7. Compute new metrics
-        new_metrics = {}
-        ref_alignment = ex.get("ref_alignment")
-        if ref_alignment:
-            true_plan = torch.zeros_like(res_ab["transport_plan"][0], device=device)
-            for r, c in ref_alignment:
-                if r < true_plan.shape[0] and c < true_plan.shape[1]:
-                    true_plan[r, c] = 1.0
-
-            plan_sum = res_ab["transport_plan"][0].sum().clamp(min=1e-8)
-            normalized_plan = res_ab["transport_plan"][0] / plan_sum
-            precision_like_score = in_band_mass(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
-            recall_like_score = recall_in_band(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
-            new_metrics = {f"in_band_mass_w_{args_dict['eval_band_width']}": precision_like_score, f"recall_in_band_w_{args_dict['eval_band_width']}": recall_like_score}
-
-        # 8. Assemble record
-        rec = {
-            "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
-            "seq1_id": ex["seq1_id"],
-            "seq2_id": ex["seq2_id"],
-            "pred_alignment": pred_pairs,
-            "metrics": std_metrics,
-            "new_metrics": new_metrics,
-            "ot_metrics": ot_metrics_serializable,
-            "meta": {
-                "tool": "OTAlign",
-                "model": args_dict["model"],
-                "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]},
-            },
-        }
-
-        # Export FASTA if requested
-        fasta_export_dir_str = args_dict.get("export_fasta_dir")
-        if fasta_export_dir_str and "pred_alignment" in rec:
-            aligned_seq1, aligned_seq2 = reconstruct_alignment(ex["seq1"], ex["seq2"], rec["pred_alignment"])
-            fasta_content = f">{rec['seq1_id']}\n{aligned_seq1}\n>{rec['seq2_id']}\n{aligned_seq2}\n"
-            output_path = Path(fasta_export_dir_str) / f"{rec['pair_id']}.fasta"
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(fasta_content)
-
-        return rec
-
-    except Exception as e:
-        return {
-            "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
-            "error": str(e),
-        }
-
-
 def run_otalign_evaluation(
     dataset: str,
     model: str,
@@ -432,7 +250,6 @@ def run_otalign_evaluation(
     go_base: float = 8.0,
     ge_base: float = 1.0,
     eval_band_width: int = 2,
-    workers: int = 4,
     align_batch_size: int = 16,
     export_fasta_dir: Optional[str] = None,
     save_transport_plan_dir: Optional[str] = None,
@@ -494,62 +311,35 @@ def run_otalign_evaluation(
             pbar.set_description("Aligning pairs")
             pbar.reset()
 
-        if device == "cpu" and is_dl_model:
-            print("INFO: Using deep learning model on CPU, processing sequentially.")
-            init_worker(cache_dir, cache_type, args_dict)
-            pbar.set_description("Aligning pairs (CPU, sequential)")
-            for ex in items:
-                rec = _worker((ex, args_dict))
+        # Use batch processing for all devices
+        print(f"INFO: Using {device} for batch processing.")
+        target_device = torch.device(device)
+        loaded_model = None
+        model_name_for_adaptor = model
+        adaptor = None
+        if is_dl_model:
+            if not base_model_for_checkpoint:
+                raise ValueError("base_model_for_checkpoint must be provided for deep learning models")
+            plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_for_checkpoint, for_masked_lm=bool(base_model_for_checkpoint))
+            if plm_adaptor:
+                loaded_model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(target_device)
+                plm_adaptor.model = loaded_model
+                model_name_for_adaptor = base_model_for_checkpoint
+                adaptor = plm_adaptor
+        if is_dl_model and not adaptor:
+            raise ValueError(f"Failed to initialize PLM adaptor for {device} processing.")
+
+        batched_it = batch_iterator(it, align_batch_size)
+        pbar.set_description(f"Aligning pairs ({device}, batch_size={align_batch_size})")
+        for batch in batched_it:
+            records = _process_batch(list(batch), args_dict, cache, loaded_model, model_name_for_adaptor, adaptor)
+            for rec in records:
                 if "error" in rec:
-                    pair_id = rec.get("pair_id", "N/A")
-                    tqdm.write(f"ERROR: Pair {pair_id} failed with error: {rec['error']}")
                     fail_count += 1
                 else:
                     fout.write(json.dumps(rec) + "\n")
                     success_count += 1
-                pbar.update(1)
-
-        elif device == "cpu" and not is_dl_model:
-            print("INFO: Using multiprocessing for CPU-bound tasks.")
-            tasks = ((ex, args_dict) for ex in it)
-            pbar.set_description("Aligning pairs (CPU)")
-            with mp.Pool(processes=workers, initializer=init_worker, initargs=(cache_dir, cache_type, args_dict)) as pool:
-                for rec in pool.imap_unordered(_worker, tasks, chunksize=32):
-                    if "error" in rec:
-                        fail_count += 1
-                    else:
-                        fout.write(json.dumps(rec) + "\n")
-                        success_count += 1
-                    pbar.update(1)
-        else:  # GPU
-            print("INFO: Using GPU for batch processing.")
-            gpu_device = torch.device(device)
-            loaded_model = None
-            model_name_for_adaptor = model
-            adaptor = None
-            if is_dl_model:
-                if not base_model_for_checkpoint:
-                    raise ValueError("base_model_for_checkpoint must be provided for deep learning models")
-                plm_adaptor, _, _ = get_plm_adaptor_and_configs(base_model_for_checkpoint, for_masked_lm=bool(base_model_for_checkpoint))
-                if plm_adaptor:
-                    loaded_model = load_peft_model_from_checkpoint(plm_adaptor.model, str(model_path)).to(gpu_device)
-                    plm_adaptor.model = loaded_model
-                    model_name_for_adaptor = base_model_for_checkpoint
-                    adaptor = plm_adaptor
-            if is_dl_model and not adaptor:
-                raise ValueError("Failed to initialize PLM adaptor for GPU processing.")
-
-            batched_it = batch_iterator(it, align_batch_size)
-            pbar.set_description(f"Aligning pairs (GPU, batch_size={align_batch_size})")
-            for batch in batched_it:
-                records = _process_batch(list(batch), args_dict, cache, loaded_model, model_name_for_adaptor, adaptor)
-                for rec in records:
-                    if "error" in rec:
-                        fail_count += 1
-                    else:
-                        fout.write(json.dumps(rec) + "\n")
-                        success_count += 1
-                pbar.update(len(batch))
+            pbar.update(len(batch))
 
         if local_pbar:
             pbar.close()
@@ -577,13 +367,12 @@ def main():
     ap.add_argument("--go_base", type=float, default=8.0, help="Base gap open penalty.")
     ap.add_argument("--ge_base", type=float, default=1.0, help="Base gap extend penalty.")
     ap.add_argument("--eval_band_width", type=int, default=2, help="Band width for In-band mass.")
-    ap.add_argument("--workers", type=int, default=4)
-    ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for GPU alignment.")
+    ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for alignment on both CPU and GPU.")
     ap.add_argument("--output", type=str, required=True, help="Path to write output JSONL file.")
     ap.add_argument("--export_fasta_dir", type=str, default=None, help="If provided, export alignments as FASTA files to this directory.")
     ap.add_argument("--save_transport_plan_dir", type=str, default=None, help="If provided, save transport plans to this directory.")
     ap.add_argument("--plan_dtype", type=str, default="uint8", choices=["uint8", "uint16"], help="Data type for quantizing transport plans.")
-    ap.add_argument("--no-tqdm", action="store_true", help="Disable tqdm progress bars.")
+    ap.add_argument("--no_tqdm", action="store_true", help="Disable tqdm progress bars.")
     args = ap.parse_args()
 
     run_otalign_evaluation(
@@ -603,7 +392,6 @@ def main():
         go_base=args.go_base,
         ge_base=args.ge_base,
         eval_band_width=args.eval_band_width,
-        workers=args.workers,
         align_batch_size=args.align_batch_size,
         export_fasta_dir=args.export_fasta_dir,
         save_transport_plan_dir=args.save_transport_plan_dir,
