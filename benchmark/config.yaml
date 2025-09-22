@@ -80,11 +80,21 @@ models:
       align_batch_size: 16
 
   # --- Trained OTalign Model ---
-  otalign_esm1b_lora_ft2:
+  otalign_esm1b_lora_ft2_2:
     tool: "otalign"
     checkpoint_path: "work/checkpoints/esm1b-lora-finetune-2/checkpoint-epoch-2" # Checkpoint path
     base_model: "ESM1b_33_650M"
     label: "OTalign (ESM-1b-LoRA-FT2)"
+    color: "#08519c"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_esm1b_lora_ft5_10:
+    tool: "otalign"
+    checkpoint_path: "work/checkpoints/esm1b-lora-finetune-5/checkpoint-epoch-10" # Checkpoint path
+    base_model: "ESM1b_33_650M"
+    label: "OTalign (ESM-1b-LoRA-FT5)"
     color: "#08519c"
     params:
       epsilon: 0.1
@@ -155,7 +165,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm1b_lora_ft2"
+      - "otalign_esm1b_lora_ft5_10"
   finetune-sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -165,7 +175,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm1b_lora_ft2"
+      - "otalign_esm1b_lora_ft5_10"
   finetune-malidup:
     datasets: ["malidup"]
     models:
@@ -175,7 +185,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm1b_lora_ft2"
+      - "otalign_esm1b_lora_ft5_10"
   finetune-malisam:
     datasets: ["malisam"]
     models:
@@ -185,7 +195,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm1b_lora_ft2"
+      - "otalign_esm1b_lora_ft5_10"
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.

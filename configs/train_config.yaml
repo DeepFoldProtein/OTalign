@@ -2,7 +2,7 @@
 
 # -- Experiment Settings --
 log_dir: "work/logs"
-run_name: "esm1b-lora-finetune-1"
+run_name: "esm1b-lora-finetune-6"
 report_to: "wandb"
 
 # -- Checkpoint Settings --
@@ -11,7 +11,7 @@ save_checkpoint_freq: 1 # Save every N epochs
 resume_from_checkpoint: null # Path to a .pt file to resume from, or null
 
 # -- Model Settings --
-model_name: "ESM1b" # From otalign.models.plm_adaptors.MODEL_REGISTRY
+model_name: "ESM1b_33_650M" # From otalign.models.plm_adaptors
 lora:
   r: 8
   lora_alpha: 16
@@ -36,8 +36,23 @@ lr: 1.0e-4
 log_interval: 10
 gradient_accumulation_steps: 8
 
+# -- Uncertainty Weighting Settings --
+uncertainty:
+  enabled: true
+  min_logvar: -4.0 # global default
+  max_logvar: 4.0 # global default
+  tasks:
+    - { name: OT, init_logvar: 0.0, trainable: true }
+    - { name: PLAN, init_logvar: 0.0, trainable: true }
+    - { name: MLM, init_logvar: 0.0, trainable: true }
+
+# -- Optimizer Settings --
+optim:
+  logvar_lr: 1.0e-3
+  weight_decay: 0.01
+
 # -- Evaluation Settings --
-eval_before_train: true # Whether to run an evaluation before starting the training
+eval_before_train: false # Whether to run an evaluation before starting the training
 eval_band_width: 2
 
 # -- Loss Function Settings --

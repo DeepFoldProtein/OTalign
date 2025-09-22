@@ -7,10 +7,11 @@ from typing import List, Optional
 
 import numpy as np
 import torch
+import torch.nn as nn
 import yaml
 from accelerate import Accelerator
 from peft import LoraConfig, get_peft_model
-from transformers import EvalPrediction, Trainer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments
+from transformers import EvalPrediction, Trainer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
 
 import wandb
 from otalign.align.cost import pairwise_cosine
@@ -43,6 +44,53 @@ def generalized_kl_divergence(q, p):
     return torch.sum(q * (torch.log(q + eps) - torch.log(p + eps)) - q + p, dim=(1, 2))
 
 
+class UncertaintyWeighter(nn.Module):
+    """
+    Kendall & Gal task-uncertainty weighting.
+    - Use add_task(...) once per task at init.
+    - Call forward(losses, actives) each step to get total loss & diagnostics.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.logvars = nn.ParameterDict()
+        self.min_logvars = {}
+        self.max_logvars = {}
+
+    def add_task(self, name: str, init_logvar: float = 0.0, trainable: bool = True, min_logvar: float = -4.0, max_logvar: float = 4.0):
+        p = nn.Parameter(torch.tensor(float(init_logvar)))
+        p.requires_grad_(trainable)
+        self.logvars[name] = p
+        self.min_logvars[name] = min_logvar
+        self.max_logvars[name] = max_logvar
+
+    @torch.no_grad()
+    def clamp_(self):
+        for name, p in self.logvars.items():
+            p.clamp_(self.min_logvars[name], self.max_logvars[name])
+
+    def forward(self, losses: dict, actives: dict):
+        """
+        losses: {name: scalar Tensor}
+        actives: {name: bool}  # if False, exclude both L_i and +s_i
+        Returns: total_loss, details(dict)
+        """
+        total = 0.0
+        details = {}
+        for name, Li in losses.items():
+            si = self.logvars[name]
+            active = bool(actives.get(name, True))
+            if not active:
+                wi = torch.exp(-si.detach())
+                details[name] = {"active": False, "L": Li.detach().item(), "w": wi.item(), "logvar": si.detach().item()}
+                continue
+            wi = torch.exp(-si)  # learnable weight
+            term = wi * Li + si  # α_i=1 when active
+            total = total + term
+            details[name] = {"active": True, "L": Li.detach().item(), "w": wi.detach().item(), "logvar": si.detach().item()}
+        return total, details
+
+
 class WandbStopTrainingCallback(TrainerCallback):
     def __init__(self):
         super().__init__()
@@ -53,6 +101,15 @@ class WandbStopTrainingCallback(TrainerCallback):
             logging.warning("wandb run stopped from UI. Stopping training.")
             control.should_training_stop = True
         return control
+
+
+class UncertaintyWeightingCallback(TrainerCallback):
+    def __init__(self, uncertainty_weighter):
+        self.uncertainty_weighter = uncertainty_weighter
+
+    def on_step_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        if self.uncertainty_weighter and self.uncertainty_weighter.training:
+            self.uncertainty_weighter.clamp_()
 
 
 class CustomEvalAndSaveCallback(TrainerCallback):
@@ -84,10 +141,30 @@ class CustomEvalAndSaveCallback(TrainerCallback):
 
 
 class OTAlignTrainer(Trainer):
-    def __init__(self, *args, plm_adaptor, custom_config, **kwargs):
+    def __init__(self, *args, plm_adaptor, custom_config, uncertainty_weighter=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.plm_adaptor = plm_adaptor
         self.config = custom_config
+        self.uncertainty_weighter = uncertainty_weighter
+        if self.uncertainty_weighter:
+            self.uncertainty_weighter.to(self.accelerator.device)
+
+    def create_optimizer(self):
+        if self.optimizer is None and self.uncertainty_weighter:
+            optim_config = self.config.get("optim", {})
+            logvar_lr = optim_config.get("logvar_lr", self.args.learning_rate)
+
+            self.optimizer = torch.optim.AdamW(
+                [
+                    {"params": self.model.parameters(), "lr": self.args.learning_rate, "weight_decay": self.args.weight_decay},
+                    {"params": self.uncertainty_weighter.logvars.parameters(), "lr": logvar_lr, "weight_decay": 0.0},
+                ],
+                betas=(self.args.adam_beta1, self.args.adam_beta2),
+                eps=self.args.adam_epsilon,
+            )
+        else:
+            # This will call the base Trainer's create_optimizer if we don't have one.
+            super().create_optimizer()
 
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         self.plm_adaptor.model = model
@@ -114,7 +191,6 @@ class OTAlignTrainer(Trainer):
             logging.warning("Embeddings contain non-finite values. Skipping batch.")
             loss = torch.tensor(0.0, device=device, requires_grad=True)
             if return_outputs:
-                # Return empty tensors that can be collated but identified in compute_metrics
                 return (loss, (torch.empty(0), torch.empty(0), torch.empty(0), torch.empty(0)))
             return loss
 
@@ -132,77 +208,106 @@ class OTAlignTrainer(Trainer):
         )
 
         pos_mask = is_positive.to(device)
-        loss = torch.tensor(0.0, device=device)
-        mlm_loss_val = torch.tensor(0.0, device=device)
         log_payload = {}
 
-        if "lambda_mlm" in self.config["loss"] and self.config["loss"]["lambda_mlm"] > 0 and self.is_in_train:
+        # --- MLM Loss ---
+        mlm_loss = None
+        use_mlm = (self.uncertainty_weighter and "MLM" in self.uncertainty_weighter.logvars) or ("lambda_mlm" in self.config["loss"] and self.config["loss"]["lambda_mlm"] > 0)
+        if use_mlm:
             mlm_out1 = model(input_ids=mlm_input_ids1, attention_mask=mlm_attention_mask1, labels=mlm_labels1)
             mlm_out2 = model(input_ids=mlm_input_ids2, attention_mask=mlm_attention_mask2, labels=mlm_labels2)
             if mlm_out1.loss is not None and mlm_out2.loss is not None:
-                # In a multi-GPU setup, the loss can be a vector. We take the mean to get a scalar.
                 mlm_loss = (mlm_out1.loss + mlm_out2.loss).mean()
-                weighted_mlm_loss = self.config["loss"]["lambda_mlm"] * mlm_loss
-                loss += weighted_mlm_loss
-                mlm_loss_val = mlm_loss.detach()
-                log_payload["train/mlm_loss"] = mlm_loss.item()
-                log_payload["train/weighted_mlm_loss"] = weighted_mlm_loss.item()
 
-        if pos_mask.any():
-            gt_alignments_dev = gt_alignments.to(device)
+        mlm_loss_val = mlm_loss.detach() if mlm_loss is not None and torch.isfinite(mlm_loss) else torch.tensor(0.0, device=device)
+
+        # --- OT/Plan Losses ---
+        num_pos = pos_mask.sum()
+        num_neg = (~pos_mask).sum()
+        eps = 1e-8
+
+        l_alignment = torch.tensor(0.0, device=device)
+        l_sparsity = torch.tensor(0.0, device=device)
+        plan_active = False
+        if num_pos > 0:
             pred_plan_pos = transport_plan[pos_mask]
-
-            # Slice the ground truth tensor to match the prediction's shape for the loss calculation.
-            # We don't modify the main gt_alignments tensor so that the Trainer can correctly
-            # gather tensors of a consistent shape (padded to max_len).
+            gt_alignments_dev = gt_alignments.to(device)
             _, N_plan, M_plan = pred_plan_pos.shape
             gt_align_full = gt_alignments_dev[pos_mask]
-
-            # Slice gt_alignments to match the shape of pred_plan_pos.
-            # The shape of gt_alignments is padded to max_len, so we need to handle cases
-            # where N_plan or M_plan are larger than the padded dimensions.
-            slice_N = min(N_plan, gt_align_full.shape[1])
-            slice_M = min(M_plan, gt_align_full.shape[2])
+            slice_N, slice_M = min(N_plan, gt_align_full.shape[1]), min(M_plan, gt_align_full.shape[2])
             gt_align_sliced = gt_align_full[:, :slice_N, :slice_M]
-
-            # Pad gt_align_sliced if it's smaller than pred_plan_pos
             if gt_align_sliced.shape[1] < N_plan or gt_align_sliced.shape[2] < M_plan:
                 padding = (0, M_plan - gt_align_sliced.shape[2], 0, N_plan - gt_align_sliced.shape[1])
                 gt_align_sliced = torch.nn.functional.pad(gt_align_sliced, padding, "constant", 0)
 
-            l_alignment = generalized_kl_divergence(gt_align_sliced, pred_plan_pos).mean()
-            l_sparsity = torch.sum(torch.abs(pred_plan_pos), dim=[1, 2]).mean()
-            weighted_l_sparsity = self.config["loss"]["lambda_pos"] * l_sparsity
-            loss += l_alignment + weighted_l_sparsity
-            if self.is_in_train:
-                log_payload["train/l_alignment"] = l_alignment.item()
-                log_payload["train/l_sparsity"] = l_sparsity.item()
-                log_payload["train/weighted_l_sparsity"] = weighted_l_sparsity.item()
+            l_alignment_per_sample = generalized_kl_divergence(gt_align_sliced, pred_plan_pos) / (pred_plan_pos.sum((1, 2)) + eps)
+            l_sparsity_per_sample = torch.sum(torch.abs(pred_plan_pos), dim=[1, 2])
 
-        if (~pos_mask).any():
+            l_alignment = l_alignment_per_sample.sum() / num_pos
+            l_sparsity = l_sparsity_per_sample.sum() / num_pos
+            plan_active = True
+
+        l_emptiness = torch.tensor(0.0, device=device)
+        if num_neg > 0:
             pred_plan_neg = transport_plan[~pos_mask]
-            l_emptiness = torch.sum(torch.abs(pred_plan_neg), dim=[1, 2]).mean()
-            weighted_l_emptiness = self.config["loss"]["lambda_neg"] * l_emptiness
-            loss += weighted_l_emptiness
-            if self.is_in_train:
-                log_payload["train/l_emptiness"] = l_emptiness.item()
-                log_payload["train/weighted_l_emptiness"] = weighted_l_emptiness.item()
+            l_emptiness_per_sample = torch.sum(torch.abs(pred_plan_neg), dim=[1, 2])
+            l_emptiness = l_emptiness_per_sample.sum() / num_neg
 
-        if self.is_in_train and self.accelerator.is_main_process and log_payload:
-            wandb.log(log_payload)
+        # --- Combine losses ---
+        if self.uncertainty_weighter and self.is_in_train:
+            task_losses, task_actives = {}, {}
+            ot_loss_total = l_sparsity * num_pos + l_emptiness * num_neg
+            ot_loss_norm = ot_loss_total / (num_pos + num_neg).clamp(min=1)
+            task_losses["OT"] = ot_loss_norm
+            task_actives["OT"] = True
+            task_losses["PLAN"] = l_alignment
+            task_actives["PLAN"] = plan_active
+            mlm_active = mlm_loss is not None and torch.isfinite(mlm_loss)
+            task_losses["MLM"] = mlm_loss if mlm_active else torch.tensor(0.0, device=device)
+            task_actives["MLM"] = mlm_active
+
+            loss, details = self.uncertainty_weighter(task_losses, task_actives)
+
+            if self.accelerator.is_main_process:
+                log_payload = {}
+                for name, data in details.items():
+                    log_payload[f"train/loss_{name}"] = data["L"]
+                    log_payload[f"train/weight_{name}"] = data["w"]
+                    log_payload[f"train/logvar_{name}"] = data["logvar"]
+                    if data["active"]:
+                        log_payload[f"train/weighted_loss_{name}"] = data["L"] * data["w"]
+                log_payload["train/total_loss"] = loss.item()
+                wandb.log(log_payload)
+        else:
+            loss = torch.tensor(0.0, device=device)
+            if mlm_loss is not None and torch.isfinite(mlm_loss):
+                weighted_mlm_loss = self.config["loss"]["lambda_mlm"] * mlm_loss
+                loss += weighted_mlm_loss
+                if self.is_in_train:
+                    log_payload["train/mlm_loss"] = mlm_loss.item()
+                    log_payload["train/weighted_mlm_loss"] = weighted_mlm_loss.item()
+            if num_pos > 0:
+                pos_loss = l_alignment + self.config["loss"]["lambda_pos"] * l_sparsity
+                loss += pos_loss
+                if self.is_in_train:
+                    log_payload["train/l_alignment"] = l_alignment.item()
+                    log_payload["train/l_sparsity"] = l_sparsity.item()
+                    log_payload["train/weighted_l_sparsity"] = (self.config["loss"]["lambda_pos"] * l_sparsity).item()
+            if num_neg > 0:
+                neg_loss = self.config["loss"]["lambda_neg"] * l_emptiness
+                loss += neg_loss
+                if self.is_in_train:
+                    log_payload["train/l_emptiness"] = l_emptiness.item()
+                    log_payload["train/weighted_l_emptiness"] = neg_loss.item()
+            if self.is_in_train and self.accelerator.is_main_process and log_payload:
+                wandb.log(log_payload)
 
         if return_outputs:
-            # Pad transport_plan to the max length before returning so the Trainer can gather it
             B, N, M = transport_plan.shape
-            max_len1 = self.config.get("max_len1")
-            max_len2 = self.config.get("max_len2")
-
-            if max_len1 and max_len2:
-                padded_transport_plan = torch.nn.functional.pad(transport_plan, (0, max_len2 - M, 0, max_len1 - N), "constant", 0)
-            else:
-                padded_transport_plan = transport_plan
-
-            return (loss, (padded_transport_plan, gt_alignments, is_positive, mlm_loss_val))
+            max_len1, max_len2 = self.config.get("max_len1"), self.config.get("max_len2")
+            padded_transport_plan = torch.nn.functional.pad(transport_plan, (0, max_len2 - M, 0, max_len1 - N), "constant", 0) if max_len1 and max_len2 else transport_plan
+            mlm_loss_val_expanded = mlm_loss_val.expand(B)
+            return (loss, (padded_transport_plan, gt_alignments, is_positive, mlm_loss_val_expanded))
         return loss
 
     def prediction_step(
@@ -215,15 +320,24 @@ class OTAlignTrainer(Trainer):
         with torch.no_grad():
             loss, outputs = self.compute_loss(model, inputs, return_outputs=True)
 
-        # The trainer expects (loss, logits, labels)
-        # We can return the outputs as "logits" and None for labels,
-        # as compute_metrics knows how to unpack the outputs tuple.
-        return (loss, outputs, None)
+        # The trainer expects (loss, logits, labels).
+        # For compute_metrics to be called, labels cannot be None.
+        # We pass a dummy tensor for labels, as compute_metrics unpacks the ground truth from the 'outputs' tuple.
+        dummy_labels = torch.zeros(inputs["lens1"].size(0), device=self.accelerator.device)
+        return (loss, outputs, dummy_labels)
 
 
-def train(config_path: str, eval_only: bool = False):
+def train(config_path: str, eval_only: bool = False, seed: Optional[int] = None):
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
+
+    # If seed is provided as an argument, it overrides the config.
+    if seed is not None:
+        config["seed"] = seed
+
+    if "seed" in config:
+        logging.info(f"Setting seed to {config['seed']}")
+        set_seed(config["seed"])
 
     train_full_head = config.get("train_full_head", False)
     eval_before_train = config.get("eval_before_train", False)
@@ -247,7 +361,7 @@ def train(config_path: str, eval_only: bool = False):
             predictions = predictions[0]
 
         if not isinstance(predictions, tuple) or len(predictions) != 4:
-            logging.warning(f"Unexpected predictions format in compute_metrics. Got type {type(predictions)}.")
+            logging.warning(f"Unexpected predictions format in compute_metrics. Got type {type(predictions)}, len {len(predictions)}.")
             return {}
         transport_plans, gt_alignments, is_positives, mlm_losses = predictions
         band_width = config.get("eval_band_width", 5)
@@ -267,6 +381,7 @@ def train(config_path: str, eval_only: bool = False):
             is_positives = np.concatenate(is_positives)
             transport_plans = np.concatenate(transport_plans)
             gt_alignments = np.concatenate(gt_alignments)
+            mlm_losses = np.concatenate(mlm_losses)
 
         in_band_masses, recalls_in_band = [], []
         pos_mask = is_positives.astype(bool)
@@ -292,7 +407,9 @@ def train(config_path: str, eval_only: bool = False):
             f"recall_in_band_w_{band_width}": np.mean(recalls_in_band) if recalls_in_band else 0,
         }
         if "lambda_mlm" in config["loss"] and config["loss"]["lambda_mlm"] > 0 and mlm_losses.size > 0:
-            metrics["mlm_loss"] = np.mean([lv for lv in mlm_losses if lv is not None])
+            valid_mlm_losses = [lv for lv in mlm_losses if lv is not None and lv > 0]
+            if valid_mlm_losses:
+                metrics["mlm_loss"] = np.mean(valid_mlm_losses)
         return metrics
 
     logging.info(f"Loading PLM adaptor for '{config['model_name']}'...")
@@ -339,9 +456,28 @@ def train(config_path: str, eval_only: bool = False):
     }
     training_args = TrainingArguments(**training_args_dict)
 
+    # --- Uncertainty Weighter ---
+    uncertainty_weighter = None
+    callbacks = []
+    if config.get("uncertainty", {}).get("enabled", False):
+        uw_config = config["uncertainty"]
+        uncertainty_weighter = UncertaintyWeighter()
+        global_min_logvar = uw_config.get("min_logvar", -4.0)
+        global_max_logvar = uw_config.get("max_logvar", 4.0)
+        for task in uw_config.get("tasks", []):
+            uncertainty_weighter.add_task(
+                name=task["name"],
+                init_logvar=task.get("init_logvar", 0.0),
+                trainable=task.get("trainable", True),
+                min_logvar=task.get("min_logvar", global_min_logvar),
+                max_logvar=task.get("max_logvar", global_max_logvar),
+            )
+        callbacks.append(UncertaintyWeightingCallback(uncertainty_weighter))
+
     # Create the custom callback
     eval_save_callback = CustomEvalAndSaveCallback()
     wandb_callback = WandbStopTrainingCallback()
+    callbacks.extend([wandb_callback, eval_save_callback])
 
     trainer = OTAlignTrainer(
         model=lora_model,
@@ -351,8 +487,9 @@ def train(config_path: str, eval_only: bool = False):
         data_collator=collator,
         plm_adaptor=plm_adaptor,
         custom_config=config,
-        callbacks=[wandb_callback, eval_save_callback],
+        callbacks=callbacks,
         compute_metrics=compute_metrics,
+        uncertainty_weighter=uncertainty_weighter,
     )
 
     accelerator = trainer.accelerator
@@ -397,9 +534,10 @@ def main():
     parser = argparse.ArgumentParser(description="Train OTAlign model with LoRA.")
     parser.add_argument("config_path", help="Path to the configuration YAML file.")
     parser.add_argument("--eval_only", action="store_true", help="Run evaluation only on the validation set and exit.")
+    parser.add_argument("--seed", type=int, default=None, help="An integer seed for reproducibility.")
     args = parser.parse_args()
 
-    train(config_path=args.config_path, eval_only=args.eval_only)
+    train(config_path=args.config_path, eval_only=args.eval_only, seed=args.seed)
 
 
 if __name__ == "__main__":
