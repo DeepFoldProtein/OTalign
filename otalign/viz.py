@@ -13,13 +13,15 @@ def plot_plan_with_domains(
     title: str = "Transport Plan with Domain Overlays",
     label_a: Optional[str] = None,
     label_b: Optional[str] = None,
+    colorbar: Optional[str] = "transport mass",
 ):
     """
     Visualize the transport plan (P) with optional domain boxes for A and B and discovered boxes.
     """
     fig, ax = plt.subplots(figsize=(6, 5))
     im = ax.imshow(P, origin="upper", aspect="auto", interpolation="nearest")
-    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="transport mass")
+    if colorbar is not None:
+        plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=colorbar)
     ax.set_xlabel("Residues (B)" if label_b is None else label_b)
     ax.set_ylabel("Residues (A)" if label_a is None else label_a)
     ax.set_title(title)
