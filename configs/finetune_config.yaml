@@ -1,0 +1,78 @@
+# Finetuning Configuration for OTalign with OT Head
+
+# -- Experiment Settings --
+log_dir: "work/logs"
+run_name: "esm1b-lora-finetune-ot-head-2"
+report_to: "wandb"
+
+# -- Checkpoint Settings --
+checkpoint_dir: "work/checkpoints"
+# save_checkpoint_freq is handled by eval_strategy="epoch" and a custom callback
+
+# -- Model Settings --
+model_name: "ESM1b_33_650M" # From otalign.models.plm_adaptors
+lora:
+  r: 8
+  lora_alpha: 16
+  dropout: 0.1
+  target_modules:
+    - "query"
+    - "key"
+    - "value"
+    - "dense"
+
+# -- OT Head Settings --
+ot_head:
+  enabled: true
+  type: "linear" # 'linear' or 'mlp'
+  # input_dim will be inferred from the model's hidden size
+  output_dim: 384
+  hidden_dim: 768
+  dropout: 0.1
+
+# -- Data Settings --
+data_root: "work/cath_dataset"
+num_workers: 4
+max_len1: 1024
+max_len2: 1024
+
+# -- Training Settings --
+train_full_head: true # Whether to train the full language model head.
+epochs: 50
+batch_size: 2
+lr: 1.0e-4
+ot_head_lr: 1.0e-3 # Separate learning rate for the OT head
+gradient_accumulation_steps: 8
+log_interval: 10
+seed: 42
+
+# -- Uncertainty Weighting Settings --
+uncertainty:
+  enabled: true
+  min_logvar: -4.0
+  max_logvar: 4.0
+  tasks:
+    - { name: OT, init_logvar: 0.0, trainable: true }
+    - { name: PLAN, init_logvar: 0.0, trainable: true }
+    - { name: MLM, init_logvar: 0.0, trainable: true }
+
+# -- Optimizer Settings --
+optim:
+  logvar_lr: 1.0e-3
+  weight_decay: 0.01
+
+# -- Evaluation Settings --
+eval_before_train: true
+eval_band_width: 2
+
+# -- Loss Function Settings (used if uncertainty is disabled) --
+loss:
+  lambda_pos: 0.1
+  lambda_neg: 1.0
+  lambda_mlm: 1.0
+
+# -- UOT Settings --
+uot:
+  reg: 0.1
+  reg_m: 1.0
+  num_iter: 1000

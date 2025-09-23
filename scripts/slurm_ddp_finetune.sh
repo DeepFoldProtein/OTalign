@@ -3,27 +3,19 @@
 # =================================================================================
 # SLURM Script for Distributed Data Parallel (DDP) Training with PyTorch
 #
-# Usage: sbatch scripts/slurm_ssp_train.sh [args...]
-#
-# Example:
-# sbatch scripts/slurm_ssp_train.sh \
-#    --model work/checkpoints/esm1b-lora-finetune-5/checkpoint-epoch-10 \
-#    --base_model_for_checkpoint ESM1b_33_650M \
-#    --batch_size 4 \
-#    --epoch 10 --lr 1e-3 \
-#    --outdir work/ssp/esm1b-lora-finetune-5
+# Usage: sbatch scripts/slurm_ddp_train.sh
 # =================================================================================
 
 # --- SLURM JOB CONFIGURATION ---
-#SBATCH --job-name=ssp_task           # Name for the job
+#SBATCH --job-name=ddp_ft             # Name for the job
 #SBATCH --nodes=1                     # Number of nodes to request
 #SBATCH --ntasks-per-node=4           # Number of processes per node (should equal --gres=gpu)
 #SBATCH --gres=gpu:4                  # Number of GPUs to request per node
 #SBATCH --cpus-per-task=8             # Number of CPU cores per process (for data loading, etc.)
 #SBATCH --time=24:00:00               # Maximum runtime for the job (DD:HH:MM:SS)
 #SBATCH --partition=normal            # SLURM partition to submit the job to (e.g., gpu, volta, etc.)
-#SBATCH --output=work/ssp_job_%j.out  # Path for standard output log
-#SBATCH --error=work/ssp_job_%j.err   # Path for standard error log
+#SBATCH --output=work/ft_job_%j.out  # Path for standard output log
+#SBATCH --error=work/ft_job_%j.err   # Path for standard error log
 
 # --- ENVIRONMENT SETUP ---
 
@@ -32,7 +24,7 @@
 # echo "Loading modules..."
 # module load anaconda3
 # module load cuda/11.8
-export CUDA_HOME="/store/deepfold/apps/cuda-12.8.1"
+export CUDA_HOME=/store/deepfold/apps/cuda-12.8.1
 
 # Activate your Python/Conda environment
 source .venv/bin/activate
@@ -64,7 +56,8 @@ echo "=========================================================="
 # The 'train.py' script is expected to handle DDP initialization internally
 # using the environment variables (MASTER_ADDR, etc.) and SLURM variables (SLURM_PROCID, etc.).
 
-echo "[$(date)] Starting SSP training..."
-echo "Arguments passed to script: $@"
-accelerate launch --config_file accelerate_config.yaml scripts/run_secondary_structure_prediction.py "$@"
+export WANDB_PROJECT="otalign-finetune"
+
+echo "[$(date)] Starting DDP training..."
+accelerate launch --config_file accelerate_config.yaml scripts/finetune.py configs/finetune_config.yaml # --seed 42
 echo "[$(date)] Training finished."

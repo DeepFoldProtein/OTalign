@@ -18,8 +18,8 @@
 # --- SLURM JOB CONFIGURATION ---
 #SBATCH --job-name=cp_task           # Name for the job
 #SBATCH --nodes=1                     # Number of nodes to request
-#SBATCH --ntasks-per-node=2           # Number of processes per node (should equal --gres=gpu)
-#SBATCH --gres=gpu:2                  # Number of GPUs to request per node
+#SBATCH --ntasks-per-node=4           # Number of processes per node (should equal --gres=gpu)
+#SBATCH --gres=gpu:4                  # Number of GPUs to request per node
 #SBATCH --cpus-per-task=8             # Number of CPU cores per process (for data loading, etc.)
 #SBATCH --time=24:00:00               # Maximum runtime for the job (DD:HH:MM:SS)
 #SBATCH --partition=normal            # SLURM partition to submit the job to (e.g., gpu, volta, etc.)
