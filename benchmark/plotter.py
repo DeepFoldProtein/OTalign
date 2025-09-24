@@ -24,11 +24,12 @@ class Plotter:
         logging.info("Generating all plots...")
 
         # Determine which test groups to plot
-        if self.cli_args.test:
-            if self.cli_args.test not in self.config["plotting"]:
-                logging.error(f"Test group '{self.cli_args.test}' not found in 'plotting' configuration. Available groups: {list(self.config['plotting'].keys())}")
-                return
-            tests_to_plot = {self.cli_args.test: self.config["tests"][self.cli_args.test]}
+        if self.cli_args.tests:
+            for test in self.cli_args.tests:
+                if test not in self.config["plotting"]:
+                    logging.error(f"Test group '{test}' not found in 'plotting' configuration. Available groups: {list(self.config['plotting'].keys())}")
+                    return
+            tests_to_plot = {test: self.config["tests"][test] for test in self.cli_args.tests}
         else:
             tests_to_plot = self.config["tests"]
 

@@ -118,7 +118,8 @@ models:
       glocal: 0 # 0 for global alignment
   deepblast:
     tool: "deepblast"
-    label: "deepblast"
+    label: "DeepBLAST (NW)"
+    color: "#d9ead3"
     params:
       alignment_mode: "needleman-wunsch"
 
@@ -133,9 +134,9 @@ tests:
       - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
+      - "deepblast"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "deepblast"
   malisam:
     datasets: ["malisam"]
     models:
@@ -143,9 +144,9 @@ tests:
       - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
+      - "deepblast"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "deepblast"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -153,9 +154,9 @@ tests:
       - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
+      - "deepblast"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "deepblast"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -163,9 +164,9 @@ tests:
       - "hhalign"
       - "otalign_ankhcl"
       - "otalign_prott5"
+      - "deepblast"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "deepblast"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
