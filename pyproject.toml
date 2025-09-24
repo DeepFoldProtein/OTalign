@@ -37,6 +37,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+deepblast = ["deepblast"]
 dev = ["pytest", "ruff", "pre-commit"]
 
 [tool.ruff]

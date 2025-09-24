@@ -12,6 +12,8 @@ paths:
   hhalign_bin: "hhalign"
   # Path to the NWalign executable
   nwalign_bin: "NWalign"
+  # Path to the DeepBLAST checkpoint
+  deepblast_checkpoint: "data/deepblast/deepblast-v3.ckpt"
 
 # 2. Datasets
 # Define the benchmark datasets to be used.
@@ -114,6 +116,11 @@ models:
     color: "#A9A9A9"
     params:
       glocal: 0 # 0 for global alignment
+  deepblast:
+    tool: "deepblast"
+    label: "deepblast"
+    params:
+      alignment_mode: "needleman-wunsch"
 
 # 4. Benchmark Tests
 # Define which models to run on which datasets.
@@ -128,6 +135,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "deepblast"
   malisam:
     datasets: ["malisam"]
     models:
@@ -137,6 +145,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "deepblast"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -146,6 +155,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "deepblast"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -155,6 +165,7 @@ tests:
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "deepblast"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
