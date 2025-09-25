@@ -56,8 +56,8 @@ models:
   otalign_esm2:
     tool: "otalign"
     plm: "ESM2_33_650M"
-    label: "OTalign (ESM-2)"
-    color: "#6baed6"
+    label: "OTalign (ESM-2 650M)"
+    color: "#3182bd"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -106,12 +106,57 @@ models:
     params:
       epsilon: 0.1
       tau: 1.0
-      align_batch_size: 16
+      align_batch_size: 8
   otalign_prott5:
     tool: "otalign"
     plm: "ProtT5_XL_UniRef50"
-    label: "OTalign (ProtT5)"
+    label: "OTalign (ProtT5-XL)"
     color: "#66c2a5"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_esm2_6_8m:
+    tool: "otalign"
+    plm: "ESM2_6_8M"
+    label: "OTalign (ESM-2 8M)"
+    color: "#c6dbef"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_esm2_12_35m:
+    tool: "otalign"
+    plm: "ESM2_12_35M"
+    label: "OTalign (ESM-2 35M)"
+    color: "#9ecae1"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_esm2_30_150m:
+    tool: "otalign"
+    plm: "ESM2_30_150M"
+    label: "OTalign (ESM-2 150M)"
+    color: "#6baed6"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_esm2_36_3b:
+    tool: "otalign"
+    plm: "ESM2_36_3B"
+    label: "OTalign (ESM-2 3B)"
+    color: "#4292c6"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_proteinglm_100b_int4:
+    tool: "otalign"
+    plm: "ProteinGLM_100B_INT4"
+    label: "OTalign (ProteinGLM 100B)"
+    color: "#fd8d3c"
     params:
       epsilon: 0.1
       tau: 1.0
@@ -163,7 +208,7 @@ models:
   plmalign_prott5_global:
     tool: "plmalign"
     plm: "ProtT5_XL_UniRef50"
-    label: "PLMAlign (ProtT5-Global)"
+    label: "PLMAlign (ProtT5-XL, Global)"
     color: "#ffd966"
     params:
       alignment_mode: "global"
@@ -172,7 +217,7 @@ models:
   plmalign_prott5_local:
     tool: "plmalign"
     plm: "ProtT5_XL_UniRef50"
-    label: "PLMAlign (ProtT5-Local)"
+    label: "PLMAlign (ProtT5-XL, Local)"
     color: "#f9cb9c"
     params:
       alignment_mode: "local"
@@ -198,6 +243,11 @@ tests:
       - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "otalign_esm2_6_8m"
+      - "otalign_esm2_12_35m"
+      - "otalign_esm2_30_150m"
+      - "otalign_esm2_36_3b"
+      - "otalign_proteinglm_100b_int4"
   malisam:
     datasets: ["malisam"]
     models:
@@ -214,6 +264,11 @@ tests:
       - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "otalign_esm2_6_8m"
+      - "otalign_esm2_12_35m"
+      - "otalign_esm2_30_150m"
+      - "otalign_esm2_36_3b"
+      - "otalign_proteinglm_100b_int4"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -230,6 +285,11 @@ tests:
       - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "otalign_esm2_6_8m"
+      - "otalign_esm2_12_35m"
+      - "otalign_esm2_30_150m"
+      - "otalign_esm2_36_3b"
+      - "otalign_proteinglm_100b_int4"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -246,6 +306,11 @@ tests:
       - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
+      - "otalign_esm2_6_8m"
+      - "otalign_esm2_12_35m"
+      - "otalign_esm2_30_150m"
+      - "otalign_esm2_36_3b"
+      - "otalign_proteinglm_100b_int4"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
@@ -303,6 +368,16 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "esm1b-lora-finetune-ot-head-1"
+
+  # OTalign vs PLMAlign ProtT5-XL Focused Comparison
+  prott5_comparison:
+    datasets: ["sabmark_sup", "sabmark_twi", "malidup", "malisam"]
+    models:
+      - "otalign_prott5"
+      - "plmalign_prott5_global"
+      - "deepblast"
+      - "nwalign"  # baseline for reference
+      - "hhalign"  # baseline for reference
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.
@@ -389,3 +464,20 @@ plotting:
         type: "barplot"
         title: "Malisam Benchmark (F1 Score)"
         metrics: ["f1"]
+
+  prott5_comparison:
+    plots:
+      - name: "prott5_comparison_metrics_box"
+        type: "boxplot"
+        title: "OTalign vs PLMAlign ProtT5-XL Comparison (All Datasets)"
+        metrics: ["recall", "precision", "f1", "jaccard"]
+      - name: "prott5_comparison_sabmark_recall_bar"
+        type: "barplot"
+        title: "OTalign vs PLMAlign ProtT5-XL Recall Comparison (SABmark)"
+        metrics: ["recall"]
+        datasets: ["sabmark_sup", "sabmark_twi"]
+      - name: "prott5_comparison_mali_f1_bar"
+        type: "barplot"
+        title: "OTalign vs PLMAlign ProtT5-XL F1 Score Comparison (Malidup & Malisam)"
+        metrics: ["f1"]
+        datasets: ["malidup", "malisam"]
