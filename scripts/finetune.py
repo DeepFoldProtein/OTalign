@@ -9,12 +9,12 @@ from typing import List, Optional
 import numpy as np
 import torch
 import torch.nn as nn
+import wandb
 import yaml
 from accelerate import Accelerator
 from peft import LoraConfig, get_peft_model
 from transformers import EvalPrediction, Trainer, TrainerCallback, TrainerControl, TrainerState, TrainingArguments, set_seed
 
-import wandb
 from otalign.align.cost import pairwise_cosine
 from otalign.data.cath import CATHDataset
 from otalign.data.collator import OTAlignCollator

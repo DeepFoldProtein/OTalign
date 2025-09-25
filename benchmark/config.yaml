@@ -71,6 +71,42 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+  otalign_ankh_base:
+    tool: "otalign"
+    plm: "Ankh_Base"
+    label: "OTalign (Ankh-Base)"
+    color: "#31a354"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_ankh_large:
+    tool: "otalign"
+    plm: "Ankh_Large"
+    label: "OTalign (Ankh-Large)"
+    color: "#74c476"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_ankh3_large:
+    tool: "otalign"
+    plm: "Ankh3_Large"
+    label: "OTalign (Ankh3-Large)"
+    color: "#41ab5d"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
+  otalign_ankh3_xl:
+    tool: "otalign"
+    plm: "Ankh3_XL"
+    label: "OTalign (Ankh3-XL)"
+    color: "#006d2c"
+    params:
+      epsilon: 0.1
+      tau: 1.0
+      align_batch_size: 16
   otalign_prott5:
     tool: "otalign"
     plm: "ProtT5_XL_UniRef50"
@@ -122,6 +158,25 @@ models:
     color: "#d9ead3"
     params:
       alignment_mode: "needleman-wunsch"
+  
+  # --- PLMAlign Models ---
+  plmalign_prott5_global:
+    tool: "plmalign"
+    plm: "ProtT5_XL_UniRef50"
+    label: "PLMAlign (ProtT5-Global)"
+    color: "#ffd966"
+    params:
+      alignment_mode: "global"
+      plm_model: "ProtT5_XL_UniRef50"
+  
+  plmalign_prott5_local:
+    tool: "plmalign"
+    plm: "ProtT5_XL_UniRef50"
+    label: "PLMAlign (ProtT5-Local)"
+    color: "#f9cb9c"
+    params:
+      alignment_mode: "local"
+      plm_model: "ProtT5_XL_UniRef50"
 
 # 4. Benchmark Tests
 # Define which models to run on which datasets.
@@ -133,8 +188,14 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
+      - "plmalign_prott5_global"
+      - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
   malisam:
@@ -143,8 +204,14 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
+      - "plmalign_prott5_global"
+      - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
   sabmark-sup:
@@ -153,8 +220,14 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
+      - "plmalign_prott5_global"
+      - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
   sabmark-twi:
@@ -163,8 +236,14 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
+      - "plmalign_prott5_global"
+      - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
 
@@ -174,6 +253,10 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
@@ -184,6 +267,10 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
@@ -194,6 +281,10 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
@@ -204,6 +295,10 @@ tests:
       - "nwalign"
       - "hhalign"
       - "otalign_ankhcl"
+      - "otalign_ankh_base"
+      - "otalign_ankh_large"
+      - "otalign_ankh3_large"
+      - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"

@@ -1,5 +1,6 @@
 from functools import partial
 
+from .ankh_adaptor import build_ankh_adaptor
 from .ankhcl_adaptor import build_ankhcl_adaptor
 from .esm_adaptor import build_esm_adaptor
 from .proteinglm_int4_adaptor import build_proteinglm_int4_adaptor
@@ -42,6 +43,26 @@ def get_plm_adaptor_and_configs(name: str, for_masked_lm: bool = False):
             "builder": partial(build_ankhcl_adaptor, for_masked_lm=for_masked_lm),
             "policy": "drop_last_active",
             "adaptor_name": "AnkhCL",
+        },
+        "Ankh_Base": {
+            "builder": partial(build_ankh_adaptor, model_name="ElnaggarLab/ankh-base", for_masked_lm=for_masked_lm),
+            "policy": "drop_last_active",
+            "adaptor_name": "Ankh-Base",
+        },
+        "Ankh_Large": {
+            "builder": partial(build_ankh_adaptor, model_name="ElnaggarLab/ankh-large", for_masked_lm=for_masked_lm),
+            "policy": "drop_last_active",
+            "adaptor_name": "Ankh-Large",
+        },
+        "Ankh3_Large": {
+            "builder": partial(build_ankh_adaptor, model_name="ElnaggarLab/ankh3-large", for_masked_lm=for_masked_lm),
+            "policy": "drop_last_active",
+            "adaptor_name": "Ankh3-Large",
+        },
+        "Ankh3_XL": {
+            "builder": partial(build_ankh_adaptor, model_name="ElnaggarLab/ankh3-xl", for_masked_lm=for_masked_lm),
+            "policy": "drop_last_active",
+            "adaptor_name": "Ankh3-XL",
         },
         "ProtT5_XL_UniRef50": {
             "builder": partial(build_prott5_adaptor, "Rostlab/prot_t5_xl_uniref50", for_masked_lm=for_masked_lm),
