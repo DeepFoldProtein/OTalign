@@ -20,7 +20,7 @@ def _worker(task):
         if not q_hhm.exists() or not t_hhm.exists():
             return {"pair_id": ex["pair_id"], "error": "missing_hhm"}
 
-        a1, a2, start1, start2 = run_hhalign_hhm_pair(
+        a1, a2, start1, start2, hit = run_hhalign_hhm_pair(
             q_hhm,
             t_hhm,
             hhalign_bin=args["hhalign_bin"],
@@ -36,7 +36,7 @@ def _worker(task):
             "seq2_id": ex["seq2_id"],
             "pred_alignment": pairs,
             "metrics": met,
-            "meta": {"tool": "HHalign", "mode": args["mode"]},
+            "meta": {"tool": "HHalign", "mode": args["mode"], "hit": hit},
         }
     except Exception as e:
         return {"pair_id": ex["pair_id"], "error": str(e)}

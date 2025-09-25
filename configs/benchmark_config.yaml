@@ -19,6 +19,16 @@ paths:
 # Define the benchmark datasets to be used.
 # The identifier should be a HuggingFace dataset identifier.
 datasets:
+  sabmark_sup_fp:
+    id: "DeepFoldProtein/SABmark-dataset"
+    config: "sup_fp"
+    split: "test"
+    hhm_dir: "data/hhsuite/sabmark-sup_fp/hhm"
+  sabmark_twi_fp:
+    id: "DeepFoldProtein/SABmark-dataset"
+    config: "twi_fp"
+    split: "test"
+    hhm_dir: "data/hhsuite/sabmark-twi_fp/hhm"
   sabmark_sup:
     id: "DeepFoldProtein/SABmark-dataset"
     config: "sup"
@@ -311,6 +321,18 @@ tests:
       - "otalign_esm2_30_150m"
       - "otalign_esm2_36_3b"
       - "otalign_proteinglm_100b_int4"
+  sabmark-sup_fp:
+    datasets: ["sabmark_sup_fp"]
+    models:
+      - "otalign_ankhcl"
+      - "nwalign"
+      - "hhalign"
+  sabmark-twi_fp:
+    datasets: ["sabmark_twi_fp"]
+    models:
+      - "otalign_ankhcl"
+      - "nwalign"
+      - "hhalign"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]

@@ -45,11 +45,17 @@ def main():
     """Main entry point for the benchmark runner."""
     setup_logging()
     parser = argparse.ArgumentParser(description="OTalign Benchmark Suite Runner")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/benchmark_config.yaml",
+        help="Path to the benchmark configuration file.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True, help="Available commands")
 
     # --- 'run' command ---
     run_parser = subparsers.add_parser("run", help="Execute benchmark tests")
-    run_parser.add_argument("--dataset", type=str, help="Run benchmarks only for a specific dataset (e.g., 'malidup')")
+    run_parser.add_argument("--test", help="Run benchmarks only for a specific test (e.g., 'malidup')")
     run_parser.add_argument("--update", action="store_true", help="Force re-computation of results")
     run_parser.add_argument("--device", type=str, default="cuda", help="Device to run evaluation on (e.g., 'cpu', 'cuda'). Auto-detects if not set.")
     run_parser.add_argument("--workers", type=int, default=1, help="Number of workers for tools like NWalign and HHalign.")
@@ -64,8 +70,7 @@ def main():
     args = parser.parse_args()
 
     # Load the central configuration file
-    config_path = Path(__file__).parent / "config.yaml"
-    with open(config_path, "r") as f:
+    with open(args.config, "r") as f:
         config = yaml.safe_load(f)
 
     # Execute the function associated with the chosen command
