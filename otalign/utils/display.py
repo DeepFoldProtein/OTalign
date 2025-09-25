@@ -1,24 +1,29 @@
-import logging
 import re
 import sys
 from typing import Any, Dict, List, Optional, TextIO, Tuple
 
 import numpy as np
 import torch
+from matplotlib.colors import Normalize
 
 
 def is_notebook() -> bool:
     """Checks if the code is running in a Jupyter Notebook."""
     try:
+        from IPython.core.getipython import get_ipython
+
+        ipython = get_ipython()
+        if ipython is None:
+            return False
         # This function is available in Jupyter environments
-        shell = get_ipython().__class__.__name__
+        shell = ipython.__class__.__name__
         if shell == "ZMQInteractiveShell":
             return True  # Jupyter notebook or qtconsole
         elif shell == "TerminalInteractiveShell":
             return False  # Terminal running IPython
         else:
             return False  # Other type (?)
-    except NameError:
+    except (ImportError, NameError):
         return False  # Not in an IPython environment
 
 
@@ -550,6 +555,8 @@ def print_alignment(
     query: str,
     templ: str,
     path: List[Tuple[int, int, str]],
+    score: Optional[np.ndarray] = None,
+    cmap: Optional[Any] = None,
     display_mode: str = "full_query",
     max_width: int = 80,
     max_label_width: int = 12,
@@ -610,25 +617,45 @@ def print_alignment(
     core_aligned_q, core_aligned_t, core_match_line, core_pos_q, core_pos_t = [], [], [], [], []
     match_count, conservative_count, mismatch_count, gap_count = 0, 0, 0, 0
 
+    if score is not None and cmap is not None:
+        norm = Normalize(vmin=score.min().item(), vmax=score.max().item())
+
     for i, j, move in path:
         if move == "M":
             c_q, c_t = query[i - 1].upper(), templ[j - 1].upper()
-            score = BLOSUM62.get(c_q, {}).get(c_t, -100)
+            blosum_score = BLOSUM62.get(c_q, {}).get(c_t, -100)
             if c_q == c_t:
-                core_aligned_q.append(f"{Fore.GREEN}{c_q}{Style.RESET_ALL}")
-                core_aligned_t.append(f"{Fore.GREEN}{c_t}{Style.RESET_ALL}")
                 core_match_line.append(":")
                 match_count += 1
-            elif score > 0:
-                core_aligned_q.append(f"{Fore.YELLOW}{c_q}{Style.RESET_ALL}")
-                core_aligned_t.append(f"{Fore.YELLOW}{c_t}{Style.RESET_ALL}")
+            elif blosum_score > 0:
                 core_match_line.append("+")
                 conservative_count += 1
             else:
-                core_aligned_q.append(f"{Fore.RED}{c_q}{Style.RESET_ALL}")
-                core_aligned_t.append(f"{Fore.RED}{c_t}{Style.RESET_ALL}")
                 core_match_line.append(".")
                 mismatch_count += 1
+
+            if score is not None and cmap is not None:
+                s = score[i - 1, j - 1].item()
+                color = cmap(norm(s))
+                r, g, b, _ = (int(c * 255) for c in color)
+
+                if IN_NOTEBOOK:
+                    core_aligned_q.append(f'<span style="color: rgb({r},{g},{b});">{c_q}</span>')
+                    core_aligned_t.append(f'<span style="color: rgb({r},{g},{b});">{c_t}</span>')
+                else:
+                    ansi_color = f"\033[38;2;{r};{g};{b}m"
+                    core_aligned_q.append(f"{ansi_color}{c_q}{Style.RESET_ALL}")
+                    core_aligned_t.append(f"{ansi_color}{c_t}{Style.RESET_ALL}")
+            else:
+                if c_q == c_t:
+                    core_aligned_q.append(f"{Fore.GREEN}{c_q}{Style.RESET_ALL}")
+                    core_aligned_t.append(f"{Fore.GREEN}{c_t}{Style.RESET_ALL}")
+                elif blosum_score > 0:
+                    core_aligned_q.append(f"{Fore.YELLOW}{c_q}{Style.RESET_ALL}")
+                    core_aligned_t.append(f"{Fore.YELLOW}{c_t}{Style.RESET_ALL}")
+                else:
+                    core_aligned_q.append(f"{Fore.RED}{c_q}{Style.RESET_ALL}")
+                    core_aligned_t.append(f"{Fore.RED}{c_t}{Style.RESET_ALL}")
             core_pos_q.append(i)
             core_pos_t.append(j)
         elif move == "I":
@@ -666,65 +693,64 @@ def print_alignment(
             core_pos_q,
             core_pos_t,
         )
-    elif display_mode == "full_query":
-        start_q_pos = path[0][0]
-        prefix_len = start_q_pos - 1
-        last_q_pos = max(p for p in core_pos_q if p is not None)
-        suffix_len = len(query) - last_q_pos
+    else:
+        # For 'full_query', 'full_template', and 'global_view', we need to define prefixes and suffixes
+        q_indices = core_query_pos
+        t_indices = core_templ_pos
 
-        final_aligned_q = list(query[:prefix_len]) + core_aligned_q + list(query[len(query) - suffix_len :])
-        final_aligned_t = ["-"] * prefix_len + core_aligned_t + ["-"] * suffix_len
-        final_match_line = [" "] * prefix_len + core_match_line + [" "] * suffix_len
-        final_pos_q = list(range(1, start_q_pos)) + core_pos_q + list(range(last_q_pos + 1, len(query) + 1))
-        final_pos_t = [None] * prefix_len + core_pos_t + [None] * suffix_len
-    elif display_mode == "full_template":
-        # Handle the unaligned prefix of the template
-        start_t_pos = path[0][1]
-        prefix_templ = templ[: start_t_pos - 1]
-        prefix_q = ["-"] * len(prefix_templ)
-        prefix_match = [" "] * len(prefix_templ)
-        prefix_pos_q = [None] * len(prefix_templ)
-        prefix_pos_t = list(range(1, start_t_pos))
+        # Find the actual start and end positions of the alignment in each sequence
+        start_q_aln = q_indices[0] if q_indices else 0
+        last_q_aln = q_indices[-1] if q_indices else 0
+        start_t_aln = t_indices[0] if t_indices else 0
+        last_t_aln = t_indices[-1] if t_indices else 0
 
-        # Handle the unaligned suffix of the template
-        last_t_pos = max(p for p in core_pos_t if p is not None)
-        suffix_templ = templ[last_t_pos:]
-        suffix_q = ["-"] * len(suffix_templ)
-        suffix_match = [" "] * len(suffix_templ)
-        suffix_pos_q = [None] * len(suffix_templ)
-        suffix_pos_t = list(range(last_t_pos + 1, len(templ) + 1))
+        # If the path is not empty but a sequence is all gaps, the indices will be empty.
+        # We need to get the start from the path to correctly handle prefixes.
+        if path:
+            if not q_indices:
+                start_q_aln = path[0][0]
+                last_q_aln = start_q_aln - 1
+            if not t_indices:
+                start_t_aln = path[0][1]
+                last_t_aln = start_t_aln - 1
 
-        # Combine everything
-        final_aligned_q = prefix_q + core_aligned_q + suffix_q
-        final_aligned_t = list(prefix_templ.lower()) + core_aligned_t + list(suffix_templ.lower())
-        final_match_line = prefix_match + core_match_line + suffix_match
-        final_pos_q = prefix_pos_q + core_pos_q + suffix_pos_q
-        final_pos_t = prefix_pos_t + core_pos_t + suffix_pos_t
-    elif display_mode == "global_view":
-        # Handle prefix
-        start_q_pos, start_t_pos = path[0][0], path[0][1]
-        prefix_q_str = query[: start_q_pos - 1]
-        prefix_t_str = templ[: start_t_pos - 1]
-        prefix_len = max(len(prefix_q_str), len(prefix_t_str))
+        # Define prefix and suffix strings based on calculated alignment boundaries
+        prefix_q_str = query[: start_q_aln - 1]
+        suffix_q_str = query[last_q_aln:]
 
-        prefix_q = list(prefix_q_str.lower().ljust(prefix_len, "-"))
-        prefix_t = list(prefix_t_str.lower().ljust(prefix_len, "-"))
-        prefix_match = [" "] * prefix_len
-        prefix_pos_q = list(range(1, len(prefix_q_str) + 1)) + [None] * (prefix_len - len(prefix_q_str))
-        prefix_pos_t = list(range(1, len(prefix_t_str) + 1)) + [None] * (prefix_len - len(prefix_t_str))
+        prefix_t_str = templ[: start_t_aln - 1]
+        suffix_t_str = templ[last_t_aln:]
 
-        # Handle suffix
-        last_q_pos = coords["query"][1] if coords["query"] else 0
-        last_t_pos = coords["templ"][1] if coords["templ"] else 0
-        suffix_q_str = query[last_q_pos:]
-        suffix_t_str = templ[last_t_pos:]
-        suffix_len = max(len(suffix_q_str), len(suffix_t_str))
+        if display_mode == "full_query":
+            prefix_q, prefix_t, prefix_match = list(prefix_q_str), ["-"] * len(prefix_q_str), [" "] * len(prefix_q_str)
+            suffix_q, suffix_t, suffix_match = list(suffix_q_str), ["-"] * len(suffix_q_str), [" "] * len(suffix_q_str)
 
-        suffix_q = list(suffix_q_str.lower().ljust(suffix_len, "-"))
-        suffix_t = list(suffix_t_str.lower().ljust(suffix_len, "-"))
-        suffix_match = [" "] * suffix_len
-        suffix_pos_q = list(range(last_q_pos + 1, len(query) + 1)) + [None] * (suffix_len - len(suffix_q_str))
-        suffix_pos_t = list(range(last_t_pos + 1, len(templ) + 1)) + [None] * (suffix_len - len(suffix_t_str))
+            prefix_pos_q, prefix_pos_t = list(range(1, start_q_aln)), [None] * len(prefix_q_str)
+            suffix_pos_q, suffix_pos_t = list(range(last_q_aln + 1, len(query) + 1)), [None] * len(suffix_q_str)
+
+        elif display_mode == "full_template":
+            prefix_q, prefix_t, prefix_match = ["-"] * len(prefix_t_str), list(prefix_t_str.lower()), [" "] * len(prefix_t_str)
+            suffix_q, suffix_t, suffix_match = ["-"] * len(suffix_t_str), list(suffix_t_str.lower()), [" "] * len(suffix_t_str)
+
+            prefix_pos_q, prefix_pos_t = [None] * len(prefix_t_str), list(range(1, start_t_aln))
+            suffix_pos_q, suffix_pos_t = [None] * len(suffix_t_str), list(range(last_t_aln + 1, len(templ) + 1))
+
+        elif display_mode == "global_view":
+            prefix_len = max(len(prefix_q_str), len(prefix_t_str))
+            prefix_q = list(prefix_q_str.lower().ljust(prefix_len, "-"))
+            prefix_t = list(prefix_t_str.lower().ljust(prefix_len, "-"))
+            prefix_match = [" "] * prefix_len
+            prefix_pos_q = list(range(1, len(prefix_q_str) + 1)) + [None] * (prefix_len - len(prefix_q_str))
+            prefix_pos_t = list(range(1, len(prefix_t_str) + 1)) + [None] * (prefix_len - len(prefix_t_str))
+
+            suffix_len = max(len(suffix_q_str), len(suffix_t_str))
+            suffix_q = list(suffix_q_str.lower().ljust(suffix_len, "-"))
+            suffix_t = list(suffix_t_str.lower().ljust(suffix_len, "-"))
+            suffix_match = [" "] * suffix_len
+            suffix_pos_q = list(range(last_q_aln + 1, len(query) + 1)) + [None] * (suffix_len - len(suffix_q_str))
+            suffix_pos_t = list(range(last_t_aln + 1, len(templ) + 1)) + [None] * (suffix_len - len(suffix_t_str))
+        else:
+            raise ValueError(f"Wrong display_mode: '{display_mode}'.")
 
         # Combine everything
         final_aligned_q = prefix_q + core_aligned_q + suffix_q
@@ -732,8 +758,6 @@ def print_alignment(
         final_match_line = prefix_match + core_match_line + suffix_match
         final_pos_q = prefix_pos_q + core_pos_q + suffix_pos_q
         final_pos_t = prefix_pos_t + core_pos_t + suffix_pos_t
-    else:
-        raise ValueError(f"Wrong display_mode: '{display_mode}'.")
 
     alignment_length = len(final_aligned_q)
 
@@ -765,19 +789,23 @@ def print_alignment(
 
         # Change output format for notebook vs. terminal environments
         if IN_NOTEBOOK:
-            # Convert ANSI codes to HTML for notebook display
-            seg_q_html = (
-                seg_q.replace(Colors.GREEN, '<span style="color: green;">')
-                .replace(Colors.YELLOW, '<span style="color: orange;">')
-                .replace(Colors.RED, '<span style="color: red;">')
-                .replace(Colors.RESET_ALL, "</span>")
-            )
-            seg_t_html = (
-                seg_t.replace(Colors.GREEN, '<span style="color: green;">')
-                .replace(Colors.YELLOW, '<span style="color: orange;">')
-                .replace(Colors.RED, '<span style="color: red;">')
-                .replace(Colors.RESET_ALL, "</span>")
-            )
+            if score is not None and cmap is not None:
+                seg_q_html = seg_q
+                seg_t_html = seg_t
+            else:
+                # Convert ANSI codes to HTML for notebook display
+                seg_q_html = (
+                    seg_q.replace(Colors.GREEN, '<span style="color: green;">')
+                    .replace(Colors.YELLOW, '<span style="color: orange;">')
+                    .replace(Colors.RED, '<span style="color: red;">')
+                    .replace(Colors.RESET_ALL, "</span>")
+                )
+                seg_t_html = (
+                    seg_t.replace(Colors.GREEN, '<span style="color: green;">')
+                    .replace(Colors.YELLOW, '<span style="color: orange;">')
+                    .replace(Colors.RED, '<span style="color: red;">')
+                    .replace(Colors.RESET_ALL, "</span>")
+                )
             output_buffer.append(
                 f"<pre style='font-family: monospace; line-height: 1.2;'>"
                 f"{label_q:{max_label_width}s} {num_q:>10} : {seg_q_html}<br>"
@@ -829,9 +857,16 @@ def print_alignment(
     coords = {"query": query_range, "templ": templ_range}
 
     # Create pure alignment strings without color codes
+    final_q_str = "".join(final_aligned_q)
+    final_t_str = "".join(final_aligned_t)
+
+    # Remove both ANSI and HTML tags for the raw string output
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-    final_out_q = ansi_escape.sub("", "".join(final_aligned_q))
-    final_out_t = ansi_escape.sub("", "".join(final_aligned_t))
+    html_escape = re.compile(r"<.*?>")
+    temp_q = ansi_escape.sub("", final_q_str)
+    final_out_q = html_escape.sub("", temp_q)
+    temp_t = ansi_escape.sub("", final_t_str)
+    final_out_t = html_escape.sub("", temp_t)
 
     return final_out_q, final_out_t, stats, coords
 
@@ -973,136 +1008,6 @@ def aln_to_matches(aln1, aln2):
             continue
 
     return matches
-
-
-def convolve2d(image, kernel, padding_mode="valid", stride=1):
-    """
-    Performs 2D convolution of an image with a given kernel.
-    Optimized for performance using NumPy's vectorized operations.
-
-    Args:
-        image (np.ndarray): The input 2D image (grayscale).
-        kernel (np.ndarray): The 2D convolution kernel.
-        padding_mode (str): The padding mode to use.
-                            'valid': No padding. Output size will be smaller.
-                            'same': Pads the image so that the output size is the same as the input.
-                                    Pads with zeros.
-                            'full': Pads the image so that every pixel of the input is covered
-                                    by the kernel. Output size will be larger.
-                            'reflect', 'symmetric', 'edge', 'wrap': Other NumPy padding modes.
-                                    (Note: 'same' and 'full' specifically use 'constant' padding with 0s)
-        stride (int): The stride of the convolution. Defaults to 1.
-
-    Returns:
-        np.ndarray: The convolved image.
-
-    Raises:
-        ValueError: If the padding_mode is not recognized or if stride is less than 1.
-    """
-
-    if stride < 1:
-        raise ValueError("Stride must be at least 1.")
-
-    image_height, image_width = image.shape
-    kernel_height, kernel_width = kernel.shape
-
-    # Calculate padding amounts based on mode
-    if padding_mode == "valid":
-        pad_height_top, pad_height_bottom = 0, 0
-        pad_width_left, pad_width_right = 0, 0
-    elif padding_mode == "same":
-        # Calculate total padding needed
-        total_pad_height = kernel_height - 1
-        total_pad_width = kernel_width - 1
-
-        # Distribute padding: prefer more padding on the bottom/right if odd
-        pad_height_top = total_pad_height // 2
-        pad_height_bottom = total_pad_height - pad_height_top
-        pad_width_left = total_pad_width // 2
-        pad_width_right = total_pad_width - pad_width_left
-    elif padding_mode == "full":
-        pad_height_top, pad_height_bottom = kernel_height - 1, kernel_height - 1
-        pad_width_left, pad_width_right = kernel_width - 1, kernel_width - 1
-    else:
-        # For other NumPy padding modes, we apply padding to achieve a 'same'-like output size
-        # if the user doesn't explicitly specify padding amounts.
-        # This is a heuristic to make these modes behave reasonably for convolution.
-        total_pad_height = kernel_height - 1
-        total_pad_width = kernel_width - 1
-        pad_height_top = total_pad_height // 2
-        pad_height_bottom = total_pad_height - pad_height_top
-        pad_width_left = total_pad_width // 2
-        pad_width_right = total_pad_width - pad_width_left
-
-    # Apply padding
-    if padding_mode == "valid":
-        padded_image = image
-    elif padding_mode in ["same", "full"]:
-        # For 'same' and 'full', we use constant padding with zeros
-        padded_image = np.pad(
-            image,
-            ((pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)),
-            mode="constant",
-            constant_values=0,
-        )
-    else:
-        # For other specified NumPy padding modes
-        try:
-            padded_image = np.pad(
-                image,
-                ((pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)),
-                mode=padding_mode,
-            )
-        except ValueError as e:
-            raise ValueError(f"Invalid padding_mode '{padding_mode}' or padding calculation error: {e}")
-
-    padded_image_height, padded_image_width = padded_image.shape
-
-    # Calculate output dimensions
-    output_height = (padded_image_height - kernel_height) // stride + 1
-    output_width = (padded_image_width - kernel_width) // stride + 1
-
-    # Ensure output dimensions are non-negative
-    if output_height <= 0 or output_width <= 0:
-        raise ValueError("Output dimensions are non-positive. Check image, kernel, padding, and stride values.")
-
-    # Get strides of the padded image
-    image_strides = padded_image.strides
-
-    # Create a view of the padded image that represents all possible kernel-sized windows
-    # This is the core of the vectorized approach.
-    # The new shape will be (output_height, output_width, kernel_height, kernel_width)
-    # The new strides will allow us to slide the window by 'stride' for the first two dimensions
-    # and then access elements within the kernel for the last two dimensions.
-    view_shape = (output_height, output_width, kernel_height, kernel_width)
-    view_strides = (
-        image_strides[0] * stride,  # Stride for moving down rows in the output
-        image_strides[1] * stride,  # Stride for moving right columns in the output
-        image_strides[0],  # Stride for moving down rows within the kernel window
-        image_strides[1],  # Stride for moving right columns within the kernel window
-    )
-
-    # Use as_strided to create the view without copying data
-    sub_matrices = np.lib.stride_tricks.as_strided(padded_image, shape=view_shape, strides=view_strides)
-
-    # Perform element-wise multiplication with the kernel and sum along the kernel dimensions
-    # np.einsum is very efficient for this type of operation (sum-product)
-    # 'ijkl,kl->ij' means:
-    # i,j: output dimensions
-    # k,l: kernel dimensions
-    # For each (i,j) in the output, sum over k,l of (sub_matrices[i,j,k,l] * kernel[k,l])
-    output = np.einsum("ijkl,kl->ij", sub_matrices, kernel)
-
-    return output
-
-
-def setup_logging():
-    """Configures basic logging settings."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
 
 
 def stack_and_mask_arrays(
