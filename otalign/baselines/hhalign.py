@@ -45,7 +45,7 @@ def _parse_hhr_hit(detailed_lines: Sequence[str]) -> dict:
     match = re.match(pattern, detailed_lines[2])
     if match is None:
         raise RuntimeError("Could not parse section: %s. Expected this: \n%s to contain summary." % (detailed_lines, detailed_lines[2]))
-    (prob_true, e_value, _, aligned_cols, _, _, sum_probs, neff) = [float(x) for x in match.groups()]
+    (prob_true, e_value, p_value, aligned_cols, identities, similarity, sum_probs, template_neff) = [float(x) for x in match.groups()]
 
     # The next section reads the detailed comparisons. These are in a 'human
     # readable' format which has a fixed length. The strategy employed is to
@@ -98,12 +98,18 @@ def _parse_hhr_hit(detailed_lines: Sequence[str]) -> dict:
     return {
         "index": number_of_hit,
         "name": name_hit,
-        "aligned_cols": int(aligned_cols),
-        "sum_probs": sum_probs,
         "query": query,
         "hit_sequence": hit_sequence,
         "indices_query": indices_query,
         "indices_hit": indices_hit,
+        "prob_true": float(prob_true),
+        "e_value": float(e_value),
+        "p_value": float(p_value),
+        "aligned_cols": int(aligned_cols),
+        "identities": float(identities),
+        "similiarity": float(similarity),
+        "sum_probs": float(sum_probs),
+        "template_neff": float(template_neff),
     }
 
 
@@ -142,7 +148,7 @@ def run_hhalign_hhm_pair(
     mode: str = "local",  # "local" | "global" | "glocal"
     extra_args: Optional[List[str]] = None,
     timeout: Optional[int] = 300,
-) -> Tuple[str, str, int, int]:
+) -> Tuple[str, str, int, int, dict]:
     """
     Run hhalign on two .hhm files and return pairwise alignment as two gapped A3M strings.
     We parse -oa3m and strip lowercase (insertions) per A3M convention.
@@ -188,13 +194,13 @@ def run_hhalign_hhm_pair(
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, timeout=timeout)
             recs = convert_a3m_text_to_a2m(out_a3m.read_text())
 
+            hhr_string = out_hhr.read_text()
+            hits = parse_hhr(hhr_string)
+            if not hits:
+                raise RuntimeError(f"hhalign: No A3M and no valid HHR hits in {out_hhr}")
+
             if len(recs) < 2:
                 # --- HHR fallback ---
-                hhr_string = out_hhr.read_text()
-                hits = parse_hhr(hhr_string)
-                if not hits:
-                    raise RuntimeError(f"hhalign: No A3M and no valid HHR hits in {out_hhr}")
-
                 a1 = hits[0]["query"]
                 a2 = hits[0]["hit_sequence"]
 
@@ -202,13 +208,13 @@ def run_hhalign_hhm_pair(
                 start1 = _first_valid_value(hits[0]["indices_query"])
                 start2 = _first_valid_value(hits[0]["indices_hit"])
 
-                return a1, a2, start1, start2
+                return a1, a2, start1, start2, hits[0]
             else:
                 # --- A3M ---
                 a1 = recs[0]["seq"].upper().replace(".", "-")
                 a2 = recs[1]["seq"].upper().replace(".", "-")
 
-                return a1, a2, 0, 0  #
+                return a1, a2, 0, 0, hits[0]
         except subprocess.CalledProcessError:
             tried_errors.append(f"cmd failed: {' '.join(cmd)}")
         except Exception as e:

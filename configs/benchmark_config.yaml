@@ -181,10 +181,14 @@ tests:
     datasets: ["sabmark_sup_fp"]
     models:
       - "otalign_ankhcl"
+      - "nwalign"
+      - "hhalign"
   sabmark-twi_fp:
     datasets: ["sabmark_twi_fp"]
     models:
       - "otalign_ankhcl"
+      - "nwalign"
+      - "hhalign"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
