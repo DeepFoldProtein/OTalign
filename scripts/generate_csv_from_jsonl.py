@@ -1,6 +1,8 @@
 """
 Script to generate CSV files from JSONL evaluation results.
-Processes JSONL files to calculate alignment metrics summary for each dataset.
+Processes JSONL files organized in the directory structure:
+/path/to/results/{dataset}/{model}/results.jsonl
+Calculates alignment metrics summary for each dataset.
 """
 
 import argparse
@@ -14,50 +16,39 @@ import pandas as pd
 from scipy import stats
 
 
-def extract_model_name(filename: str) -> str:
-    """Extract model name from JSONL filename."""
-    basename = os.path.basename(filename)
-
-    # Remove dataset suffix and .jsonl extension
-    for dataset in ["-malidup", "-malisam", "-sabmark-sup", "-sabmark-twi"]:
-        if dataset in basename:
-            basename = basename.replace(dataset, "")
-            break
-
-    # Remove .jsonl extension
-    basename = basename.replace(".jsonl", "")
-
-    # Handle special cases
-    if basename.startswith("otalign-"):
-        model_name = basename[8:]  # Remove 'otalign-' prefix
-    elif basename.startswith("baseline"):
-        model_name = "baseline"
-    elif basename == "hhalign":
-        model_name = "hhalign"
-    elif basename == "nwalign":
-        model_name = "nwalign"
-    else:
-        model_name = basename
+def extract_model_name(filepath: str) -> str:
+    """Extract model name from JSONL filepath."""
+    # The filepath format is: /path/to/results/{dataset}/{model}/results.jsonl
+    # Extract the model name from the parent directory
+    model_dir = os.path.basename(os.path.dirname(filepath))
 
     # Clean up model names to match existing format
     model_mapping = {
-        "ESM1b_33_650M": "ESM1b_33_650M",
-        "ESM1b": "ESM1b_33_650M",
-        "esm1b": "ESM1b_33_650M",
-        "ESM2_12_35M": "ESM2_12_35M",
-        "ESM2_30_150M": "ESM2_30_150M",
-        "ESM2_33_650M": "ESM2_33_650M",
-        "ESM2_36_3B": "ESM2_36_3B",
-        "ESM2_6_8M": "ESM2_6_8M",
-        "AnkhCL": "AnkhCL",
-        "ProtT5_XL_UniRef50": "ProtT5_XL_UniRef50",
-        "ProteinGLM_100B_INT4": "ProteinGLM_100B_INT4",
-        "hhalign": "hhalign",
-        "nwalign": "nwalign",
-        "baseline": "baseline",
+        "otalign_esm1b": "ESM1b_33_650M",
+        "otalign_esm2": "ESM2_33_650M",
+        "otalign_esm2_6_8m": "ESM2_6_8M",
+        "otalign_esm2_12_35m": "ESM2_12_35M",
+        "otalign_esm2_30_150m": "ESM2_30_150M",
+        "otalign_esm2_36_3b": "ESM2_36_3B",
+        "otalign_ankh_base": "Ankh_base",
+        "otalign_ankh_large": "Ankh_large",
+        "otalign_ankh3_large": "Ankh3_large",
+        "otalign_ankh3_xl": "Ankh3_xl",
+        "otalign_ankhcl": "AnkhCL",
+        "otalign_prott5": "ProtT5_XL_UniRef50",
+        "otalign_proteinglm_100b_int4": "ProteinGLM_100B_INT4",
+        "otalign_esm1b_lora_ft2_2": "ESM1b_LoRA_ft2_2",
+        "otalign_esm1b_lora_ft5_10": "ESM1b_LoRA_ft5_10",
+        "esm1b-lora-finetune-ot-head-1": "ESM1b_LoRA_finetune_ot_head_1",
+        "plmalign_prott5_global": "PLMAlign_ProtT5_global",
+        "plmalign_prott5_global_before": "PLMAlign_ProtT5_global_before",
+        "hhalign": "HHAlign",
+        "nwalign": "NWAlign",
+        "deepblast": "DeepBLAST",
+        "baseline": "Baseline",
     }
 
-    return model_mapping.get(model_name, model_name)
+    return model_mapping.get(model_dir, model_dir)
 
 
 def calculate_confidence_interval(values: List[float], confidence: float = 0.95) -> Tuple[float, float]:
@@ -111,25 +102,28 @@ def calculate_summary_stats(values: List[float]) -> Dict[str, float]:
     return {"mean": mean_val, "sem": sem_val, "std": std_val, "ci_95_lower": ci_lower, "ci_95_upper": ci_upper}
 
 
-def process_dataset(eval_dir: str, dataset: str) -> pd.DataFrame:
+def process_dataset(results_dir: str, dataset: str) -> pd.DataFrame:
     """Process all JSONL files for a specific dataset."""
 
-    # Find all JSONL files for this dataset
-    pattern = os.path.join(eval_dir, f"*-{dataset}.jsonl")
+    # Build the dataset directory path
+    dataset_dir = os.path.join(results_dir, dataset)
+
+    if not os.path.exists(dataset_dir):
+        print(f"Dataset directory not found: {dataset_dir}")
+        return pd.DataFrame()
+
+    # Find all results.jsonl files in model subdirectories
+    pattern = os.path.join(dataset_dir, "*/results.jsonl")
     jsonl_files = glob.glob(pattern)
 
-    # Also check for files ending with _tm.jsonl (transmembrane variants)
-    tm_pattern = os.path.join(eval_dir, f"*-{dataset}_tm.jsonl")
-    tm_files = glob.glob(tm_pattern)
-
     print(f"Processing {dataset}:")
-    print(f"  Found {len(jsonl_files)} regular files")
-    print(f"  Found {len(tm_files)} TM files")
+    print(f"  Dataset directory: {dataset_dir}")
+    print(f"  Found {len(jsonl_files)} results.jsonl files")
 
     results = []
     processed_models = set()
 
-    # Process regular files first
+    # Process all files
     for filepath in jsonl_files:
         model_name = extract_model_name(filepath)
 
@@ -137,7 +131,8 @@ def process_dataset(eval_dir: str, dataset: str) -> pd.DataFrame:
         if model_name in processed_models:
             continue
 
-        print(f"  Processing {os.path.basename(filepath)} -> {model_name}")
+        model_dir = os.path.basename(os.path.dirname(filepath))
+        print(f"  Processing {model_dir}/results.jsonl -> {model_name}")
 
         metrics_data = process_jsonl_file(filepath)
 
@@ -171,18 +166,18 @@ def process_dataset(eval_dir: str, dataset: str) -> pd.DataFrame:
 def main():
     """Main function to process all datasets."""
     parser = argparse.ArgumentParser(description="Generate CSV files from JSONL evaluation results")
-    parser.add_argument("--eval_dir", type=str, default="/gpfs/deepfold/work/otalign/eval", help="Directory containing JSONL files")
-    parser.add_argument("--output_dir", type=str, default=None, help="Output directory for CSV files (defaults to eval_dir)")
+    parser.add_argument("--results_dir", type=str, default="/gpfs/deepfold/work/otalign/eval/results", help="Directory containing results subdirectories")
+    parser.add_argument("--output_dir", type=str, default=None, help="Output directory for CSV files (defaults to results_dir)")
 
     args = parser.parse_args()
 
-    eval_dir = args.eval_dir
-    output_dir = args.output_dir or eval_dir
+    results_dir = args.results_dir
+    output_dir = args.output_dir or results_dir
 
-    # Datasets to process
-    datasets = ["malidup", "malisam", "sabmark-sup", "sabmark-twi"]
+    # Datasets to process (based on the terminal output)
+    datasets = ["malidup", "malisam", "sabmark_sup", "sabmark_sup_fp", "sabmark_twi", "sabmark_twi_fp"]
 
-    print(f"Processing evaluation results from: {eval_dir}")
+    print(f"Processing evaluation results from: {results_dir}")
     print(f"Output directory: {output_dir}")
     print("=" * 60)
 
@@ -190,7 +185,7 @@ def main():
         print(f"\nProcessing dataset: {dataset}")
 
         # Process the dataset
-        df = process_dataset(eval_dir, dataset)
+        df = process_dataset(results_dir, dataset)
 
         if df.empty:
             print(f"  No data found for {dataset}")
