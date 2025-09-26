@@ -3,8 +3,8 @@
 # 1. Global Paths and Settings
 paths:
   # Root directory for storing raw benchmark results
-  # results_dir: "out/results"
-  results_dir: "/gpfs/deepfold/work/otalign/eval/results"
+  results_dir: "out/results"
+  # results_dir: "/gpfs/deepfold/work/otalign/eval/results"
   # Root directory for caching embeddings and other intermediate data
   cache_dir: "out/cache"
   # Root directory for saving generated plots
