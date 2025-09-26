@@ -1,11 +1,26 @@
 import json
 import logging
+from collections.abc import MutableMapping
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
+
+
+def _deep_update(source, overrides):
+    """
+    Update a nested dictionary or similar mapping.
+    Modify ``source`` in place.
+    """
+    for key, value in overrides.items():
+        if isinstance(value, MutableMapping) and value:
+            returned = _deep_update(source.get(key, {}), value)
+            source[key] = returned
+        else:
+            source[key] = overrides[key]
+    return source
 
 
 class Plotter:
@@ -17,6 +32,7 @@ class Plotter:
         self.results_dir = Path(config["paths"]["results_dir"])
         self.plots_dir = Path(config["paths"]["plots_dir"])
         self.plot_format = cli_args.plot_format if hasattr(cli_args, "plot_format") and cli_args.plot_format else "png"
+        self.global_plot_style = config.get("plot_style", {})
         self.plots_dir.mkdir(exist_ok=True)
 
     def generate_all_plots(self):
@@ -87,30 +103,50 @@ class Plotter:
             logging.warning(f"      - No data for metrics {metrics_to_plot} in test group {test_name}. Skipping plot '{plot_name}'.")
             return
 
+        # Combine global and plot-specific styles
+        style_config = self.global_plot_style.copy()
+        if "style" in plot_config:
+            _deep_update(style_config, plot_config["style"])
+
+        # Apply styles
         sns.set_theme(style="whitegrid")
-        plt.figure(figsize=(12, 8))
+        plt.rcParams["font.family"] = style_config.get("fontfamily", "sans-serif")
+        fig, ax = plt.subplots(figsize=style_config.get("figsize", (12, 8)))
 
         plot_type = plot_config.get("type", "boxplot")
         palette = {row["label"]: row["color"] for _, row in plot_df[["label", "color"]].drop_duplicates().iterrows()}
 
         if plot_type == "boxplot":
-            plot = sns.boxplot(data=plot_df, x="metric", y="value", hue="label", palette=palette)
+            plot = sns.boxplot(data=plot_df, x="metric", y="value", hue="label", palette=palette, ax=ax)
         elif plot_type == "barplot" or plot_type == "bar":
-            plot = sns.barplot(data=plot_df, x="metric", y="value", hue="label", palette=palette, capsize=0.1, errorbar=("ci", 95))
+            plot = sns.barplot(data=plot_df, x="metric", y="value", hue="label", palette=palette, capsize=0.1, errorbar=("ci", 95), ax=ax)
         else:
             logging.warning(f"      - Unknown plot type '{plot_type}' for plot '{plot_name}'. Skipping.")
+            plt.close(fig)
             return
 
-        plot.set_title(plot_config.get("title", f"{test_name.replace('_', ' ').title()} Comparison"), fontsize=18)
-        plot.set_xlabel("Metric", fontsize=14)
-        plot.set_ylabel("Value", fontsize=14)
-        plot.tick_params(axis="x", labelsize=12)
-        plot.tick_params(axis="y", labelsize=12)
+        fs = style_config.get("fontsize", {})
+        plot.set_title(plot_config.get("title", f"{test_name.replace('_', ' ').title()} Comparison"), fontsize=fs.get("title", 18))
+        plot.set_xlabel("Metric", fontsize=fs.get("xlabel", 14))
+        plot.set_ylabel("Value", fontsize=fs.get("ylabel", 14))
+        plot.tick_params(axis="x", labelsize=fs.get("xtick", 12))
+        plot.tick_params(axis="y", labelsize=fs.get("ytick", 12))
         plot.set_ylim(0, 1.05)
 
         # Adjust legend
         handles, labels = plot.get_legend_handles_labels()
-        plot.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=min(len(palette), 4), title="Model", fontsize=12)
+        legend_fontsize = fs.get("legend", 12)
+        legend_title_fontsize = fs.get("legend_title", 12)
+        plot.legend(
+            handles,
+            labels,
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.15),
+            ncol=min(len(palette), 4),
+            title="Model",
+            fontsize=legend_fontsize,
+            title_fontsize=legend_title_fontsize,
+        )
 
         plt.tight_layout(rect=(0, 0.05, 1, 1))
 
@@ -118,6 +154,6 @@ class Plotter:
         output_dir = self.plots_dir / test_name
         output_dir.mkdir(exist_ok=True)
         output_path = output_dir / f"{plot_name}.{self.plot_format}"
-        plt.savefig(output_path, dpi=300, bbox_inches="tight")
-        plt.close()
+        plt.savefig(output_path, dpi=style_config.get("dpi", 300), bbox_inches="tight")
+        plt.close(fig)
         logging.info(f"      - Plot saved to {output_path}")

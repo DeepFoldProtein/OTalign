@@ -3,7 +3,8 @@
 # 1. Global Paths and Settings
 paths:
   # Root directory for storing raw benchmark results
-  results_dir: "out/results"
+  # results_dir: "out/results"
+  results_dir: "/gpfs/deepfold/work/otalign/eval/results"
   # Root directory for caching embeddings and other intermediate data
   cache_dir: "out/cache"
   # Root directory for saving generated plots
@@ -213,7 +214,7 @@ models:
     color: "#d9ead3"
     params:
       alignment_mode: "needleman-wunsch"
-  
+
   # --- PLMAlign Models ---
   plmalign_prott5_global:
     tool: "plmalign"
@@ -223,7 +224,7 @@ models:
     params:
       alignment_mode: "global"
       plm_model: "ProtT5_XL_UniRef50"
-  
+
   plmalign_prott5_local:
     tool: "plmalign"
     plm: "ProtT5_XL_UniRef50"
@@ -245,19 +246,19 @@ tests:
       - "otalign_ankhcl"
       - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
       - "plmalign_prott5_global"
       - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm2_6_8m"
-      - "otalign_esm2_12_35m"
-      - "otalign_esm2_30_150m"
-      - "otalign_esm2_36_3b"
-      - "otalign_proteinglm_100b_int4"
+      # - "otalign_esm2_6_8m"
+      # - "otalign_esm2_12_35m"
+      # - "otalign_esm2_30_150m"
+      # - "otalign_esm2_36_3b"
+      # - "otalign_proteinglm_100b_int4"
   malisam:
     datasets: ["malisam"]
     models:
@@ -266,19 +267,19 @@ tests:
       - "otalign_ankhcl"
       - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
       - "plmalign_prott5_global"
       - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm2_6_8m"
-      - "otalign_esm2_12_35m"
-      - "otalign_esm2_30_150m"
-      - "otalign_esm2_36_3b"
-      - "otalign_proteinglm_100b_int4"
+      # - "otalign_esm2_6_8m"
+      # - "otalign_esm2_12_35m"
+      # - "otalign_esm2_30_150m"
+      # - "otalign_esm2_36_3b"
+      # - "otalign_proteinglm_100b_int4"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -398,16 +399,38 @@ tests:
       - "otalign_prott5"
       - "plmalign_prott5_global"
       - "deepblast"
-      - "nwalign"  # baseline for reference
-      - "hhalign"  # baseline for reference
+      - "nwalign" # baseline for reference
+      - "hhalign" # baseline for reference
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.
 # The top-level keys must match the keys in the 'tests' section.
+
+# 5.1. Global Plot Style Defaults
+# These settings apply to all plots unless overridden in a specific plot's configuration.
+plot_style:
+  figsize: [12, 8]
+  dpi: 300
+  axes_size: 14
+  fontsize:
+    title: 18
+    xlabel: 14
+    ylabel: 14
+    xtick: 12
+    ytick: 12
+    legend: 12
+    legend_title: 12
+  fontfamily: "sans-serif" # e.g., "serif", "sans-serif", "monospace"
+
 plotting:
   sabmark-sup:
     plots:
       - name: "sabmark_metrics_box"
+        # Example of overriding global style for a specific plot
+        style:
+          figsize: [10, 7]
+          fontsize:
+            title: 20
         type: "boxplot"
         title: "SABmark (Superfamlies) Benchmark"
         metrics: ["recall", "precision", "f1", "jaccard"]
