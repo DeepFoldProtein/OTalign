@@ -33,8 +33,16 @@ export default function SubmissionForm() {
             JSON&quot; to create the submission file
           </li>
           <li>
-            <strong>Submit:</strong> Create a Pull Request to our GitHub
-            repository with the JSON file
+            <strong>Submit:</strong> Create a Pull Request to{" "}
+            <a
+              href="https://github.com/DeepFoldProtein/OTalign"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              our GitHub repository
+            </a>{" "}
+            with the JSON file
           </li>
         </ol>
       </div>
@@ -303,8 +311,16 @@ export default function SubmissionForm() {
             </code>
           </pre>
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            Save this JSON to a file and submit it via a Pull Request to our
-            GitHub repository.
+            Save this JSON to a file and submit it via a Pull Request to{" "}
+            <a
+              href="https://github.com/DeepFoldProtein/OTalign"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              our GitHub repository
+            </a>
+            .
           </p>
         </div>
       )}

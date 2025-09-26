@@ -75,18 +75,18 @@ export function usePerformanceChart({
     [data]
   );
 
-  const scatterData: ScatterDataPoint[] = useMemo(
-    () =>
-      validData.map((entry) => ({
-        x: parseParameterCount(entry.parameters),
-        y: entry.average!,
-        model: entry.model,
-        type: entry.type,
-        organization: entry.organization,
-        parameters: entry.parameters,
-      })),
-    [validData]
-  );
+  const scatterData: ScatterDataPoint[] = useMemo(() => {
+    const data = validData.map((entry) => ({
+      x: parseParameterCount(entry.parameters),
+      y: entry.average!,
+      model: entry.model,
+      type: entry.type,
+      organization: entry.organization,
+      parameters: entry.parameters,
+    }));
+    console.log("Scatter data:", data); // Debug log
+    return data;
+  }, [validData]);
 
   // Get color for different types
   const getTypeColor = (type: string) => {
@@ -95,6 +95,8 @@ export function usePerformanceChart({
         return "#3B82F6"; // blue
       case "OTalign":
         return "#A855F7"; // purple
+      case "PLM-Based":
+        return "#10B981"; // green
       case "PLM-based":
         return "#10B981"; // green
       default:

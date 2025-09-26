@@ -9,16 +9,15 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
   ReferenceLine,
-  LabelList,
 } from "recharts";
 import { usePerformanceChart } from "@/hooks/usePerformanceChart";
+import { ScatterCustomizedShape } from "recharts/types/cartesian/Scatter";
 
 interface PerformanceChartProps {
   data: LeaderboardEntry[];
@@ -47,6 +46,10 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
   const validParameterData = scatterData.filter((d) => d.x >= 0);
   const naParameterData = scatterData.filter((d) => d.x === -1);
 
+  // Debug: Log the data separation
+  console.log("Valid parameter data:", validParameterData);
+  console.log("N/A parameter data:", naParameterData);
+
   // Format parameter count for display
   const formatParameterCount = (value: number) => {
     if (value === -1) return "N/A";
@@ -67,6 +70,28 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
     }
   };
 
+  // Custom dot component for different colors based on type
+  const CustomDot = (props: ScatterCustomizedShape) => {
+    const { cx, cy, payload } = props as {
+      cx: number;
+      cy: number;
+      payload: ScatterDataPoint;
+    };
+    if (!payload) return null;
+
+    const color = getTypeColor(payload.type);
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={3}
+        fill={color}
+        stroke={color}
+        strokeWidth={2.5}
+      />
+    );
+  };
+
   const CustomTooltip = ({
     active,
     payload,
@@ -75,7 +100,21 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
     payload?: Array<{ payload: ScatterDataPoint }>;
   }) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      // Find the payload that actually has data and is not undefined
+      // Filter out any payload entries that don't have valid data
+      const validPayloads = payload.filter(
+        (p) =>
+          p.payload &&
+          p.payload.model &&
+          p.payload.x !== undefined &&
+          p.payload.y !== undefined
+      );
+
+      if (validPayloads.length === 0) return null;
+
+      // Use the first valid payload
+      const data = validPayloads[0].payload;
+
       return (
         <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg transition-none">
           <p className="font-semibold text-gray-900 dark:text-white">
@@ -112,7 +151,6 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart
                   margin={{ top: 60, right: 100, bottom: 60, left: 80 }}
-                  data={[...validParameterData, ...naParameterData]}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis
@@ -149,8 +187,6 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                     }}
                   />
                   <Tooltip content={<CustomTooltip />} animationDuration={0} />
-                  <Legend verticalAlign="top" height={36} />
-
                   {/* Reference lines for N/A parameter models */}
                   {naParameterData.map((item, index) => (
                     <ReferenceLine
@@ -163,28 +199,45 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                     />
                   ))}
 
-                  {/* Scatter points for models with valid parameter counts */}
-                  {Array.from(
-                    new Set(validParameterData.map((d) => d.type))
-                  ).map((type) => (
-                    <Scatter
-                      key={type}
-                      name={type}
-                      data={validParameterData.filter((d) => d.type === type)}
-                      fill={getTypeColor(type)}
-                      strokeWidth={2}
-                      stroke={getTypeColor(type)}
-                    />
-                  ))}
+                  {/* Single Scatter component with all data and custom colored dots */}
+                  <Scatter
+                    data={validParameterData}
+                    fill="#8884d8"
+                    strokeWidth={1}
+                    stroke="#8884d8"
+                    shape={CustomDot as ScatterCustomizedShape}
+                  />
                 </ScatterChart>
               </ResponsiveContainer>
+            </div>
+
+            {/* Custom legend for model types */}
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                Model Types
+              </h4>
+              <div className="flex flex-wrap gap-4">
+                {Array.from(new Set(validParameterData.map((d) => d.type))).map(
+                  (type) => (
+                    <div key={type} className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: getTypeColor(type) }}
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {type}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
 
             {/* Custom legend for N/A parameter models */}
             {naParameterData.length > 0 && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Reference Methods without Protein Language Models
+                  Reference Methods
                 </h4>
                 <div className="flex flex-wrap gap-4">
                   {naParameterData.map((item, index) => (

@@ -70,7 +70,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 5,
       model: "OTalign (ESM-1b LoRA ft2_2)",
       type: "OTalign",
-      description: "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft2_2)",
+      description:
+        "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft2_2)",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "650M",
@@ -85,8 +86,9 @@ export const leaderboardData: LeaderboardData = {
     {
       rank: 6,
       model: "PLMAlign (ProtT5-XL, Global)",
-      type: "PLM-Based",
-      description: "Protein language model alignment with ProtT5-XL global alignment",
+      type: "PLM-based",
+      description:
+        "Protein language model alignment with ProtT5-XL global alignment",
       paper_url: "",
       code_url: "https://github.com/Rostlab/PLMAlign",
       parameters: "3B",
@@ -102,7 +104,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 7,
       model: "OTalign (ESM-1b LoRA ft5_10)",
       type: "OTalign",
-      description: "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft5_10)",
+      description:
+        "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft5_10)",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "650M",
@@ -133,8 +136,9 @@ export const leaderboardData: LeaderboardData = {
     {
       rank: 9,
       model: "DeepBLAST (ProtT5-XL)",
-      type: "PLM-Based",
-      description: "Deep learning protein sequence alignment using bidirectional LSTM",
+      type: "PLM-based",
+      description:
+        "Deep learning protein sequence alignment using bidirectional LSTM",
       paper_url: "https://doi.org/10.1093/bioinformatics/btab220",
       code_url: "https://github.com/flatironinstitute/deepblast",
       parameters: "3B",
@@ -198,7 +202,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 13,
       model: "OTalign (ProteinGLM 100B INT4)",
       type: "OTalign",
-      description: "Optimal Transport alignment with ProteinGLM 100B INT4 embeddings",
+      description:
+        "Optimal Transport alignment with ProteinGLM 100B INT4 embeddings",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "100B INT4",
@@ -262,7 +267,8 @@ export const leaderboardData: LeaderboardData = {
       rank: 17,
       model: "OTalign (ESM-1b LoRA OT Head)",
       type: "OTalign",
-      description: "Optimal Transport alignment with LoRA fine-tuned ESM-1b and OT head",
+      description:
+        "Optimal Transport alignment with LoRA fine-tuned ESM-1b and OT head",
       paper_url: "",
       code_url: "https://github.com/DeepFoldProtein/OTalign",
       parameters: "650M",

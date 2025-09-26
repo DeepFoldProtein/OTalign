@@ -214,10 +214,10 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
             "parameters": "650M",
         },
-        # PLM-Based methods
+        # PLM-based methods
         "DeepBLAST": {
             "model": "DeepBLAST (ProtT5-XL)",
-            "type": "PLM-Based",
+            "type": "PLM-based",
             "description": "Deep learning protein sequence alignment using bidirectional LSTM",
             "organization": "Knights Lab",
             "paper_url": "https://doi.org/10.1093/bioinformatics/btab220",
@@ -226,11 +226,11 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
         },
         "PLMAlign_ProtT5_global": {
             "model": "PLMAlign (ProtT5-XL, Global)",
-            "type": "PLM-Based",
+            "type": "PLM-based",
             "description": "Protein language model alignment with ProtT5-XL global alignment",
-            "organization": "Rostlab",
-            "paper_url": "",
-            "code_url": "https://github.com/Rostlab/PLMAlign",
+            "organization": "Shanfeng Zhu Lab",
+            "paper_url": "https://doi.org/10.1038/s41467-024-46808-5",
+            "code_url": "https://github.com/maovshao/PLMAlign",
             "parameters": "3B",
         },
         # Traditional methods

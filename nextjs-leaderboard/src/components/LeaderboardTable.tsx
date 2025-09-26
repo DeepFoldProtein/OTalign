@@ -35,6 +35,7 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
       case "OTalign":
         return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+      case "PLM-Based":
       case "PLM-based":
         return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
       default:
@@ -154,7 +155,7 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                 onClick={() => handleSort("sabmark_sup_recall")}
               >
                 <div className="flex items-center gap-1">
-                  SABmark (sup)
+                  SABmark (sup) Recall
                   <SortIcon field="sabmark_sup_recall" />
                 </div>
               </th>
@@ -163,7 +164,7 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                 onClick={() => handleSort("sabmark_twi_recall")}
               >
                 <div className="flex items-center gap-1">
-                  SABmark (twi)
+                  SABmark (twi) Recall
                   <SortIcon field="sabmark_twi_recall" />
                 </div>
               </th>
