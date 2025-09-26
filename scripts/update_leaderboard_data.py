@@ -233,15 +233,6 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "code_url": "https://github.com/Rostlab/PLMAlign",
             "parameters": "3B",
         },
-        "PLMAlign_ProtT5_global_before": {
-            "model": "PLMAlign (ProtT5-XL, Global Before)",
-            "type": "PLM-Based",
-            "description": "Protein language model alignment with ProtT5-XL global alignment (before version)",
-            "organization": "Rostlab",
-            "paper_url": "",
-            "code_url": "https://github.com/Rostlab/PLMAlign",
-            "parameters": "3B",
-        },
         # Traditional methods
         "HHAlign": {
             "model": "HHAlign",
