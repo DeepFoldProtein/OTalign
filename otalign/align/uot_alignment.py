@@ -8,8 +8,15 @@ try:
     from numba import njit
 
     _HAVE_NUMBA = True
-except Exception:
+except ImportError:
     _HAVE_NUMBA = False
+
+    # Define a dummy decorator if numba is not available
+    def njit(cache=False, fastmath=False):
+        def decorator(func):
+            return func
+
+        return decorator
 
 
 # ---------- fast helpers ----------
