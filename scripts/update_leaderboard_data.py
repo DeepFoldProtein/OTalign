@@ -11,7 +11,7 @@ import pandas as pd
 
 def read_csv_data(eval_dir: str) -> Dict[str, pd.DataFrame]:
     """Read all alignment metrics summary CSV files."""
-    datasets = ["malidup", "malisam", "sabmark-sup", "sabmark-twi"]
+    datasets = ["malidup", "malisam", "sabmark_sup", "sabmark_twi"]
     data = {}
 
     for dataset in datasets:
@@ -42,9 +42,9 @@ def extract_metrics(data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, float]
                 results[model]["malidup_f1"] = round(mean_value, 4)
             elif dataset == "malisam" and metric == "F1":
                 results[model]["malisam_f1"] = round(mean_value, 4)
-            elif dataset == "sabmark-sup" and metric == "Recall":
+            elif dataset == "sabmark_sup" and metric == "Recall":
                 results[model]["sabmark_sup_recall"] = round(mean_value, 4)
-            elif dataset == "sabmark-twi" and metric == "Recall":
+            elif dataset == "sabmark_twi" and metric == "Recall":
                 results[model]["sabmark_twi_recall"] = round(mean_value, 4)
 
     return results
@@ -150,15 +150,100 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "parameters": "8M",
         },
         "ProtT5_XL_UniRef50": {
-            "model": "OTalign (ProtT5_XL_UniRef50)",
+            "model": "OTalign (ProtT5-XL)",
             "type": "OTalign",
-            "description": "Optimal Transport alignment with ProtT5_XL_UniRef50 embeddings",
+            "description": "Optimal Transport alignment with ProtT5-XL embeddings",
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",
             "parameters": "3B",
         },
-        "hhalign": {
+        # Ankh variants
+        "Ankh_base": {
+            "model": "OTalign (Ankh Base)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with Ankh Base embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "450M",
+        },
+        "Ankh_large": {
+            "model": "OTalign (Ankh Large)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with Ankh Large embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "1.15B",
+        },
+        "Ankh3_large": {
+            "model": "OTalign (Ankh3 Large)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with Ankh3 Large embeddings",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "1.15B",
+        },
+        # LoRA fine-tuned models
+        "ESM1b_LoRA_ft2_2": {
+            "model": "OTalign (ESM-1b LoRA ft2_2)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft2_2)",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "650M",
+        },
+        "ESM1b_LoRA_ft5_10": {
+            "model": "OTalign (ESM-1b LoRA ft5_10)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft5_10)",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "650M",
+        },
+        "ESM1b_LoRA_finetune_ot_head_1": {
+            "model": "OTalign (ESM-1b LoRA OT Head)",
+            "type": "OTalign",
+            "description": "Optimal Transport alignment with LoRA fine-tuned ESM-1b and OT head",
+            "organization": "DeepFold",
+            "paper_url": "",
+            "code_url": "https://github.com/DeepFoldProtein/OTalign",
+            "parameters": "650M",
+        },
+        # PLM-Based methods
+        "DeepBLAST": {
+            "model": "DeepBLAST (ProtT5-XL)",
+            "type": "PLM-Based",
+            "description": "Deep learning protein sequence alignment using bidirectional LSTM",
+            "organization": "Knights Lab",
+            "paper_url": "https://doi.org/10.1093/bioinformatics/btab220",
+            "code_url": "https://github.com/flatironinstitute/deepblast",
+            "parameters": "3B",
+        },
+        "PLMAlign_ProtT5_global": {
+            "model": "PLMAlign (ProtT5-XL, Global)",
+            "type": "PLM-Based",
+            "description": "Protein language model alignment with ProtT5-XL global alignment",
+            "organization": "Rostlab",
+            "paper_url": "",
+            "code_url": "https://github.com/Rostlab/PLMAlign",
+            "parameters": "3B",
+        },
+        "PLMAlign_ProtT5_global_before": {
+            "model": "PLMAlign (ProtT5-XL, Global Before)",
+            "type": "PLM-Based",
+            "description": "Protein language model alignment with ProtT5-XL global alignment (before version)",
+            "organization": "Rostlab",
+            "paper_url": "",
+            "code_url": "https://github.com/Rostlab/PLMAlign",
+            "parameters": "3B",
+        },
+        # Traditional methods
+        "HHAlign": {
             "model": "HHAlign",
             "type": "Traditional",
             "description": "Profile-profile alignment with MSAs",
@@ -167,7 +252,7 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
             "code_url": "https://github.com/soedinglab/hh-suite",
             "parameters": "N/A",
         },
-        "nwalign": {
+        "NWAlign": {
             "model": "Needleman-Wunsch",
             "type": "Traditional",
             "description": "Dynamic programming with substitution matrices",
@@ -264,7 +349,7 @@ def main():
     """Main function to update leaderboard data."""
 
     # Paths
-    eval_dir = "/gpfs/deepfold/work/otalign/eval"
+    eval_dir = "/gpfs/deepfold/work/otalign/eval/results"
     output_file = "/store/deepfold/users/baehanjin/work/OTalign/nextjs-leaderboard/src/lib/data.ts"
 
     print("Reading CSV data...")
