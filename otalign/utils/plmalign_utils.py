@@ -1,5 +1,3 @@
-from typing import Dict, Tuple, Union
-
 import numba
 import numpy as np
 import pandas as pd
@@ -62,7 +60,7 @@ def fill_matrix_global(a: np.ndarray, gap_extension: float):
     return H
 
 
-def fill_score_matrix(sub_matrix: np.ndarray, gap_extension: Union[int, float] = 0.0, mode: str = "local") -> np.ndarray:
+def fill_score_matrix(sub_matrix: np.ndarray, gap_extension: int | float = 0.0, mode: str = "local") -> np.ndarray:
     """
     Use substitution matrix to create score matrix.
     Set mode = local for Smith-Waterman like procedure (many local alignments)
@@ -83,8 +81,8 @@ def fill_score_matrix(sub_matrix: np.ndarray, gap_extension: Union[int, float] =
     return score_matrix
 
 
-@numba.njit("types.Tuple((f4, i4))(f4, f4, f4)", cache=True)
-def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
+@numba.njit("types.tuple((f4, i4))(f4, f4, f4)", cache=True)
+def max_from_3(x: float, y: float, z: float) -> tuple[float, int]:
     """Return value and index of biggest values."""
     # 2 idx should be diagonal
     if z >= y and z >= x:
@@ -95,8 +93,8 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
         return y, 1
 
 
-@numba.njit("i4[:,:](f4[:,:], types.Tuple((i4, i4)), types.unicode_type)", cache=True)
-def traceback_from_point_opt2(score_matrix: np.ndarray, max_indice: Tuple[int, int], mode: str) -> np.ndarray:
+@numba.njit("i4[:,:](f4[:,:], types.tuple((i4, i4)), types.unicode_type)", cache=True)
+def traceback_from_point_opt2(score_matrix: np.ndarray, max_indice: tuple[int, int], mode: str) -> np.ndarray:
     """Traceback algorithm to find optimal alignment path."""
     assert mode in {"local", "global"}
     y, x = max_indice
@@ -148,7 +146,7 @@ def traceback_from_point_opt2(score_matrix: np.ndarray, max_indice: Tuple[int, i
     return path_array[::-1]
 
 
-def plmalign_gather_all_paths(array: np.ndarray, norm: bool = True, mode: str = "local", gap_extension: float = 1.0, with_scores: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+def plmalign_gather_all_paths(array: np.ndarray, norm: bool = True, mode: str = "local", gap_extension: float = 1.0, with_scores: bool = False) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Calculate scoring matrix from input substitution matrix and find optimal path.
     """
@@ -182,7 +180,7 @@ def plmalign_gather_all_paths(array: np.ndarray, norm: bool = True, mode: str = 
         return path
 
 
-def plmalign_search_paths(submatrix: np.ndarray, path: np.ndarray, mode: str = "local", as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
+def plmalign_search_paths(submatrix: np.ndarray, path: np.ndarray, mode: str = "local", as_df: bool = False) -> dict[str, dict] | pd.DataFrame:
     """
     Iterate over path and search for routes matching alignment criteria.
     """
@@ -220,7 +218,7 @@ def plmalign_search_paths(submatrix: np.ndarray, path: np.ndarray, mode: str = "
         return spans_locations
 
 
-def draw_alignment(indices: np.ndarray, seq1: str, seq2: str, output: str = "str") -> str:
+def draw_alignment(indices: np.ndarray, seq1: str, seq2: str, output: str = "str") -> str | dict[str, str]:
     """Draw alignment string from alignment indices."""
     if len(indices) == 0:
         return ""
