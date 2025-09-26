@@ -1,5 +1,9 @@
 # OTalign: Protein Alignment with Optimal Transport
 
+<div align="center">
+  <img src="assets/logo_with_text.png" alt="OTalign Logo" width="400">
+</div>
+
 [![Paper](https://img.shields.io/badge/paper-coming_soon-B31B1B.svg)](https://www.biorxiv.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -24,18 +28,18 @@ OTalign performs alignment in a three-stage process:
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/DeepFoldProtein/OTalign.git
-    cd OTalign
-    ```
+   ```bash
+   git clone https://github.com/DeepFoldProtein/OTalign.git
+   cd OTalign
+   ```
 
 2. Create a virtual environment and install dependencies:
 
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install --editable .
-    ```
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install --editable .
+   ```
 
 ## Usage: Running Alignments
 
@@ -80,11 +84,11 @@ To start training:
 1. Configure your training run in a YAML file. See `configs/train_config.yaml` for an example.
 2. Launch the training using `accelerate`:
 
-    ```bash
-    accelerate launch scripts/train.py configs/train_config.yaml
-    ```
+   ```bash
+   accelerate launch scripts/train.py configs/train_config.yaml
+   ```
 
-    The script supports multi-GPU training with DDP. A sample SLURM script is provided at `scripts/slurm_ddp_train.sh`.
+   The script supports multi-GPU training with DDP. A sample SLURM script is provided at `scripts/slurm_ddp_train.sh`.
 
 ## Benchmark Results
 
@@ -92,19 +96,19 @@ OTalign demonstrates superior performance compared to traditional and other deep
 
 ### F1 Score (Homology/Analogy)
 
-| Method           | MALIDUP ↑  | MALISAM ↑  |
-| ---------------- | ---------- | ---------- |
-| Needleman-Wunsch | 0.3492     | 0.0662     |
-| HHalign          | 0.3825     | 0.0092     |
+| Method               | MALIDUP ↑  | MALISAM ↑  |
+| -------------------- | ---------- | ---------- |
+| Needleman-Wunsch     | 0.3492     | 0.0662     |
+| HHalign              | 0.3825     | 0.0092     |
 | **OTalign (AnkhCL)** | **0.6396** | 0.1911     |
 | **OTalign (ProtT5)** | 0.5904     | **0.2011** |
 
 ### Accuracy (Recall on Remote Homologs)
 
-| Method           | SABmark (sup) ↑ | SABmark (twi) ↑ |
-| ---------------- | --------------- | --------------- |
-| Needleman-Wunsch | 0.3861          | 0.1496          |
-| HHalign          | 0.3507          | 0.1596          |
+| Method               | SABmark (sup) ↑ | SABmark (twi) ↑ |
+| -------------------- | --------------- | --------------- |
+| Needleman-Wunsch     | 0.3861          | 0.1496          |
+| HHalign              | 0.3507          | 0.1596          |
 | **OTalign (AnkhCL)** | **0.7139**      | **0.4660**      |
 | **OTalign (ProtT5)** | 0.6783          | 0.4313          |
 
