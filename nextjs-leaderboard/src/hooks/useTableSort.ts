@@ -34,6 +34,33 @@ export function useTableSort({ data }: UseTableSortProps): UseTableSortReturn {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
+  // Parse parameter count from string (e.g., "1.2B" -> 1200, "N/A" -> -1)
+  const parseParameterCount = (paramStr: string): number => {
+    if (paramStr === "N/A" || paramStr === "n/a" || !paramStr) {
+      return -1; // Special value for N/A
+    }
+
+    const cleanStr = paramStr.toLowerCase().replace(/[,\s]/g, "");
+    // Updated regex to handle cases like "100B INT4" by matching the number and unit at the beginning
+    const match = cleanStr.match(/^(\d+(?:\.\d+)?)(k|m|b)/);
+
+    if (!match) return -1;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2];
+
+    switch (unit) {
+      case "k":
+        return value * 1000;
+      case "m":
+        return value * 1000000;
+      case "b":
+        return value * 1000000000;
+      default:
+        return value;
+    }
+  };
+
   const sortedAndFilteredData = useMemo(() => {
     let filtered = data;
 
@@ -49,6 +76,21 @@ export function useTableSort({ data }: UseTableSortProps): UseTableSortReturn {
       if (aVal === null && bVal === null) return 0;
       if (aVal === null) return 1;
       if (bVal === null) return -1;
+
+      // Special handling for parameters field
+      if (sortField === "parameters") {
+        const aParamCount = parseParameterCount(aVal as string);
+        const bParamCount = parseParameterCount(bVal as string);
+
+        // Handle N/A values (returned as -1)
+        if (aParamCount === -1 && bParamCount === -1) return 0;
+        if (aParamCount === -1) return 1;
+        if (bParamCount === -1) return -1;
+
+        return sortDirection === "asc"
+          ? aParamCount - bParamCount
+          : bParamCount - aParamCount;
+      }
 
       if (typeof aVal === "string" && typeof bVal === "string") {
         return sortDirection === "asc"
