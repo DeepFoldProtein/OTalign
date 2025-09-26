@@ -148,11 +148,27 @@ class Plotter:
             title_fontsize=legend_title_fontsize,
         )
 
-        plt.tight_layout(rect=(0, 0.05, 1, 1))
-
-        # Save the plot in a directory named after the test group
+        # Save plot data to CSV before saving the plot
         output_dir = self.plots_dir / test_name
         output_dir.mkdir(exist_ok=True)
+        csv_output_path = output_dir / f"{plot_name}.csv"
+
+        if not plot_df.empty:
+            if plot_type == "boxplot":
+                summary_df = plot_df.groupby(["label", "metric"])["value"].describe().reset_index()
+                summary_df.rename(columns={"count": "n", "25%": "q1", "50%": "median", "75%": "q3"}, inplace=True)
+                summary_df.to_csv(csv_output_path, index=False, float_format="%.4f")
+                logging.info(f"      - Boxplot data saved to {csv_output_path}")
+
+            elif plot_type in ["barplot", "bar"]:
+                summary_df = plot_df.groupby(["label", "metric"])["value"].agg(["mean", "sem", "count"]).reset_index()
+                summary_df.rename(columns={"count": "n"}, inplace=True)
+                summary_df.to_csv(csv_output_path, index=False, float_format="%.4f")
+                logging.info(f"      - Barplot data saved to {csv_output_path}")
+
+        plt.tight_layout(rect=(0, 0.05, 1, 1))
+
+        # Save the plot
         output_path = output_dir / f"{plot_name}.{self.plot_format}"
         plt.savefig(output_path, dpi=style_config.get("dpi", 300), bbox_inches="tight")
         plt.close(fig)
