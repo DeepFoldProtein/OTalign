@@ -89,8 +89,8 @@ export const leaderboardData: LeaderboardData = {
       type: "PLM-based",
       description:
         "Protein language model alignment with ProtT5-XL global alignment",
-      paper_url: "",
-      code_url: "https://github.com/Rostlab/PLMAlign",
+      paper_url: "https://doi.org/10.1038/s41467-024-46808-5",
+      code_url: "https://github.com/maovshao/PLMAlign",
       parameters: "3B",
       average: 0.4541,
       malidup_f1: 0.5075,
@@ -98,7 +98,7 @@ export const leaderboardData: LeaderboardData = {
       sabmark_sup_recall: 0.6935,
       sabmark_twi_recall: 0.4481,
       date_submitted: "2025-09-19",
-      organization: "Rostlab",
+      organization: "Shanfeng Zhu Lab",
     },
     {
       rank: 7,
@@ -139,7 +139,7 @@ export const leaderboardData: LeaderboardData = {
       type: "PLM-based",
       description:
         "Deep learning protein sequence alignment using bidirectional LSTM",
-      paper_url: "https://doi.org/10.1093/bioinformatics/btab220",
+      paper_url: "https://doi.org/10.1038/s41587-023-01917-2",
       code_url: "https://github.com/flatironinstitute/deepblast",
       parameters: "3B",
       average: 0.4067,
@@ -148,7 +148,7 @@ export const leaderboardData: LeaderboardData = {
       sabmark_sup_recall: 0.6023,
       sabmark_twi_recall: 0.3516,
       date_submitted: "2025-09-19",
-      organization: "Knights Lab",
+      organization: "flatironinstitute",
     },
     {
       rank: 10,
