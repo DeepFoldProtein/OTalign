@@ -81,7 +81,7 @@ def fill_score_matrix(sub_matrix: np.ndarray, gap_extension: int | float = 0.0, 
     return score_matrix
 
 
-@numba.njit("types.tuple((f4, i4))(f4, f4, f4)", cache=True)
+@numba.njit("types.Tuple((f4, i4))(f4, f4, f4)", cache=True)
 def max_from_3(x: float, y: float, z: float) -> tuple[float, int]:
     """Return value and index of biggest values."""
     # 2 idx should be diagonal
@@ -93,7 +93,7 @@ def max_from_3(x: float, y: float, z: float) -> tuple[float, int]:
         return y, 1
 
 
-@numba.njit("i4[:,:](f4[:,:], types.tuple((i4, i4)), types.unicode_type)", cache=True)
+@numba.njit("i4[:,:](f4[:,:], types.Tuple((i4, i4)), types.unicode_type)", cache=True)
 def traceback_from_point_opt2(score_matrix: np.ndarray, max_indice: tuple[int, int], mode: str) -> np.ndarray:
     """Traceback algorithm to find optimal alignment path."""
     assert mode in {"local", "global"}
