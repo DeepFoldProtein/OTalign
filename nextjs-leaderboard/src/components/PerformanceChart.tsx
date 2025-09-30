@@ -177,7 +177,7 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                     type="number"
                     dataKey="y"
                     name="Average Score"
-                    domain={[0, 0.55]}
+                    domain={[0.2, 0.55]}
                     tickFormatter={(value) => value.toFixed(2)}
                     label={{
                       value: "Average Score",
