@@ -188,9 +188,9 @@ def create_leaderboard_entries(metrics: Dict[str, Dict[str, float]]) -> List[Dic
         },
         # LoRA fine-tuned models
         "ESM1b_LoRA_ft2_2": {
-            "model": "OTalign (ESM-1b LoRA ft2_2)",
+            "model": "OTalign (ESM-1b, LoRA full)",
             "type": "OTalign",
-            "description": "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings (ft2_2)",
+            "description": "Optimal Transport alignment with LoRA fine-tuned ESM-1b embeddings",
             "organization": "DeepFold",
             "paper_url": "",
             "code_url": "https://github.com/DeepFoldProtein/OTalign",

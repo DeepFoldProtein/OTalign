@@ -8,6 +8,7 @@ Calculates alignment metrics summary for each dataset.
 import argparse
 import glob
 import json
+import math
 import os
 from typing import Dict, List, Tuple
 
@@ -76,10 +77,13 @@ def process_jsonl_file(filepath: str) -> Dict[str, List[float]]:
                     data = json.loads(line)
                     metrics = data.get("metrics", {})
 
-                    # Extract metrics
+                    # Extract metrics, filtering out NaN values
                     for metric in ["precision", "recall", "f1", "jaccard"]:
                         if metric in metrics:
-                            metrics_data[metric].append(metrics[metric])
+                            value = metrics[metric]
+                            # Skip NaN values (분모가 0인 경우 제외)
+                            if not (math.isnan(value) if isinstance(value, float) else False):
+                                metrics_data[metric].append(value)
 
     except Exception as e:
         print(f"Error processing {filepath}: {e}")
