@@ -21,8 +21,8 @@ set-test:
 	python3 -m unittest tests/
 
 set-style:
-	ruff check --verbose --fix .
-	ruff format --verbose .
+	ruff check --fix .
+	ruff format .
 
 check-quality:
 	ruff check .
