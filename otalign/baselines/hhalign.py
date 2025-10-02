@@ -4,8 +4,6 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
-from otalign.io.parser import convert_a3m_text_to_a2m
-
 
 def _get_hhr_line_regex_groups(regex_pattern: str, line: str) -> Sequence[Optional[str]]:
     match = re.match(regex_pattern, line)
@@ -159,10 +157,10 @@ def run_hhalign_hhm_pair(
 
     out_dir = Path(out_dir) if out_dir is not None else Path(tempfile.mkdtemp())
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_a3m = out_dir / f"{q_hhm.stem}-{t_hhm.stem}.a3m"
+    # out_a3m = out_dir / f"{q_hhm.stem}-{t_hhm.stem}.a3m"
     out_hhr = out_dir / f"{q_hhm.stem}-{t_hhm.stem}.hhr"
 
-    base_cmd = [hhalign_bin, "-i", str(q_hhm), "-t", str(t_hhm), "-oa3m", str(out_a3m), "-o", str(out_hhr)]
+    base_cmd = [hhalign_bin, "-i", str(q_hhm), "-t", str(t_hhm), "-o", str(out_hhr)]  # , "-oa3m", str(out_a3m)
 
     # Known variants observed across HHsuite versions (not all builds support all flags).
     MODE_CANDIDATES = {
@@ -192,29 +190,28 @@ def run_hhalign_hhm_pair(
         cmd = base_cmd + cand + extra_args
         try:
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, timeout=timeout)
-            recs = convert_a3m_text_to_a2m(out_a3m.read_text())
+            # recs = convert_a3m_text_to_a2m(out_a3m.read_text())
 
             hhr_string = out_hhr.read_text()
             hits = parse_hhr(hhr_string)
             if not hits:
                 raise RuntimeError(f"hhalign: No A3M and no valid HHR hits in {out_hhr}")
 
-            if len(recs) < 2:
-                # --- HHR fallback ---
-                a1 = hits[0]["query"]
-                a2 = hits[0]["hit_sequence"]
+            # if len(recs) < 2:
+            # raise RuntimeError("hhalign: No A3M")
+            # --- HHR fallback ---
+            a1 = hits[0]["query"]
+            a2 = hits[0]["hit_sequence"]
 
-                # 0-based
-                start1 = _first_valid_value(hits[0]["indices_query"])
-                start2 = _first_valid_value(hits[0]["indices_hit"])
-
-                return a1, a2, start1, start2, hits[0]
-            else:
-                # --- A3M ---
-                a1 = recs[0]["seq"].upper().replace(".", "-")
-                a2 = recs[1]["seq"].upper().replace(".", "-")
-
-                return a1, a2, 0, 0, hits[0]
+            # 0-based
+            start1 = _first_valid_value(hits[0]["indices_query"])
+            start2 = _first_valid_value(hits[0]["indices_hit"])
+            return a1, a2, start1, start2, hits[0]
+            # else:
+            #     # --- A3M ---
+            #     a1 = recs[0]["seq"].upper().replace(".", "-")
+            #     a2 = recs[1]["seq"].upper().replace(".", "-")
+            #     return a1, a2, 0, 0, hits[0]
         except subprocess.CalledProcessError:
             tried_errors.append(f"cmd failed: {' '.join(cmd)}")
         except Exception as e:
