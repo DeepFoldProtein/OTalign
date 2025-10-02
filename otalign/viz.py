@@ -17,7 +17,7 @@ def plot_plan_with_domains(
     label_a: Optional[str] = None,
     label_b: Optional[str] = None,
     colorbar: Optional[str] = "transport mass",
-    cmap: Any = "viridis",
+    cmap: Any = "terrain_r",
 ):
     """
     Visualize the transport plan (P) with optional domain boxes for A and B and discovered boxes.
@@ -60,10 +60,10 @@ def plot_plan_with_domains(
     # overlay known domain ranges (A = rows; B = cols)
     if domains_a is not None:
         for s, e in domains_a:
-            ax.hlines([s, e], xmin=-0.5, xmax=P.shape[1] - 0.5, colors="w", linestyles="--", linewidth=0.7, alpha=0.8)
+            ax.hlines([s, e], xmin=-0.5, xmax=P.shape[1] - 0.5, colors="r", linestyles="--", linewidth=0.7, alpha=0.8)
     if domains_b is not None:
         for s, e in domains_b:
-            ax.vlines([s, e], ymin=-0.5, ymax=P.shape[0] - 0.5, colors="w", linestyles="--", linewidth=0.7, alpha=0.8)
+            ax.vlines([s, e], ymin=-0.5, ymax=P.shape[0] - 0.5, colors="r", linestyles="--", linewidth=0.7, alpha=0.8)
     # overlay discovered boxes
     if boxes is not None:
         for r0, r1, c0, c1, sc in boxes:
