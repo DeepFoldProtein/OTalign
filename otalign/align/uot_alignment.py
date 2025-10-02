@@ -27,31 +27,36 @@ def _sigmoid_neg_kx(x: np.ndarray, k: float) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(k * x))
 
 
-def compute_match_scores_from_transport(P: np.ndarray, eps: float = 1e-12, scale: float = 1.0) -> np.ndarray:
+def compute_match_scores_from_transport(P: np.ndarray, eps: float = 1e-12, scale: float = 1.0, pmi: bool = True) -> np.ndarray:
     """
     Compute per-cell PMI-like scores, with fewer temporaries and in-place ops.
     """
     P = np.asarray(P, dtype=np.float64, order="C")
-    total = P.sum() + eps
 
-    # pij = P / total (reuse buffer)
-    pij = P.astype(np.float64, copy=True)
-    pij /= total
+    if pmi:
+        total = P.sum() + eps
 
-    # row/col marginals
-    pi = pij.sum(axis=1, keepdims=True)
-    pj = pij.sum(axis=0, keepdims=True)
+        # pij = P / total (reuse buffer)
+        pij = P.astype(np.float64, copy=True)
+        pij /= total
 
-    # S = log p(i,j) - log p(i) - log p(j)
-    # use out= to avoid temporaries and reuse pij buffer for logs
-    np.log(pij + eps, out=pij)
-    np.log(pi + eps, out=pi)
-    np.log(pj + eps, out=pj)
-    pij -= pi
-    pij -= pj  # pij now holds S
+        # row/col marginals
+        pi = pij.sum(axis=1, keepdims=True)
+        pj = pij.sum(axis=0, keepdims=True)
+
+        # S = log p(i,j) - log p(i) - log p(j)
+        # use out= to avoid temporaries and reuse pij buffer for logs
+        np.log(pij + eps, out=pij)
+        np.log(pi + eps, out=pi)
+        np.log(pj + eps, out=pj)
+        pij -= pi
+        pij -= pj  # pij now holds S
+    else:
+        pij = np.log(P)
 
     if scale != 1.0:
         pij *= scale
+
     return pij  # (Lq, Lt)
 
 
@@ -487,9 +492,11 @@ def hard_alignment_from_transport(
     clip_upper: float = 4.0,  # mass normalization upper limit
     clip_lower: float = 0.25,  # mass normalization lower limit
     score_scale: float = 1.0,  # alpha; score scale
+    pmi: bool = True,
     band: int | None = None,  # band width
     eps: float = 1e-12,
     mask: np.ndarray | None = None,
+    meta: bool = False,
 ) -> Dict[str, Any]:
     """
     Compute a hard alignment (CIGAR) from a UOT transport plan with optional masks.
@@ -517,7 +524,7 @@ def hard_alignment_from_transport(
     Lq, Lt = P.shape
 
     # 1) Scores from transport
-    S = compute_match_scores_from_transport(P, eps=eps, scale=score_scale)
+    S = compute_match_scores_from_transport(P, eps=eps, scale=score_scale, pmi=pmi)
 
     # 2) Forbid matches on masked-out cells by setting S to -inf there
     if mask is not None:
@@ -592,7 +599,7 @@ def hard_alignment_from_transport(
     path.reverse()
     cigar = _to_cigar(ops)
 
-    return {
+    r = {
         "cigar": cigar,
         "ops": "".join(ops),
         "path": path,
@@ -608,6 +615,11 @@ def hard_alignment_from_transport(
             "band": band,
         },
     }
+
+    if meta:
+        r["meta"] = {"M": M, "X": X, "Y": Y}
+
+    return r
 
 
 def uot_alignment_metrics_with_sinkhorn(
