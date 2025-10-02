@@ -14,6 +14,8 @@ def _deep_update(source, overrides):
     Update a nested dictionary or similar mapping.
     Modify ``source`` in place.
     """
+    if not overrides:
+        return source
     for key, value in overrides.items():
         if isinstance(value, MutableMapping) and value:
             returned = _deep_update(source.get(key, {}), value)
@@ -63,6 +65,8 @@ class Plotter:
 
         # 1. Aggregate data from all datasets and models in this test group
         all_data = []
+        failure_counts = {}  # To store failure counts for all models
+
         for dataset_name in test_config["datasets"]:
             for model_key in test_config["models"]:
                 model_config = self.config["models"][model_key]
@@ -72,12 +76,38 @@ class Plotter:
                     logging.warning(f"    - Results file not found or empty for {model_config['label']} on {dataset_name}. Skipping.")
                     continue
 
+                dataset_failures = 0
+                num_results = 0
                 with open(results_file, "r") as f:
                     for line in f:
+                        num_results += 1
                         res = json.loads(line)
                         metrics = res.get("metrics", {})
+
+                        # Check for failure conditions
+                        is_failure = False
+                        if "hhalign" in model_key:  # HHalign-specific failure
+                            prob_true = res.get("meta", {}).get("hits", {}).get("prob_true")
+                            if prob_true is not None:
+                                prob_true /= 100.0
+                                if prob_true < 0.50:
+                                    is_failure = True
+
+                        if not metrics and not is_failure:  # General failure: no metrics
+                            is_failure = True
+
+                        if is_failure:
+                            dataset_failures += 1
+
                         for metric_name, value in metrics.items():
                             all_data.append({"label": model_config["label"], "metric": metric_name, "value": value, "color": model_config["color"], "dataset": dataset_name})
+
+                if dataset_failures > 0:
+                    label = model_config["label"]
+                    if label not in failure_counts:
+                        failure_counts[label] = 0
+                    failure_counts[label] += dataset_failures
+                    logging.info(f"    - Counted {dataset_failures} / {num_results} failures for {label} on {dataset_name}.")
 
         if not all_data:
             logging.warning(f"    - No data found for test group {test_name}. Skipping plot generation.")
@@ -88,12 +118,11 @@ class Plotter:
 
         # 2. Generate each plot defined in the plotting configuration for this test group
         plot_group_config = self.config["plotting"][test_name]
-        for plot_config in plot_group_config.get("plots", []):
-            self._create_plot(df, test_name, plot_config)
+        for plot_name, plot_config in plot_group_config.get("plots", {}).items():
+            self._create_plot(df, test_name, plot_name, plot_config, failure_counts)
 
-    def _create_plot(self, df, test_name, plot_config):
+    def _create_plot(self, df, test_name, plot_name, plot_config, failures=None):
         """Helper function to create a single plot based on its configuration."""
-        plot_name = plot_config["name"]
         logging.info(f"    - Creating plot: {plot_name}")
 
         metrics_to_plot = [m.title() for m in plot_config["metrics"]]
@@ -137,16 +166,39 @@ class Plotter:
         handles, labels = plot.get_legend_handles_labels()
         legend_fontsize = fs.get("legend", 12)
         legend_title_fontsize = fs.get("legend_title", 12)
-        plot.legend(
-            handles,
-            labels,
-            loc="upper center",
-            bbox_to_anchor=(0.5, -0.15),
-            ncol=min(len(palette), 4),
-            title="Model",
-            fontsize=legend_fontsize,
-            title_fontsize=legend_title_fontsize,
-        )
+
+        # Get legend configuration, prioritizing plot-specific, then global, then default
+        legend_config = plot_config.get("legend", self.global_plot_style.get("legend", "bottom"))
+        if isinstance(legend_config, str):
+            legend_config = {"position": legend_config}
+
+        legend_pos = legend_config.get("position", "bottom")
+
+        if legend_pos == "none":
+            legend = plot.get_legend()
+            if legend is not None:
+                legend.remove()
+        else:
+            legend_kwargs = {
+                "title": "Model",
+                "fontsize": legend_fontsize,
+                "title_fontsize": legend_title_fontsize,
+            }
+
+            if legend_pos == "bottom":
+                legend_kwargs.update(
+                    {
+                        "loc": "upper center",
+                        "bbox_to_anchor": (0.5, -0.15),
+                        "ncol": legend_config.get("ncol", min(len(palette), 4)),
+                    }
+                )
+            elif legend_pos == "outside":
+                legend_kwargs.update({"loc": "center left", "bbox_to_anchor": (1, 0.5), "ncol": legend_config.get("ncol", 1)})
+            else:
+                legend_kwargs.update({"loc": legend_pos, "ncol": legend_config.get("ncol", 1)})
+
+            plot.legend(handles, labels, **legend_kwargs)
 
         # Save plot data to CSV before saving the plot
         output_dir = self.plots_dir / test_name
@@ -157,12 +209,14 @@ class Plotter:
             if plot_type == "boxplot":
                 summary_df = plot_df.groupby(["label", "metric"])["value"].describe().reset_index()
                 summary_df.rename(columns={"count": "n", "25%": "q1", "50%": "median", "75%": "q3"}, inplace=True)
+                summary_df["failures"] = summary_df["label"].map(failures or {}).fillna(0).astype(int)
                 summary_df.to_csv(csv_output_path, index=False, float_format="%.4f")
                 logging.info(f"      - Boxplot data saved to {csv_output_path}")
 
             elif plot_type in ["barplot", "bar"]:
                 summary_df = plot_df.groupby(["label", "metric"])["value"].agg(["mean", "sem", "count"]).reset_index()
                 summary_df.rename(columns={"count": "n"}, inplace=True)
+                summary_df["failures"] = summary_df["label"].map(failures or {}).fillna(0).astype(int)
                 summary_df.to_csv(csv_output_path, index=False, float_format="%.4f")
                 logging.info(f"      - Barplot data saved to {csv_output_path}")
 

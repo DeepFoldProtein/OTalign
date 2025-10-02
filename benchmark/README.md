@@ -42,6 +42,7 @@ All aspects of the benchmark are controlled by `config.yaml`. This file defines:
 - **Tests**: Maps which models should be run on which datasets.
 - **Paths**: Defines the locations for output directories, caches, and executables.
 - **Plotting**: Defines how to generate plots for each benchmark group, including titles, metrics, and plot types.
+- **Global Plot Style**: A `plot_style` section can be added to the root of `config.yaml` to define global styles (e.g., font size, figure size, and legend) that apply to all plots.
 
 ### 2. Modular Evaluators
 
@@ -95,42 +96,47 @@ The benchmark suite is run through a command-line interface, invoked using `pyth
 
 ### 5. Plotting and Configuration
 
-The plotting functionality is highly configurable via the `plotting` section in `config.yaml`, allowing for the creation of publication-quality figures. The generated plots are saved in `out/plots/<test_name>/`.
+The plotting functionality is highly configurable via `config.yaml`, allowing for the creation of publication-quality figures. The generated plots are saved in `out/plots/<test_name>/`.
 
-The `plotter.py` script aggregates results for all datasets within a specified test group and generates the plots defined for that group.
+A global `plot_style` section can be added to the root of `config.yaml` to define styles (e.g., font size, figure size) that apply to all plots. The legend can also be controlled globally from here.
 
 #### Plotting Configuration (`config.yaml`)
 
-The `plotting` section is organized by **test groups**, where each key must match a key from the `tests` section. For each test group, you can define a list of `plots` to generate.
+The `plotting` section is organized by **test groups**. For each group, you can define a dictionary of `plots` to generate, where each key is the output filename.
 
-Here is an example for the `sabmark` and `finetune-sab` test groups:
+- **`plots`**: A dictionary of plot objects, where each key is the plot's filename (e.g., `sabmark_metrics_box`).
+  - **`type`**: The plot type, typically `boxplot` or `barplot`.
+  - **`title`**: The plot title.
+  - **`metrics`**: A list of metrics to include.
+  - **`legend`**: (Optional) Controls the legend. This can be set globally in `plot_style` or per-plot. The per-plot setting overrides the global one.
+    - **As a string**: `"bottom"`, `"upper right"`, `"outside"`, `"none"`, etc.
+    - **As a dictionary**:
+      - `position`: A string for the location (e.g., `"upper right"`, `"outside"`).
+      - `ncol`: The number of columns.
+
+Here is an example demonstrating global and local legend settings:
 
 ```yaml
+# Global style settings
+plot_style:
+  figsize: [10, 7]
+  legend: "upper right" # Set the legend globally for all plots
+
+# ... other sections ...
+
 # 5. Plotting Configuration
 plotting:
   sabmark:
     plots:
-      - name: "sabmark_metrics_box"
+      sabmark_metrics_box:
         type: "boxplot"
         title: "SABmark Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "sabmark_recall_bar"
+        metrics: ["recall", "precision"]
+        # This plot will use the global legend setting ("upper right")
+
+      sabmark_recall_bar:
         type: "barplot"
         title: "SABmark Recall Comparison"
         metrics: ["recall"]
-  
-  finetune-sab:
-    plots:
-      - name: "finetune-sab_metrics_box"
-        type: "boxplot"
-        title: "SABmark Finetune Comparison"
-        metrics: ["recall", "precision", "f1", "jaccard"]
+        legend: "none" # Override the global setting for this specific plot
 ```
-
-- **`plots`**: A list of plot objects to generate for the test group.
-  - **`name`**: The filename for the generated plot (e.g., `sabmark_metrics_box.png`).
-  - **`type`**: The type of plot, typically `boxplot` or `barplot`.
-  - **`title`**: The title displayed on the plot.
-  - **`metrics`**: A list of metrics to include in the plot.
-
-This intuitive structure allows you to explicitly define which plots are generated for each test run, giving you full control over the output.

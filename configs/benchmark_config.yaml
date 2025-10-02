@@ -3,8 +3,8 @@
 # 1. Global Paths and Settings
 paths:
   # Root directory for storing raw benchmark results
-  results_dir: "out/results"
-  # results_dir: "/gpfs/deepfold/work/otalign/eval/results"
+  # results_dir: "out/results"
+  results_dir: "/gpfs/deepfold/work/otalign/eval/results"
   # Root directory for caching embeddings and other intermediate data
   cache_dir: "out/cache"
   # Root directory for saving generated plots
@@ -243,15 +243,15 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
-      - "otalign_ankhcl"
-      - "otalign_ankh_base"
+      # - "otalign_ankhcl"
+      # - "otalign_ankh_base"
       - "otalign_ankh_large"
       # - "otalign_ankh3_large"
       # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
       - "plmalign_prott5_global"
-      - "plmalign_prott5_local"
+      # - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
@@ -264,15 +264,15 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
-      - "otalign_ankhcl"
-      - "otalign_ankh_base"
+      # - "otalign_ankhcl"
+      # - "otalign_ankh_base"
       - "otalign_ankh_large"
       # - "otalign_ankh3_large"
       # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
       - "plmalign_prott5_global"
-      - "plmalign_prott5_local"
+      # - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
@@ -285,43 +285,44 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
-      - "otalign_ankhcl"
-      - "otalign_ankh_base"
+      # - "otalign_ankhcl"
+      # - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
       - "plmalign_prott5_global"
-      - "plmalign_prott5_local"
+      # - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm2_6_8m"
-      - "otalign_esm2_12_35m"
-      - "otalign_esm2_30_150m"
-      - "otalign_esm2_36_3b"
-      - "otalign_proteinglm_100b_int4"
+      # - "otalign_esm2_6_8m"
+      # - "otalign_esm2_12_35m"
+      # - "otalign_esm2_30_150m"
+      # - "otalign_esm2_36_3b"
+      # - "otalign_proteinglm_100b_int4"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
       - "nwalign"
       - "hhalign"
-      - "otalign_ankhcl"
-      - "otalign_ankh_base"
+      # - "otalign_ankhcl"
+      # - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "deepblast"
       - "plmalign_prott5_global"
-      - "plmalign_prott5_local"
+      # - "plmalign_prott5_local"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "otalign_esm2_6_8m"
-      - "otalign_esm2_12_35m"
-      - "otalign_esm2_30_150m"
-      - "otalign_esm2_36_3b"
-      - "otalign_proteinglm_100b_int4"
+      # - "otalign_esm2_6_8m"
+      # - "otalign_esm2_12_35m"
+      # - "otalign_esm2_30_150m"
+      # - "otalign_esm2_36_3b"
+      # - "otalign_proteinglm_100b_int4"
+
   sabmark-sup_fp:
     datasets: ["sabmark_sup_fp"]
     models:
@@ -338,59 +339,59 @@ tests:
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
-      - "nwalign"
-      - "hhalign"
-      - "otalign_ankhcl"
-      - "otalign_ankh_base"
+      # - "nwalign"
+      # - "hhalign"
+      # - "otalign_ankhcl"
+      # - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "esm1b-lora-finetune-ot-head-1"
+      - "otalign_esm1b_lora_ft2_2"
   finetune-sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
-      - "nwalign"
-      - "hhalign"
-      - "otalign_ankhcl"
+      # - "nwalign"
+      # - "hhalign"
+      # - "otalign_ankhcl"
       - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "esm1b-lora-finetune-ot-head-1"
+      - "otalign_esm1b_lora_ft2_2"
   finetune-malidup:
     datasets: ["malidup"]
     models:
-      - "nwalign"
-      - "hhalign"
-      - "otalign_ankhcl"
+      # - "nwalign"
+      # - "hhalign"
+      # - "otalign_ankhcl"
       - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "esm1b-lora-finetune-ot-head-1"
+      - "otalign_esm1b_lora_ft2_2"
   finetune-malisam:
     datasets: ["malisam"]
     models:
-      - "nwalign"
-      - "hhalign"
-      - "otalign_ankhcl"
+      # - "nwalign"
+      # - "hhalign"
+      # - "otalign_ankhcl"
       - "otalign_ankh_base"
       - "otalign_ankh_large"
-      - "otalign_ankh3_large"
-      - "otalign_ankh3_xl"
+      # - "otalign_ankh3_large"
+      # - "otalign_ankh3_xl"
       - "otalign_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
-      - "esm1b-lora-finetune-ot-head-1"
+      - "otalign_esm1b_lora_ft2_2"
 
   # OTalign vs PLMAlign ProtT5-XL Focused Comparison
   prott5_comparison:
@@ -399,8 +400,8 @@ tests:
       - "otalign_prott5"
       - "plmalign_prott5_global"
       - "deepblast"
-      - "nwalign" # baseline for reference
-      - "hhalign" # baseline for reference
+      # - "nwalign" # baseline for reference
+      # - "hhalign" # baseline for reference
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.
@@ -409,120 +410,130 @@ tests:
 # 5.1. Global Plot Style Defaults
 # These settings apply to all plots unless overridden in a specific plot's configuration.
 plot_style:
-  figsize: [12, 8]
+  figsize: [8, 6]
   dpi: 300
-  axes_size: 14
   fontsize:
     title: 18
     xlabel: 14
     ylabel: 14
-    xtick: 12
-    ytick: 12
+    xtick: 14
+    ytick: 14
     legend: 12
     legend_title: 12
-  fontfamily: "sans-serif" # e.g., "serif", "sans-serif", "monospace"
+  legend:
+    ncol: 1
+    position: "outside"
+  fontfamily: "serif" # e.g., "serif", "sans-serif", "monospace"
 
 plotting:
   sabmark-sup:
     plots:
-      - name: "sabmark_metrics_box"
-        # Example of overriding global style for a specific plot
+      metrics_box:
         style:
-          figsize: [10, 7]
-          fontsize:
-            title: 20
+          figsize: [12, 6]
         type: "boxplot"
         title: "SABmark (Superfamlies) Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "sabmark_recall_bar"
+        metrics: ["f1", "recall", "precision"]
+      recall_bar:
         type: "barplot"
         title: "SABmark (Superfamlies) Recall Comparison"
         metrics: ["recall"]
   sabmark-twi:
     plots:
-      - name: "sabmark_metrics_box"
+      metrics_box:
+        style:
+          figsize: [12, 6]
         type: "boxplot"
         title: "SABmark (Twilights) Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "sabmark_recall_bar"
+        metrics: ["f1", "recall", "precision"]
+      recall_bar:
         type: "barplot"
         title: "SABmark (Twilights) Recall Comparison"
         metrics: ["recall"]
   malidup:
     plots:
-      - name: "malidup_metrics_box"
+      metrics_box:
+        style:
+          figsize: [12, 6]
         type: "boxplot"
         title: "Malidup Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "malidup_f1_bar"
+        metrics: ["f1", "recall", "precision"]
+      malidup_f1_bar:
         type: "barplot"
         title: "Malidup Benchmark (F1 Score)"
         metrics: ["f1"]
   malisam:
     plots:
-      - name: "malisam_metrics_box"
+      metrics_box:
+        style:
+          figsize: [12, 6]
         type: "boxplot"
         title: "Malisam Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "malisam_f1_bar"
+        metrics: ["f1", "recall", "precision"]
+      f1_bar:
         type: "barplot"
         title: "Malisam Benchmark (F1 Score)"
         metrics: ["f1"]
 
   finetune-sabmark-sup:
     plots:
-      - name: "sabmark_metrics_box"
+      metrics_box:
         type: "boxplot"
         title: "SABmark (Superfamlies) Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "sabmark_recall_bar"
+        metrics: ["f1", "recall", "precision"]
+      recall_bar:
         type: "barplot"
         title: "SABmark (Superfamlies) Recall Comparison"
         metrics: ["recall"]
   finetune-sabmark-twi:
     plots:
-      - name: "sabmark_metrics_box"
+      metrics_box:
         type: "boxplot"
         title: "SABmark (Twilights) Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "sabmark_recall_bar"
+        metrics: ["f1", "recall", "precision"]
+      recall_bar:
         type: "barplot"
         title: "SABmark (Twilights) Recall Comparison"
         metrics: ["recall"]
   finetune-malidup:
     plots:
-      - name: "malidup_metrics_box"
+      metrics_box:
         type: "boxplot"
         title: "Malidup Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "malidup_f1_bar"
+        metrics: ["f1", "recall", "precision"]
+      f1_bar:
         type: "barplot"
         title: "Malidup Benchmark (F1 Score)"
         metrics: ["f1"]
   finetune-malisam:
     plots:
-      - name: "malisam_metrics_box"
+      metrics_box:
         type: "boxplot"
         title: "Malisam Benchmark"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "malisam_f1_bar"
+        metrics: ["f1", "recall", "precision"]
+      f1_bar:
         type: "barplot"
         title: "Malisam Benchmark (F1 Score)"
         metrics: ["f1"]
 
   prott5_comparison:
     plots:
-      - name: "prott5_comparison_metrics_box"
+      prott5_comparison_metrics_box:
         type: "boxplot"
-        title: "OTalign vs PLMAlign ProtT5-XL Comparison (All Datasets)"
-        metrics: ["recall", "precision", "f1", "jaccard"]
-      - name: "prott5_comparison_sabmark_recall_bar"
+        title: "" # "OTalign vs PLMAlign ProtT5-XL Comparison (All Datasets)"
+        style:
+          figsize: [12, 6]
+        legend:
+          position: "none"
+        metrics: ["f1", "recall", "precision"]
+        datasets: ["sabmark_sup", "sabmark-twi", "malidup", "malisam"]
+      prott5_comparison_sabmark_recall_bar:
         type: "barplot"
-        title: "OTalign vs PLMAlign ProtT5-XL Recall Comparison (SABmark)"
+        title: "" # "OTalign vs PLMAlign ProtT5-XL Recall Comparison (SABmark)"
         metrics: ["recall"]
         datasets: ["sabmark_sup", "sabmark_twi"]
-      - name: "prott5_comparison_mali_f1_bar"
+      prott5_comparison_mali_f1_bar:
         type: "barplot"
-        title: "OTalign vs PLMAlign ProtT5-XL F1 Score Comparison (Malidup & Malisam)"
+        title: "" # "OTalign vs PLMAlign ProtT5-XL F1 Score Comparison (Malidup & Malisam)"
         metrics: ["f1"]
         datasets: ["malidup", "malisam"]

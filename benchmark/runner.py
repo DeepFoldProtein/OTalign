@@ -15,8 +15,8 @@ def run_benchmarks(config, args):
     logging.info("Starting benchmark runs...")
 
     tests_to_run = config["tests"]
-    if args.test and args.test in tests_to_run:
-        tests_to_run = {args.test: tests_to_run[args.test]}
+    if args.tests:
+        tests_to_run = {test: tests_to_run[test] for test in args.tests}
 
     for test_name, test_config in tests_to_run.items():
         for dataset_name in test_config["datasets"]:
