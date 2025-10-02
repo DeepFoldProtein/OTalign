@@ -32,12 +32,12 @@ def alignment_scores(pred_pairs: set[Pair], ref_pairs: set[Pair]) -> AlignmentSc
     ref_size = len(ref_pairs)
 
     if pred_size == 0:
-        precision = 1.0 if ref_size == 0 else 0.0
+        precision = 1.0 if ref_size == 0 else float("nan")
     else:
         precision = tp / pred_size
 
     if ref_size == 0:
-        recall = 1.0 if pred_size == 0 else 0.0
+        recall = 1.0 if pred_size == 0 else float("nan")
     else:
         recall = tp / ref_size
 
