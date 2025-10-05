@@ -1,10 +1,8 @@
-import re
 import sys
 from typing import Any, Dict, List, Optional, TextIO, Tuple
 
 import numpy as np
 import torch
-from matplotlib.colors import Normalize
 
 
 def is_notebook() -> bool:
@@ -32,7 +30,7 @@ def is_notebook() -> bool:
 IN_NOTEBOOK = is_notebook()
 
 if IN_NOTEBOOK:
-    from IPython.display import Markdown, display
+    pass
 
 
 # ANSI escape codes for terminal colors
@@ -555,40 +553,29 @@ def print_alignment(
     query: str,
     templ: str,
     path: List[Tuple[int, int, str]],
-    score: Optional[np.ndarray] = None,
-    cmap: Optional[Any] = None,
-    display_mode: str = "full_query",
     max_width: int = 80,
     max_label_width: int = 12,
     outfile: TextIO = sys.stdout,
     query_label: Optional[str] = None,
     templ_label: Optional[str] = None,
-    query_map: Optional[Dict[int, int]] = None,
-    template_map: Optional[Dict[int, int]] = None,
 ) -> tuple[str, str, dict, dict]:
-    """Prints a sequence alignment and returns statistics and original sequence coordinate ranges.
-
-    If `segment_info` is provided, `display_mode` is treated as 'core',
-    and coordinate calculations use values from `segment_info`.
+    """
+    Prints a sequence alignment and returns statistics and original sequence coordinate ranges.
+    Coordinates in the path are 0-based.
 
     Args:
         query: The query sequence.
         templ: The template sequence.
-        path: A list of (i, j, move) tuples, where i and j are 1-based coordinates.
-        display_mode: The display mode ('core', 'full_query', 'full_template').
-            - 'core': Prints only the aligned core (formerly trim_gaps=True).
-            - 'full_query': Pads template's terminal gaps with '-' to match the full query length (default).
-            - 'full_template': Pads query's terminal gaps with '-' to match the full template length,
-                             and prints unaligned ends of the template in lowercase.
-            - 'global_view': Prints all unaligned parts of both sequences in lowercase.
+        path: A list of (i, j, move) tuples, where i and j are 0-based coordinates.
         max_width: The maximum number of alignment columns per line.
         max_label_width: The maximum length for labels; longer labels are truncated with "...".
         outfile: The file object to write the output to (default: sys.stdout).
         query_label: A custom label for the query sequence (default: 'Query').
         templ_label: A custom label for the template sequence (default: 'Templ').
+
     Returns:
         A tuple: (aligned_query_str, aligned_template_str, stats_dict, coords_dict)
-            coords_dict: {'query': (start, end), 'templ': (start, end)} (1-based)
+            coords_dict: {'query': (start, end), 'templ': (start, end)} (0-based)
     """
     if not path:
         stats = {
@@ -602,7 +589,7 @@ def print_alignment(
             "gaps": 0,
         }
         print("Empty path.", file=outfile)
-        return "", "", stats, {"query": (0, 0), "templ": (0, 0)}
+        return "", "", stats, {"query": None, "templ": None}
 
     # 1. Process labels
     label_q = query_label if query_label is not None else "Query"
@@ -613,230 +600,78 @@ def print_alignment(
     if len(label_t) > max_label_width:
         label_t = label_t[: max_label_width - 3] + "..."
 
-    # 2. Generate the core alignment (same as before)
-    core_aligned_q, core_aligned_t, core_match_line, core_pos_q, core_pos_t = [], [], [], [], []
+    # 2. Generate the core alignment
+    aligned_q, aligned_t, match_line = [], [], []
+    pos_q, pos_t = [], []
     match_count, conservative_count, mismatch_count, gap_count = 0, 0, 0, 0
-
-    if score is not None and cmap is not None:
-        norm = Normalize(vmin=score.min().item(), vmax=score.max().item())
 
     for i, j, move in path:
         if move == "M":
-            c_q, c_t = query[i - 1].upper(), templ[j - 1].upper()
+            c_q, c_t = query[i].upper(), templ[j].upper()
             blosum_score = BLOSUM62.get(c_q, {}).get(c_t, -100)
+
+            aligned_q.append(c_q)
+            aligned_t.append(c_t)
+            pos_q.append(i)
+            pos_t.append(j)
+
             if c_q == c_t:
-                core_match_line.append(":")
+                match_line.append(":")
                 match_count += 1
             elif blosum_score > 0:
-                core_match_line.append("+")
+                match_line.append("+")
                 conservative_count += 1
             else:
-                core_match_line.append(".")
+                match_line.append(".")
                 mismatch_count += 1
 
-            if score is not None and cmap is not None:
-                s = score[i - 1, j - 1].item()
-                color = cmap(norm(s))
-                r, g, b, _ = (int(c * 255) for c in color)
-
-                if IN_NOTEBOOK:
-                    core_aligned_q.append(f'<span style="color: rgb({r},{g},{b});">{c_q}</span>')
-                    core_aligned_t.append(f'<span style="color: rgb({r},{g},{b});">{c_t}</span>')
-                else:
-                    ansi_color = f"\033[38;2;{r};{g};{b}m"
-                    core_aligned_q.append(f"{ansi_color}{c_q}{Style.RESET_ALL}")
-                    core_aligned_t.append(f"{ansi_color}{c_t}{Style.RESET_ALL}")
-            else:
-                if c_q == c_t:
-                    core_aligned_q.append(f"{Fore.GREEN}{c_q}{Style.RESET_ALL}")
-                    core_aligned_t.append(f"{Fore.GREEN}{c_t}{Style.RESET_ALL}")
-                elif blosum_score > 0:
-                    core_aligned_q.append(f"{Fore.YELLOW}{c_q}{Style.RESET_ALL}")
-                    core_aligned_t.append(f"{Fore.YELLOW}{c_t}{Style.RESET_ALL}")
-                else:
-                    core_aligned_q.append(f"{Fore.RED}{c_q}{Style.RESET_ALL}")
-                    core_aligned_t.append(f"{Fore.RED}{c_t}{Style.RESET_ALL}")
-            core_pos_q.append(i)
-            core_pos_t.append(j)
         elif move == "I":
-            core_aligned_q.append(query[i - 1])
-            core_aligned_t.append("-")
-            core_match_line.append(" ")
+            aligned_q.append(query[i])
+            aligned_t.append("-")
+            match_line.append(" ")
             gap_count += 1
-            core_pos_q.append(i)
-            core_pos_t.append(None)
+            pos_q.append(i)
+            pos_t.append(None)
+
         elif move == "D":
-            core_aligned_q.append("-")
-            core_aligned_t.append(templ[j - 1])
-            core_match_line.append(" ")
+            aligned_q.append("-")
+            aligned_t.append(templ[j])
+            match_line.append(" ")
             gap_count += 1
-            core_pos_q.append(None)
-            core_pos_t.append(j)
+            pos_q.append(None)
+            pos_t.append(j)
 
-    # 3. Generate the final alignment based on display_mode
-    # Statistics and coordinates are calculated based on the 'core' alignment regardless of display_mode.
-    core_query_pos = [p for p in core_pos_q if p is not None]
-    core_templ_pos = [p for p in core_pos_t if p is not None]
-    query_range = (core_query_pos[0], core_query_pos[-1]) if core_query_pos else None
-    templ_range = (core_templ_pos[0], core_templ_pos[-1]) if core_templ_pos else None
-    coords = {"query": query_range, "templ": templ_range}
+    alignment_length = len(aligned_q)
 
-    aligned_count = match_count + conservative_count + mismatch_count
-    identity = (match_count / aligned_count * 100) if aligned_count > 0 else 0.0
-    similarity = ((match_count + conservative_count) / aligned_count * 100) if aligned_count > 0 else 0.0
-
-    if display_mode == "core":
-        final_aligned_q, final_aligned_t, final_match_line, final_pos_q, final_pos_t = (
-            core_aligned_q,
-            core_aligned_t,
-            core_match_line,
-            core_pos_q,
-            core_pos_t,
-        )
-    else:
-        # For 'full_query', 'full_template', and 'global_view', we need to define prefixes and suffixes
-        q_indices = core_query_pos
-        t_indices = core_templ_pos
-
-        # Find the actual start and end positions of the alignment in each sequence
-        start_q_aln = q_indices[0] if q_indices else 0
-        last_q_aln = q_indices[-1] if q_indices else 0
-        start_t_aln = t_indices[0] if t_indices else 0
-        last_t_aln = t_indices[-1] if t_indices else 0
-
-        # If the path is not empty but a sequence is all gaps, the indices will be empty.
-        # We need to get the start from the path to correctly handle prefixes.
-        if path:
-            if not q_indices:
-                start_q_aln = path[0][0]
-                last_q_aln = start_q_aln - 1
-            if not t_indices:
-                start_t_aln = path[0][1]
-                last_t_aln = start_t_aln - 1
-
-        # Define prefix and suffix strings based on calculated alignment boundaries
-        prefix_q_str = query[: start_q_aln - 1]
-        suffix_q_str = query[last_q_aln:]
-
-        prefix_t_str = templ[: start_t_aln - 1]
-        suffix_t_str = templ[last_t_aln:]
-
-        if display_mode == "full_query":
-            prefix_q, prefix_t, prefix_match = list(prefix_q_str), ["-"] * len(prefix_q_str), [" "] * len(prefix_q_str)
-            suffix_q, suffix_t, suffix_match = list(suffix_q_str), ["-"] * len(suffix_q_str), [" "] * len(suffix_q_str)
-
-            prefix_pos_q, prefix_pos_t = list(range(1, start_q_aln)), [None] * len(prefix_q_str)
-            suffix_pos_q, suffix_pos_t = list(range(last_q_aln + 1, len(query) + 1)), [None] * len(suffix_q_str)
-
-        elif display_mode == "full_template":
-            prefix_q, prefix_t, prefix_match = ["-"] * len(prefix_t_str), list(prefix_t_str.lower()), [" "] * len(prefix_t_str)
-            suffix_q, suffix_t, suffix_match = ["-"] * len(suffix_t_str), list(suffix_t_str.lower()), [" "] * len(suffix_t_str)
-
-            prefix_pos_q, prefix_pos_t = [None] * len(prefix_t_str), list(range(1, start_t_aln))
-            suffix_pos_q, suffix_pos_t = [None] * len(suffix_t_str), list(range(last_t_aln + 1, len(templ) + 1))
-
-        elif display_mode == "global_view":
-            prefix_len = max(len(prefix_q_str), len(prefix_t_str))
-            prefix_q = list(prefix_q_str.lower().ljust(prefix_len, "-"))
-            prefix_t = list(prefix_t_str.lower().ljust(prefix_len, "-"))
-            prefix_match = [" "] * prefix_len
-            prefix_pos_q = list(range(1, len(prefix_q_str) + 1)) + [None] * (prefix_len - len(prefix_q_str))
-            prefix_pos_t = list(range(1, len(prefix_t_str) + 1)) + [None] * (prefix_len - len(prefix_t_str))
-
-            suffix_len = max(len(suffix_q_str), len(suffix_t_str))
-            suffix_q = list(suffix_q_str.lower().ljust(suffix_len, "-"))
-            suffix_t = list(suffix_t_str.lower().ljust(suffix_len, "-"))
-            suffix_match = [" "] * suffix_len
-            suffix_pos_q = list(range(last_q_aln + 1, len(query) + 1)) + [None] * (suffix_len - len(suffix_q_str))
-            suffix_pos_t = list(range(last_t_aln + 1, len(templ) + 1)) + [None] * (suffix_len - len(suffix_t_str))
-        else:
-            raise ValueError(f"Wrong display_mode: '{display_mode}'.")
-
-        # Combine everything
-        final_aligned_q = prefix_q + core_aligned_q + suffix_q
-        final_aligned_t = prefix_t + core_aligned_t + suffix_t
-        final_match_line = prefix_match + core_match_line + suffix_match
-        final_pos_q = prefix_pos_q + core_pos_q + suffix_pos_q
-        final_pos_t = prefix_pos_t + core_pos_t + suffix_pos_t
-
-    alignment_length = len(final_aligned_q)
-
-    # 4. Print results
-    output_buffer = []
+    # 3. Print results
+    label_space = " " * (max_label_width + 1)
     for start in range(0, alignment_length, max_width):
         end = min(start + max_width, alignment_length)
-        seg_q = "".join(final_aligned_q[start:end])
-        seg_m = "".join(final_match_line[start:end])
-        seg_t = "".join(final_aligned_t[start:end])
 
-        # Calculate and convert query coordinates to PDB numbers
-        block_pos_q = [p for p in final_pos_q[start:end] if p is not None]
-        if query_map:
-            block_pos_q = [query_map.get(p, p) for p in block_pos_q]
+        seg_q = "".join(aligned_q[start:end])
+        seg_m = "".join(match_line[start:end])
+        seg_t = "".join(aligned_t[start:end])
+
+        block_pos_q = [p for p in pos_q[start:end] if p is not None]
         start_q = block_pos_q[0] if block_pos_q else None
         end_q = block_pos_q[-1] if block_pos_q else None
         num_q = f"({start_q}-{end_q})" if start_q is not None else "(---)"
 
-        # Calculate and convert template coordinates to PDB numbers
-        block_pos_t = [p for p in final_pos_t[start:end] if p is not None]
-        if template_map:
-            block_pos_t = [template_map.get(p, p) for p in block_pos_t]
+        block_pos_t = [p for p in pos_t[start:end] if p is not None]
         start_t = block_pos_t[0] if block_pos_t else None
         end_t = block_pos_t[-1] if block_pos_t else None
         num_t = f"({start_t}-{end_t})" if start_t is not None else "(---)"
 
-        label_space = " " * (max_label_width + 1)
+        print(f"{label_q:{max_label_width}s} {num_q:>10} : {seg_q}", file=outfile)
+        print(f"{label_space}{' ' * 10} : {seg_m}", file=outfile)
+        print(f"{label_t:{max_label_width}s} {num_t:>10} : {seg_t}", file=outfile)
+        print(file=outfile)
 
-        # Change output format for notebook vs. terminal environments
-        if IN_NOTEBOOK:
-            if score is not None and cmap is not None:
-                seg_q_html = seg_q
-                seg_t_html = seg_t
-            else:
-                # Convert ANSI codes to HTML for notebook display
-                seg_q_html = (
-                    seg_q.replace(Colors.GREEN, '<span style="color: green;">')
-                    .replace(Colors.YELLOW, '<span style="color: orange;">')
-                    .replace(Colors.RED, '<span style="color: red;">')
-                    .replace(Colors.RESET_ALL, "</span>")
-                )
-                seg_t_html = (
-                    seg_t.replace(Colors.GREEN, '<span style="color: green;">')
-                    .replace(Colors.YELLOW, '<span style="color: orange;">')
-                    .replace(Colors.RED, '<span style="color: red;">')
-                    .replace(Colors.RESET_ALL, "</span>")
-                )
-            output_buffer.append(
-                f"<pre style='font-family: monospace; line-height: 1.2;'>"
-                f"{label_q:{max_label_width}s} {num_q:>10} : {seg_q_html}<br>"
-                f"{label_space}{' ' * 10} : {seg_m}<br>"
-                f"{label_t:{max_label_width}s} {num_t:>10} : {seg_t_html}"
-                f"</pre>"
-            )
-        else:
-            print(f"{label_q:{max_label_width}s} {num_q:>10} : {seg_q}", file=outfile)
-            print(f"{label_space}{' ' * 10} : {seg_m}", file=outfile)
-            print(f"{label_t:{max_label_width}s} {num_t:>10} : {seg_t}", file=outfile)
-            print(file=outfile)
-    if IN_NOTEBOOK:
-        display(Markdown("".join(output_buffer)))
+    # 4. Calculate statistics
+    aligned_count = match_count + conservative_count + mismatch_count
+    identity = (match_count / aligned_count * 100) if aligned_count > 0 else 0.0
+    similarity = ((match_count + conservative_count) / aligned_count * 100) if aligned_count > 0 else 0.0
 
-    # 5. Print statistics
-    stats_lines = [
-        f"Alignment length       : {alignment_length}",
-        f"Aligned positions      : {aligned_count}",
-        f"Identical matches      : {match_count}",
-        f"Conservative matches   : {conservative_count}",
-        f"Non-conservative       : {mismatch_count}",
-        f"Gaps                   : {gap_count}",
-        f"Identity               : {identity:.2f}%",
-        f"Similarity (cons.)     : {similarity:.2f}%",
-    ]
-    # Branch output for notebook/terminal (uncomment if needed)
-    for line in stats_lines:
-        print(line, file=outfile)
-
-    # Create and return statistics dictionary
     stats = {
         "alignment_length": alignment_length,
         "aligned_positions": aligned_count,
@@ -847,26 +682,21 @@ def print_alignment(
         "mismatch": mismatch_count,
         "gaps": gap_count,
     }
+    print("\n--- Statistics ---", file=outfile)
+    for key, value in stats.items():
+        print(f"{key.replace('_', ' ').capitalize():<22}: {value}", file=outfile)
 
-    query_positions = [p for p in final_pos_q if p is not None]
-    templ_positions = [p for p in final_pos_t if p is not None]
+    # 5. Return values
+    query_positions = [p for p in pos_q if p is not None]
+    templ_positions = [p for p in pos_t if p is not None]
 
     query_range = (query_positions[0], query_positions[-1]) if query_positions else None
     templ_range = (templ_positions[0], templ_positions[-1]) if templ_positions else None
 
     coords = {"query": query_range, "templ": templ_range}
 
-    # Create pure alignment strings without color codes
-    final_q_str = "".join(final_aligned_q)
-    final_t_str = "".join(final_aligned_t)
-
-    # Remove both ANSI and HTML tags for the raw string output
-    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-    html_escape = re.compile(r"<.*?>")
-    temp_q = ansi_escape.sub("", final_q_str)
-    final_out_q = html_escape.sub("", temp_q)
-    temp_t = ansi_escape.sub("", final_t_str)
-    final_out_t = html_escape.sub("", temp_t)
+    final_out_q = "".join(aligned_q)
+    final_out_t = "".join(aligned_t)
 
     return final_out_q, final_out_t, stats, coords
 
