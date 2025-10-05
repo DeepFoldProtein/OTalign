@@ -23,13 +23,41 @@ class AlignmentScores:
     ref_size: int
 
 
-def alignment_scores(pred_pairs: set[Pair], ref_pairs: set[Pair]) -> AlignmentScores:
-    tp = len(pred_pairs & ref_pairs)
-    fp = len(pred_pairs - ref_pairs)
-    fn = len(ref_pairs - pred_pairs)
-
+def alignment_scores(pred_pairs: set[Pair], ref_pairs: set[Pair], tolerance: int = 0) -> AlignmentScores:
     pred_size = len(pred_pairs)
     ref_size = len(ref_pairs)
+
+    if tolerance > 0 and pred_size > 0 and ref_size > 0:
+        # Greedy matching for tolerant evaluation.
+        # To ensure deterministic results, we sort the reference pairs.
+        sorted_ref_pairs = sorted(ref_pairs)
+        unmatched_preds = set(pred_pairs)
+
+        tp = 0
+        for r_x, r_y in sorted_ref_pairs:
+            # Find a matching prediction within the tolerance window.
+            match_found = None
+            # To make matching deterministic, we should also sort the potential matches.
+            # However, for a greedy algorithm, iterating over the set and taking the first
+            # found match is a valid (though one of many possible) greedy strategies.
+            # Sorting preds for each ref would be O(P log P) for each R, which is slow.
+            # Let's stick to the simple iteration.
+            for p_x, p_y in unmatched_preds:
+                if max(abs(p_x - r_x), abs(p_y - r_y)) <= tolerance:
+                    match_found = (p_x, p_y)
+                    break  # Take the first match found
+
+            if match_found:
+                tp += 1
+                unmatched_preds.remove(match_found)
+
+        fp = pred_size - tp
+        fn = ref_size - tp
+    else:
+        # Strict matching (tolerance == 0 or no pairs to match)
+        tp = len(pred_pairs & ref_pairs)
+        fp = len(pred_pairs - ref_pairs)
+        fn = len(ref_pairs - pred_pairs)
 
     if pred_size == 0:
         precision = 1.0 if ref_size == 0 else float("nan")
@@ -41,12 +69,15 @@ def alignment_scores(pred_pairs: set[Pair], ref_pairs: set[Pair]) -> AlignmentSc
     else:
         recall = tp / ref_size
 
-    if precision + recall == 0:
+    # Handle cases where precision or recall is NaN
+    pr_sum = precision + recall
+    if pr_sum != pr_sum or pr_sum == 0:  # check for nan or zero
         f1 = 0.0
     else:
-        f1 = 2 * precision * recall / (precision + recall)
+        f1 = 2 * precision * recall / pr_sum
 
-    union = len(pred_pairs | ref_pairs)
+    # For tolerant evaluation, Jaccard is tp / (pred_size + ref_size - tp)
+    union = pred_size + ref_size - tp
     if union == 0:
         jaccard = 1.0
     else:
