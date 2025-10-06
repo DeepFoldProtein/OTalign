@@ -13,7 +13,6 @@ from otalign.align.uot_alignment import hard_alignment_from_transport, uot_align
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
 from otalign.io.fasta_utils import reconstruct_alignment
-from otalign.metrics.alignment import in_band_mass, recall_in_band
 from otalign.models.embedding import get_embeddings_for_sequences
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 from otalign.quantize import quantize
@@ -183,20 +182,12 @@ def _process_batch(
             std_metrics = alignment_metrics(pred_pairs, ex.get("ref_alignment"))
 
             # Compute new metrics if reference alignment is available
-            new_metrics = {}
             ref_alignment = ex.get("ref_alignment")
             if ref_alignment:
                 true_plan = torch.zeros_like(res_ab_i["transport_plan"][0], device=device)
                 for r, c in ref_alignment:
                     if r < true_plan.shape[0] and c < true_plan.shape[1]:
                         true_plan[r, c] = 1.0
-
-                # Normalize transport plan for in-band mass
-                plan_sum = res_ab_i["transport_plan"][0].sum().clamp(min=1e-8)
-                normalized_plan = res_ab_i["transport_plan"][0] / plan_sum
-                precision_like_score = in_band_mass(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
-                recall_like_score = recall_in_band(normalized_plan, true_plan, band_width=args_dict["eval_band_width"])
-                new_metrics = {f"in_band_mass_w_{args_dict['eval_band_width']}": precision_like_score, f"recall_in_band_w_{args_dict['eval_band_width']}": recall_like_score}
 
             # Assemble record
             rec = {
@@ -205,7 +196,6 @@ def _process_batch(
                 "seq2_id": ex["seq2_id"],
                 "pred_alignment": pred_pairs,
                 "metrics": std_metrics,
-                "new_metrics": new_metrics,
                 "ot_metrics": ot_metrics_serializable,
                 "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]}},
             }

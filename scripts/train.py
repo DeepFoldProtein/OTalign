@@ -19,7 +19,6 @@ from otalign.data.cath import CATHDataset
 from otalign.data.collator import OTAlignCollator
 from otalign.data.mlm_collator import MLMCollator
 from otalign.functional.sinkhorn_uot import unbalanced_sinkhorn
-from otalign.metrics.alignment import vectorized_in_band_mass, vectorized_recall_in_band
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 from otalign.utils.checkpointing import load_peft_model_from_checkpoint
 
@@ -364,12 +363,11 @@ def train(config_path: str, eval_only: bool = False, seed: Optional[int] = None)
             logging.warning(f"Unexpected predictions format in compute_metrics. Got type {type(predictions)}, len {len(predictions)}.")
             return {}
         transport_plans, gt_alignments, is_positives, mlm_losses = predictions
-        band_width = config.get("eval_band_width", 5)
 
         # Filter out empty tensors from skipped batches
         valid_indices = [i for i, arr in enumerate(transport_plans) if arr.size > 0]
         if not valid_indices:
-            return {f"in_band_mass_w_{band_width}": 0, f"recall_in_band_w_{band_width}": 0}
+            return {}
 
         transport_plans = np.array([transport_plans[i] for i in valid_indices])
         gt_alignments = np.array([gt_alignments[i] for i in valid_indices])
@@ -383,29 +381,7 @@ def train(config_path: str, eval_only: bool = False, seed: Optional[int] = None)
             gt_alignments = np.concatenate(gt_alignments)
             mlm_losses = np.concatenate(mlm_losses)
 
-        in_band_masses, recalls_in_band = [], []
-        pos_mask = is_positives.astype(bool)
-
-        if pos_mask.any():
-            # Move tensors to GPU if available for accelerated computation
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            gt_align = torch.from_numpy(gt_alignments[pos_mask]).to(device)
-            pred_plan_pos = torch.from_numpy(transport_plans[pos_mask]).to(device)
-
-            pred_plan_sum = torch.sum(pred_plan_pos, dim=(1, 2), keepdim=True).clamp(min=1e-8)
-            normalized_pred_plan = pred_plan_pos / pred_plan_sum
-
-            # Fully vectorized computation
-            masses = vectorized_in_band_mass(normalized_pred_plan, gt_align, band_width)
-            recalls = vectorized_recall_in_band(normalized_pred_plan, gt_align, band_width)
-
-            in_band_masses.extend(masses.cpu().numpy())
-            recalls_in_band.extend(recalls.cpu().numpy())
-
-        metrics = {
-            f"in_band_mass_w_{band_width}": np.mean(in_band_masses) if in_band_masses else 0,
-            f"recall_in_band_w_{band_width}": np.mean(recalls_in_band) if recalls_in_band else 0,
-        }
+        metrics = {}
         if "lambda_mlm" in config["loss"] and config["loss"]["lambda_mlm"] > 0 and mlm_losses.size > 0:
             valid_mlm_losses = [lv for lv in mlm_losses if lv is not None and lv > 0]
             if valid_mlm_losses:

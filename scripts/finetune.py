@@ -20,7 +20,6 @@ from otalign.data.cath import CATHDataset
 from otalign.data.collator import OTAlignCollator
 from otalign.data.mlm_collator import MLMCollator
 from otalign.functional.sinkhorn_uot import unbalanced_sinkhorn
-from otalign.metrics.alignment import vectorized_in_band_mass
 from otalign.models.ot_head import get_ot_head
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 from otalign.utils.checkpointing import load_peft_model_from_checkpoint
@@ -406,26 +405,7 @@ def finetune(config_path: str, eval_only: bool = False, seed: Optional[int] = No
             gt_alignments = np.concatenate(gt_alignments)
             mlm_losses = np.concatenate(mlm_losses)
 
-        in_band_masses = []
-        pos_mask = is_positives.astype(bool)
-
-        if pos_mask.any():
-            # Move tensors to GPU if available for accelerated computation
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            gt_align = torch.from_numpy(gt_alignments[pos_mask]).to(device)
-            pred_plan_pos = torch.from_numpy(transport_plans[pos_mask]).to(device)
-
-            pred_plan_sum = torch.sum(pred_plan_pos, dim=(1, 2), keepdim=True).clamp(min=1e-8)
-            normalized_pred_plan = pred_plan_pos / pred_plan_sum
-
-            # Fully vectorized computation
-            masses = vectorized_in_band_mass(normalized_pred_plan, gt_align, band_width)
-
-            in_band_masses.extend(masses.cpu().numpy())
-
-        metrics = {
-            f"in_band_mass_w_{band_width}": np.mean(in_band_masses) if in_band_masses else 0,
-        }
+        metrics = {}
         if "lambda_mlm" in config["loss"] and config["loss"]["lambda_mlm"] > 0 and mlm_losses.size > 0:
             valid_mlm_losses = [lv for lv in mlm_losses if lv is not None and lv > 0]
             if valid_mlm_losses:
