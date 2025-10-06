@@ -9,10 +9,17 @@ import pkgutil
 def get_evaluator_class(tool_name: str):
     """
     Dynamically finds and returns the evaluator class for a given tool name.
-    Assumes the class is named 'ToolNameEvaluator' (e.g., 'OtalignEvaluator').
+    Handles tool names with hyphens (e.g., 'otalign-progressive').
+    - 'otalign-progressive' -> module 'otalign_progressive_evaluator', class 'OTAlignProgressiveEvaluator'
+    - 'otalign' -> module 'otalign_evaluator', class 'OtalignEvaluator'
     """
-    module_name = f"{tool_name.lower()}_evaluator"
-    class_name = f"{tool_name.capitalize()}Evaluator"
+    # Sanitize tool_name for module import (e.g., 'otalign-progressive' -> 'otalign_progressive')
+    sanitized_tool_name = tool_name.lower().replace("-", "_")
+    module_name = f"{sanitized_tool_name}_evaluator"
+
+    # Construct the class name (e.g., 'otalign-progressive' -> 'OTAlignProgressiveEvaluator')
+    class_name_parts = [part.capitalize() for part in tool_name.split("-")]
+    class_name = "".join(class_name_parts) + "Evaluator"
 
     try:
         # The package is 'benchmark.modules'

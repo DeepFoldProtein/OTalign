@@ -3,8 +3,8 @@
 # 1. Global Paths and Settings
 paths:
   # Root directory for storing raw benchmark results
-  # results_dir: "out/results"
-  results_dir: "/gpfs/deepfold/work/otalign/eval/results"
+  results_dir: "out/results"
+  # results_dir: "/gpfs/deepfold/work/otalign/eval/results"
   # Root directory for caching embeddings and other intermediate data
   cache_dir: "out/cache"
   # Root directory for saving generated plots
@@ -196,6 +196,20 @@ models:
       align_batch_size: 16
 
   # --- Baseline Models ---
+  otalign-progressive-ankh-large:
+    tool: "otalign-progressive"
+    plm: "Ankh_Large"
+    label: "OTalign-Progressive (Ankh-Large)"
+    color: "#ff5f0e"
+    params:
+      align_batch_size: 16
+      reg_init: 1.0
+      reg_final: 0.1
+      reg_steps: 5
+      reg_m: 1.0
+      dp_mu: 11.0
+
+  # --- Baseline Models ---
   hhalign:
     tool: "hhalign"
     label: "HHalign"
@@ -259,6 +273,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
+      - "otalign-progressive-ankh-large"
   malisam:
     datasets: ["malisam"]
     models:
@@ -280,6 +295,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
+      - "otalign-progressive-ankh-large"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -301,6 +317,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
+      - "otalign-progressive-ankh-large"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -322,6 +339,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
+      - "otalign-progressive-ankh-large"
 
   sabmark-sup_fp:
     datasets: ["sabmark_sup_fp"]

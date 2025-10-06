@@ -5,11 +5,13 @@ from tqdm import tqdm
 
 from benchmark.modules.base_evaluator import BaseEvaluator
 from scripts.build_cache import build_cache
-from scripts.run_otalign_on_dataset import run_otalign_evaluation
+from scripts.run_otalign_progressive_on_dataset import run_otalign_evaluation
 
 
-class OtalignEvaluator(BaseEvaluator):
-    """Evaluator for the OTalign tool."""
+class OtalignProgressiveEvaluator(BaseEvaluator):
+    """
+    Evaluator for the 'otalign-progressive' tool.
+    """
 
     def _get_cache_model_name(self) -> str:
         """
@@ -33,9 +35,13 @@ class OtalignEvaluator(BaseEvaluator):
         """
         return self.model_config["_key"]
 
+    def __init__(self, model_config, dataset_config, global_paths, cli_args):
+        super().__init__(model_config, dataset_config, global_paths, cli_args)
+        self.tool_name = "otalign-progressive"
+
     def run(self):
         """
-        Executes the OTalign benchmark by calling the run_otalign_on_dataset.py script.
+        Executes the OTAlign progressive benchmark.
         """
         if not self.should_run():
             return
@@ -46,6 +52,10 @@ class OtalignEvaluator(BaseEvaluator):
         if "split" in self.dataset_config:
             dataset_id += f",{self.dataset_config['split']}"
 
+        # Prepare arguments for the evaluation function
+        params = self.model_config.get("params", {})
+
+        # Determine the model path or name
         cache_model_name = self._get_cache_model_name()
         base_cache_dir = Path(self.global_paths["cache_dir"]) / self.dataset_config["name"] / cache_model_name
 
@@ -67,8 +77,8 @@ class OtalignEvaluator(BaseEvaluator):
             model_path = self.model_config["plm"]
         base_model = self.model_config.get("base_model")
 
-        try:
-            with tqdm(total=1, desc=f"Evaluating {self.model_config['label']}", leave=False) as pbar:
+        with tqdm(total=1, desc=f"Aligning {self.dataset_config['name']} with {self.model_name}") as pbar:
+            try:
                 run_otalign_evaluation(
                     dataset=dataset_id,
                     model=model_path,
@@ -76,16 +86,22 @@ class OtalignEvaluator(BaseEvaluator):
                     base_model_for_checkpoint=base_model,
                     cache_dir=str(actual_cache_dir),
                     device=device,
-                    no_tqdm=False,  # Enable tqdm in the script
-                    save_transport_plan_dir=str(self.transport_plan_dir),
-                    reg=self.model_config["params"].get("epsilon", 0.1),
-                    lambda1=self.model_config["params"].get("tau", 1.0),
-                    lambda2=self.model_config["params"].get("tau", 1.0),
-                    align_batch_size=self.model_config["params"].get("align_batch_size", 16),
-                    pbar=pbar,  # Pass the progress bar
+                    dtype=params.get("dtype", "fp32"),
+                    reg_init=params.get("reg_init", 1.0),
+                    reg_final=params.get("reg_final", 0.01),
+                    reg_steps=params.get("reg_steps", 5),
+                    reg_m=params.get("reg_m", 5.0),
+                    dp_mu=params.get("dp_mu", 8.0),
+                    num_iter=params.get("num_iter", 50000),
+                    eval_band_width=self.dataset_config.get("eval_band_width", 0),
+                    align_batch_size=params.get("align_batch_size", 16),
+                    export_fasta_dir=None,  # Not needed for benchmark runs
+                    no_tqdm=True,  # Disable inner tqdm
+                    pbar=pbar,
                 )
-        except Exception as e:
-            logging.error(f"An unexpected error occurred while running the OTalign evaluation for {self.model_config['label']}: {e}")
+                logging.info(f"Successfully ran OTAlign-Progressive for {self.model_name} on {self.dataset_config['name']}.")
+            except Exception as e:
+                logging.error(f"Error running OTAlign-Progressive for {self.model_name} on {self.dataset_config['name']}: {e}", exc_info=True)
 
     def _build_cache_internal(self, cache_dir, dataset_id):
         """Builds the embedding cache using the imported build_cache function."""
