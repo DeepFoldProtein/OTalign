@@ -12,6 +12,8 @@ def iter_pairs_from_dataset(dataset_path: str) -> Iterator[Dict[str, Any]]:
     """
     Loads pairs from a dataset (JSONL or Hugging Face) and yields them.
     """
+    if not dataset_path:
+        raise ValueError("dataset_path cannot be None or empty.")
     print(f"Loading pairs from {dataset_path}...")
 
     if Path(dataset_path).is_file() and dataset_path.endswith(".jsonl"):
