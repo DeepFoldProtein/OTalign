@@ -270,3 +270,131 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
                 B_I[i, j] = lse2(v1, v2)
 
     return F_M, F_D, F_I, B_M, B_D, B_I, logZ
+
+
+def get_antidiagonal_indices(k, m, n):
+    start_i = max(0, k - (n - 1))
+    end_i = min(m - 1, k)
+    return [(i, k - i) for i in range(start_i, end_i + 1)]
+
+
+def _diag_avg(values, indices, use_i_axis):
+    vals = []
+    if use_i_axis:
+        for i, j in indices:
+            if 0 <= i < len(values):
+                vals.append(values[i])
+    else:
+        for i, j in indices:
+            if 0 <= j < len(values):
+                vals.append(values[j])
+    if not vals:
+        raise ValueError("No valid indices for position-dependent parameter on this diagonal.")
+    return float(np.mean(vals, dtype=np.float64))
+
+
+def calculate_lyapunov_pressure(score_matrix, gaps, mu, gamma):
+    """
+    Top Lyapunov exponent (finite-length pressure) for position-dependent model.
+
+    Args:
+        score_matrix: m x n ARRAY of *scores* s_ij (positive good; can be real-valued).
+        gaps: dict with keys:
+              'gap_open_del', 'gap_ext_del', 'gap_open_ins', 'gap_ext_ins'
+              Each can be scalar or 1D array (position-dependent).
+        mu:    match fugacity (adds to match log-score).
+        gamma: tilt parameter for large deviations (gamma=1 is physical).
+    Returns:
+        float pressure P_K(mu, gamma) = (1/K) * log || prod_k T_k(mu, gamma) ||_1
+    """
+    s = np.asarray(score_matrix, dtype=np.float64)
+    m, n = s.shape
+    K = m + n - 1
+
+    # Fetch (possibly position-dependent) penalties
+    g_od = gaps["gap_open_del"]
+    g_ed = gaps["gap_ext_del"]
+    g_oi = gaps["gap_open_ins"]
+    g_ei = gaps["gap_ext_ins"]
+
+    v = np.ones(3, dtype=np.float64)
+    sum_log_c = 0.0
+    tiny = 1e-300
+
+    for k in range(K):
+        idx = get_antidiagonal_indices(k, m, n)
+        if not idx:
+            continue
+        II, JJ = np.array(idx, dtype=int).T  # shape (len_diag,)
+
+        # --- Match moment on this diagonal (stable log-mean-exp) ---
+        # M_k = mean_{(i,j) in diag k} exp(gamma * s_ij) * exp(mu)
+        x = gamma * s[II, JJ]
+        # log-mean-exp = log( mean(exp(x)) ) = logsumexp(x) - log(len_diag)
+        xmax = np.max(x)
+        lme = xmax + np.log(np.mean(np.exp(x - xmax)))
+        Ea_k = np.exp(lme + mu)  # strictly > 0
+
+        # --- Gap entries (diagonal means) ---
+        if np.isscalar(g_od):
+            alpha_D_k = float(g_od)
+        else:
+            alpha_D_k = _diag_avg(np.asarray(g_od, dtype=np.float64), idx, use_i_axis=True)
+
+        if np.isscalar(g_ed):
+            beta_D_k = float(g_ed)
+        else:
+            beta_D_k = _diag_avg(np.asarray(g_ed, dtype=np.float64), idx, use_i_axis=True)
+
+        if np.isscalar(g_oi):
+            alpha_I_k = float(g_oi)
+        else:
+            alpha_I_k = _diag_avg(np.asarray(g_oi, dtype=np.float64), idx, use_i_axis=False)
+
+        if np.isscalar(g_ei):
+            beta_I_k = float(g_ei)
+        else:
+            beta_I_k = _diag_avg(np.asarray(g_ei, dtype=np.float64), idx, use_i_axis=False)
+
+        T_MD_k = np.exp(gamma * alpha_D_k)
+        T_DD_k = np.exp(gamma * beta_D_k)
+        T_MI_k = np.exp(gamma * alpha_I_k)
+        T_II_k = np.exp(gamma * beta_I_k)
+
+        # 3x3 slice
+        T_k = np.array([[Ea_k, T_MD_k, T_MI_k], [Ea_k, T_DD_k, 0.0], [Ea_k, 0.0, T_II_k]], dtype=np.float64)
+
+        # Power step with L1 renormalization (positive vectors -> stable)
+        v = T_k @ v
+        c = float(np.sum(np.abs(v)))
+        if not np.isfinite(c) or c < tiny:
+            # stabilize (shouldn't happen with positive entries)
+            v[:] = 1.0 / 3.0
+            continue
+        v /= c
+        sum_log_c += np.log(c)
+
+    return (sum_log_c / K) if K > 0 else 0.0
+
+
+def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, tol=1e-6):
+    """
+    Find mu_c by solving F(mu) = P(mu, gamma=1) = 0.
+    """
+    mu_L, mu_U = map(float, mu_bracket)
+
+    def F(mu):
+        return calculate_lyapunov_pressure(score_matrix, gaps, mu, 1.0)
+
+    p_L, p_U = F(mu_L), F(mu_U)
+    if not np.isfinite(p_L) or not np.isfinite(p_U) or np.sign(p_L) == np.sign(p_U):
+        raise ValueError(f"Invalid mu bracket [{mu_L}, {mu_U}] for mu_c: F(L)={p_L:.6g}, F(U)={p_U:.6g} (need F(L)<0<F(U)).")
+
+    while (mu_U - mu_L) > tol:
+        mu_M = 0.5 * (mu_L + mu_U)
+        p_M = F(mu_M)
+        if p_M < 0.0:
+            mu_L = mu_M
+        else:
+            mu_U = mu_M
+    return 0.5 * (mu_L + mu_U)

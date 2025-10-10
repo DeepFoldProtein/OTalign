@@ -11,7 +11,7 @@ import torch
 from tqdm.auto import tqdm
 
 from otalign.align.cost import pairwise_cosine
-from otalign.align.dp import uot_alignment_path
+from otalign.align.crf import find_critical_fugacity_lyapunov, uot_alignment_path
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
 from otalign.functional.sinkhorn_uot import unbalanced_sinkhorn
@@ -132,8 +132,26 @@ def _process_batch(
             phi_i = -reg_m * np.log(P_i.sum(axis=1) / a_i + 1e-8)
             psi_i = -reg_m * np.log(P_i.sum(axis=0) / b_i + 1e-8)
 
+            S_i = (phi_i[:, None] + psi_i[None, :] - C_i) / reg
+            rho_D = np.exp(-phi_i / reg_m)
+            rho_I = np.exp(-psi_i / reg_m)
+
+            # Practical "gotchas" and fixes: Keep hazards in (0,1)
+            rho_D = rho_D / (1 + rho_D)
+            rho_I = rho_I / (1 + rho_I)
+
+            # Affine components
+            g_ext_D = np.log(rho_D)
+            g_open_D = np.log1p(-rho_D)
+            g_ext_I = np.log(rho_I)
+            g_open_I = np.log1p(-rho_I)
+            gaps = {"gap_open_del": g_open_D, "gap_ext_del": g_ext_D, "gap_open_ins": g_open_I, "gap_ext_ins": g_ext_I}
+
+            # Cacluate critical fugacity
+            mu_optimal = find_critical_fugacity_lyapunov(S_i, gaps, mu_bracket=(0.0, 32.0))
+
             # Get hard alignment using uot_alignment_path
-            path, _ = uot_alignment_path(C_i, phi_i, psi_i, eps=final_reg, tau=reg_m, mu=args_dict["dp_mu"], rho_min=None)
+            path, _ = uot_alignment_path(C_i, phi_i, psi_i, eps=final_reg, tau=reg_m, mu=mu_optimal, rho_min=None)
 
             pred_pairs = [(x, y) for x, y, o in path if o == "M"]
 
@@ -152,7 +170,7 @@ def _process_batch(
                 "seq2_id": ex["seq2_id"],
                 "pred_alignment": pred_pairs,
                 "metrics": std_metrics,
-                "ot_metrics": {},  # Not calculated in the notebook this way
+                "ot_metrics": {},  # Not calculated
                 "meta": {"tool": "OTAlign-Progressive", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]}},
             }
 
@@ -187,7 +205,6 @@ def run_otalign_evaluation(
     reg_final: float = 0.01,
     reg_steps: int = 5,
     reg_m: float = 5.0,
-    dp_mu: float = 8.0,
     num_iter: int = 50000,
     eval_band_width: int = 0,
     align_batch_size: int = 16,
@@ -226,6 +243,7 @@ def run_otalign_evaluation(
         if (cache_dir_path / "data.lmdb").exists():
             cache = LMDBCache(cache_dir)
             print("Using LMDBCache")
+
         else:
             cache = NPZCache(cache_dir)
             print("Using NPZCache")
@@ -295,7 +313,6 @@ def main():
     ap.add_argument("--reg_steps", type=int, default=5, help="Number of steps for regularization annealing.")
     ap.add_argument("--reg_m", type=float, default=5.0, help="Marginal relaxation term for UOT.")
     ap.add_argument("--num_iter", type=int, default=50000, help="Max Sinkhorn iterations per step.")
-    ap.add_argument("--dp_mu", type=float, default=8.0, help="DP parameter mu for uot_alignment_path.")
     ap.add_argument("--eval_band_width", type=int, default=0, help="Tolerance for alignment score evaluation (e.g., 0, 1, 2, 4).")
 
     # IO and batching
@@ -318,7 +335,6 @@ def main():
         reg_steps=args.reg_steps,
         reg_m=args.reg_m,
         num_iter=args.num_iter,
-        dp_mu=args.dp_mu,
         eval_band_width=args.eval_band_width,
         align_batch_size=args.align_batch_size,
         export_fasta_dir=args.export_fasta_dir,

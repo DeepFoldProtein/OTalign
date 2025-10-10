@@ -196,10 +196,10 @@ models:
       align_batch_size: 16
 
   # --- Baseline Models ---
-  otalign-progressive-ankh-large:
-    tool: "otalign-progressive"
+  otalign-crf-ankh-large:
+    tool: "otalign-crf"
     plm: "Ankh_Large"
-    label: "OTalign-Progressive (Ankh-Large)"
+    label: "OTalign-CRF (Ankh-Large)"
     color: "#ff5f0e"
     params:
       align_batch_size: 16
@@ -273,7 +273,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
-      - "otalign-progressive-ankh-large"
+      - "otalign-crf-ankh-large"
   malisam:
     datasets: ["malisam"]
     models:
@@ -295,7 +295,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
-      - "otalign-progressive-ankh-large"
+      - "otalign-crf-ankh-large"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -317,7 +317,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
-      - "otalign-progressive-ankh-large"
+      - "otalign-crf-ankh-large"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -339,7 +339,7 @@ tests:
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
-      - "otalign-progressive-ankh-large"
+      - "otalign-crf-ankh-large"
 
   sabmark-sup_fp:
     datasets: ["sabmark_sup_fp"]

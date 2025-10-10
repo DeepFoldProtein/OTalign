@@ -5,12 +5,12 @@ from tqdm import tqdm
 
 from benchmark.modules.base_evaluator import BaseEvaluator
 from scripts.build_cache import build_cache
-from scripts.run_otalign_progressive_on_dataset import run_otalign_evaluation
+from scripts.run_otalign_crf_on_dataset import run_otalign_evaluation
 
 
-class OtalignProgressiveEvaluator(BaseEvaluator):
+class OtalignCrfEvaluator(BaseEvaluator):
     """
-    Evaluator for the 'otalign-progressive' tool.
+    Evaluator for the 'otalign-crf' tool.
     """
 
     def _get_cache_model_name(self) -> str:
@@ -91,7 +91,6 @@ class OtalignProgressiveEvaluator(BaseEvaluator):
                     reg_final=params.get("reg_final", 0.01),
                     reg_steps=params.get("reg_steps", 5),
                     reg_m=params.get("reg_m", 5.0),
-                    dp_mu=params.get("dp_mu", 8.0),
                     num_iter=params.get("num_iter", 50000),
                     eval_band_width=self.dataset_config.get("eval_band_width", 0),
                     align_batch_size=params.get("align_batch_size", 16),
