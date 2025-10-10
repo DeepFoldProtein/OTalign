@@ -272,50 +272,63 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
     return F_M, F_D, F_I, B_M, B_D, B_I, logZ
 
 
+@njit
 def get_antidiagonal_indices(k, m, n):
+    """Helper to get anti-diagonal indices as a NumPy array."""
     start_i = max(0, k - (n - 1))
     end_i = min(m - 1, k)
-    return [(i, k - i) for i in range(start_i, end_i + 1)]
+    size = end_i - start_i + 1
+    if size <= 0:
+        return np.empty((0, 2), dtype=np.int64)
+    arr = np.empty((size, 2), dtype=np.int64)
+    for i_idx, i in enumerate(range(start_i, end_i + 1)):
+        arr[i_idx, 0] = i
+        arr[i_idx, 1] = k - i
+    return arr
 
 
+@njit
 def _diag_avg(values, indices, use_i_axis):
-    vals = []
+    """Numba-friendly version of the diagonal averaging."""
+    # `indices` is now a NumPy array.
+    total = 0.0
+    count = 0
     if use_i_axis:
-        for i, j in indices:
-            if 0 <= i < len(values):
-                vals.append(values[i])
+        for i in range(indices.shape[0]):
+            idx_val = indices[i, 0]
+            if 0 <= idx_val < len(values):
+                total += values[idx_val]
+                count += 1
     else:
-        for i, j in indices:
-            if 0 <= j < len(values):
-                vals.append(values[j])
-    if not vals:
+        for i in range(indices.shape[0]):
+            idx_val = indices[i, 1]
+            if 0 <= idx_val < len(values):
+                total += values[idx_val]
+                count += 1
+
+    if count == 0:
+        # This will be caught by Numba and raised as a Python exception.
         raise ValueError("No valid indices for position-dependent parameter on this diagonal.")
-    return float(np.mean(vals, dtype=np.float64))
+    return total / count
 
 
-def calculate_lyapunov_pressure(score_matrix, gaps, mu, gamma):
+@njit
+def calculate_lyapunov_pressure(score_matrix, g_od, g_ed, g_oi, g_ei, mu, gamma):
     """
     Top Lyapunov exponent (finite-length pressure) for position-dependent model.
+    Numba-optimized version.
 
     Args:
         score_matrix: m x n ARRAY of *scores* s_ij (positive good; can be real-valued).
-        gaps: dict with keys:
-              'gap_open_del', 'gap_ext_del', 'gap_open_ins', 'gap_ext_ins'
-              Each can be scalar or 1D array (position-dependent).
+        g_od, g_ed, g_oi, g_ei: 1D arrays for gap penalties (position-dependent).
         mu:    match fugacity (adds to match log-score).
         gamma: tilt parameter for large deviations (gamma=1 is physical).
     Returns:
         float pressure P_K(mu, gamma) = (1/K) * log || prod_k T_k(mu, gamma) ||_1
     """
-    s = np.asarray(score_matrix, dtype=np.float64)
+    s = score_matrix
     m, n = s.shape
     K = m + n - 1
-
-    # Fetch (possibly position-dependent) penalties
-    g_od = gaps["gap_open_del"]
-    g_ed = gaps["gap_ext_del"]
-    g_oi = gaps["gap_open_ins"]
-    g_ei = gaps["gap_ext_ins"]
 
     v = np.ones(3, dtype=np.float64)
     sum_log_c = 0.0
@@ -323,38 +336,26 @@ def calculate_lyapunov_pressure(score_matrix, gaps, mu, gamma):
 
     for k in range(K):
         idx = get_antidiagonal_indices(k, m, n)
-        if not idx:
+        if idx.shape[0] == 0:
             continue
-        II, JJ = np.array(idx, dtype=int).T  # shape (len_diag,)
+        II, JJ = idx.T
 
         # --- Match moment on this diagonal (stable log-mean-exp) ---
-        # M_k = mean_{(i,j) in diag k} exp(gamma * s_ij) * exp(mu)
-        x = gamma * s[II, JJ]
-        # log-mean-exp = log( mean(exp(x)) ) = logsumexp(x) - log(len_diag)
+        # Numba doesn't support advanced indexing with two arrays (s[II, JJ]).
+        # We must loop explicitly.
+        x = np.empty(II.shape[0], dtype=np.float64)
+        for i in range(II.shape[0]):
+            x[i] = gamma * s[II[i], JJ[i]]
+
         xmax = np.max(x)
         lme = xmax + np.log(np.mean(np.exp(x - xmax)))
-        Ea_k = np.exp(lme + mu)  # strictly > 0
+        Ea_k = np.exp(lme + mu)
 
         # --- Gap entries (diagonal means) ---
-        if np.isscalar(g_od):
-            alpha_D_k = float(g_od)
-        else:
-            alpha_D_k = _diag_avg(np.asarray(g_od, dtype=np.float64), idx, use_i_axis=True)
-
-        if np.isscalar(g_ed):
-            beta_D_k = float(g_ed)
-        else:
-            beta_D_k = _diag_avg(np.asarray(g_ed, dtype=np.float64), idx, use_i_axis=True)
-
-        if np.isscalar(g_oi):
-            alpha_I_k = float(g_oi)
-        else:
-            alpha_I_k = _diag_avg(np.asarray(g_oi, dtype=np.float64), idx, use_i_axis=False)
-
-        if np.isscalar(g_ei):
-            beta_I_k = float(g_ei)
-        else:
-            beta_I_k = _diag_avg(np.asarray(g_ei, dtype=np.float64), idx, use_i_axis=False)
+        alpha_D_k = _diag_avg(g_od, idx, True)
+        beta_D_k = _diag_avg(g_ed, idx, True)
+        alpha_I_k = _diag_avg(g_oi, idx, False)
+        beta_I_k = _diag_avg(g_ei, idx, False)
 
         T_MD_k = np.exp(gamma * alpha_D_k)
         T_DD_k = np.exp(gamma * beta_D_k)
@@ -366,9 +367,8 @@ def calculate_lyapunov_pressure(score_matrix, gaps, mu, gamma):
 
         # Power step with L1 renormalization (positive vectors -> stable)
         v = T_k @ v
-        c = float(np.sum(np.abs(v)))
+        c = np.sum(np.abs(v))
         if not np.isfinite(c) or c < tiny:
-            # stabilize (shouldn't happen with positive entries)
             v[:] = 1.0 / 3.0
             continue
         v /= c
@@ -383,8 +383,25 @@ def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, tol=1e-6):
     """
     mu_L, mu_U = map(float, mu_bracket)
 
+    # Ensure inputs are numpy arrays for Numba function
+    s_mat = np.asarray(score_matrix, dtype=np.float64)
+    g_od = np.asarray(gaps["gap_open_del"], dtype=np.float64)
+    g_ed = np.asarray(gaps["gap_ext_del"], dtype=np.float64)
+    g_oi = np.asarray(gaps["gap_open_ins"], dtype=np.float64)
+    g_ei = np.asarray(gaps["gap_ext_ins"], dtype=np.float64)
+
+    # Numba requires 1D arrays, but scalars become 0D. Flatten to 1D.
+    if g_od.ndim == 0:
+        g_od = g_od.flatten()
+    if g_ed.ndim == 0:
+        g_ed = g_ed.flatten()
+    if g_oi.ndim == 0:
+        g_oi = g_oi.flatten()
+    if g_ei.ndim == 0:
+        g_ei = g_ei.flatten()
+
     def F(mu):
-        return calculate_lyapunov_pressure(score_matrix, gaps, mu, 1.0)
+        return calculate_lyapunov_pressure(s_mat, g_od, g_ed, g_oi, g_ei, mu, 1.0)
 
     p_L, p_U = F(mu_L), F(mu_U)
     if not np.isfinite(p_L) or not np.isfinite(p_U) or np.sign(p_L) == np.sign(p_U):
