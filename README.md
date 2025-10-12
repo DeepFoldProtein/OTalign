@@ -14,7 +14,7 @@
 - **PLM-Powered**: Utilizes rich, contextual embeddings from state-of-the-art PLMs like ESM, Ankh, and ProtT5.
 - **Optimal Transport Core**: Employs Unbalanced Optimal Transport (UOT) with the Sinkhorn algorithm to find an optimal residue-level correspondence (a "transport plan").
 - **Fine-Tuning Framework**: Includes a complete framework for fine-tuning PLMs on alignment tasks using a custom KL-Divergence-based loss and Parameter-Efficient Fine-Tuning (PEFT) with LoRA.
-- **High Performance**: Achieves state-of-the-art results on challenging benchmarks, including MALIDUP, MALISAM, and SABmark.
+- **High Performance**: Achieves state-of-the-art results on challenging benchmarks, including SABmark (Superfamily, Twilight), MALIDUP, and MALISAM.
 
 ## How OTalign Works
 
