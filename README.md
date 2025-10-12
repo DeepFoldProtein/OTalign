@@ -112,6 +112,22 @@ OTalign demonstrates superior performance compared to traditional and other deep
 | **OTalign (AnkhCL)** | **0.7139**      | **0.4660**      |
 | **OTalign (ProtT5)** | 0.6783          | 0.4313          |
 
+## Interactive Leaderboard
+
+We provide a comprehensive online leaderboard that enables systematic evaluation and comparison of alignment methods across multiple benchmark datasets. The platform serves as both a performance evaluation tool and a probe for assessing the structural fidelity of protein language model representations.
+
+**🔗 [Access the OTalign Leaderboard](https://otalign.deepfold.org)**
+
+### Key Features
+
+- **Comprehensive Benchmarking**: Compare OTalign variants against traditional methods (Needleman-Wunsch, HHalign) and recent PLM-based approaches (PLMAlign, DeepBLAST) across challenging remote homolog datasets
+- **PLM Representation Analysis**: Evaluate how different protein language models (ESM, ProtT5, Ankh families) perform under the OTalign framework, revealing insights about embedding quality beyond model size
+- **Scaling Behavior Visualization**: Interactive plots showing the relationship between model parameters and alignment performance, highlighting that structural fidelity matters more than parameter count
+- **Dataset Documentation**: Detailed descriptions of benchmark datasets (SABmark, MALIDUP, MALISAM) with their specific characteristics and evaluation criteria
+- **Community Contributions**: Submit your own methods for standardized benchmarking and reproducible evaluation
+
+The leaderboard demonstrates that OTalign achieves state-of-the-art performance on remote homolog benchmarks. More importantly, it reveals that alignment quality is determined primarily by the structural fidelity of embeddings rather than model size alone, making OTalign both an effective aligner and a valuable tool for evaluating PLM representations.
+
 ## Citation
 
 If you use OTalign in your research, please cite our paper (link will be available soon).
