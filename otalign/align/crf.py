@@ -377,7 +377,7 @@ def calculate_lyapunov_pressure(score_matrix, g_od, g_ed, g_oi, g_ei, mu, gamma)
     return (sum_log_c / K) if K > 0 else 0.0
 
 
-def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, tol=1e-6):
+def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, gamma=1.0, tol=1e-6):
     """
     Find mu_c by solving F(mu) = P(mu, gamma=1) = 0.
     """
@@ -401,7 +401,7 @@ def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, tol=1e-6):
         g_ei = g_ei.flatten()
 
     def F(mu):
-        return calculate_lyapunov_pressure(s_mat, g_od, g_ed, g_oi, g_ei, mu, 1.0)
+        return calculate_lyapunov_pressure(s_mat, g_od, g_ed, g_oi, g_ei, mu, gamma)
 
     p_L, p_U = F(mu_L), F(mu_U)
     if not np.isfinite(p_L) or not np.isfinite(p_U) or np.sign(p_L) == np.sign(p_U):
@@ -415,3 +415,46 @@ def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, tol=1e-6):
         else:
             mu_U = mu_M
     return 0.5 * (mu_L + mu_U)
+
+
+def find_lambda_lyapunov(mu, score_matrix, gaps, tol=1e-6):
+    """
+    Find lambda(mu) by solving P(mu, gamma) = 0 for mu <= mu_c.
+    Bracket: gamma in [0, 1], since P(mu,0) > 0 and P(mu,1) <= 0 in subcritical regime.
+    """
+
+    g_od = np.asarray(gaps["gap_open_del"], dtype=np.float64)
+    g_ed = np.asarray(gaps["gap_ext_del"], dtype=np.float64)
+    g_oi = np.asarray(gaps["gap_open_ins"], dtype=np.float64)
+    g_ei = np.asarray(gaps["gap_ext_ins"], dtype=np.float64)
+
+    def P_gamma(gamma):
+        return calculate_lyapunov_pressure(score_matrix, g_od, g_ed, g_oi, g_ei, mu, gamma)
+
+    # Evaluate ends once
+    p0 = P_gamma(0.0)  # typically > 0
+    p1 = P_gamma(1.0)  # = F(mu) <= 0 if mu <= mu_c
+
+    if not np.isfinite(p0) or not np.isfinite(p1):
+        raise ValueError(f"Non-finite pressure: P(mu,0)={p0}, P(mu,1)={p1}")
+
+    if p1 > 0.0:
+        # You're actually supercritical (mu > mu_c), so lambda is undefined.
+        raise ValueError(f"mu must be <= mu_c. Got F(mu)=P(mu,1)={p1:.6g} > 0 at mu={mu:.6g}.")
+    if p0 < 0.0:
+        # Very unusual; but if it happens, widen the lower end to find a sign change.
+        # (Could be extreme positive scores/units.)
+        gamma_L, gamma_U = 0.0, 1.0
+        # try expanding upward a bit if needed
+    else:
+        gamma_L, gamma_U = 0.0, 1.0
+
+    # Bisection on [0,1]
+    while (gamma_U - gamma_L) > tol:
+        gm = 0.5 * (gamma_L + gamma_U)
+        pm = P_gamma(gm)
+        if pm > 0.0:
+            gamma_L = gm
+        else:
+            gamma_U = gm
+    return 0.5 * (gamma_L + gamma_U)
