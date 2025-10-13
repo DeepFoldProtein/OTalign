@@ -3,11 +3,14 @@ import json
 import multiprocessing as mp
 import re
 import subprocess
+import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from tqdm.auto import tqdm
 
+from otalign.io.fasta_utils import reconstruct_alignment
 from scripts.dataset_utils import iter_pairs_from_dataset
 
 
@@ -76,17 +79,39 @@ def _worker(task):
             str(pdb2_path),
         ]
 
+        use_ref_ali = args.get("use_ref_alignment")
         fasta_dir = args.get("fasta_dir")
-        if fasta_dir:
-            fasta_path = Path(fasta_dir) / f"{pair_id}.fasta"
-            if not fasta_path.exists():
-                return {"pair_id": pair_id, "error": f"missing_fasta: {fasta_path}"}
-            cmd.extend(["-I", str(fasta_path)])
+        guided_mode = False
 
-        if args.get("extra_args"):
-            cmd.extend(args["extra_args"])
+        with ExitStack() as stack:
+            fasta_path_to_use = None
+            if use_ref_ali:
+                if "ref_alignment" in ex and ex["ref_alignment"]:
+                    if "seq1" not in ex or "seq2" not in ex:
+                        return {"pair_id": pair_id, "error": "missing sequences for reference alignment"}
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    aligned_seq1, aligned_seq2 = reconstruct_alignment(ex["seq1"], ex["seq2"], ex["ref_alignment"])
+
+                    tmp_fasta = stack.enter_context(tempfile.NamedTemporaryFile(mode="w", suffix=".fasta"))
+                    tmp_fasta.write(f">{ex['seq1_id']}\n{aligned_seq1}\n")
+                    tmp_fasta.write(f">{ex['seq2_id']}\n{aligned_seq2}\n")
+                    tmp_fasta.flush()
+                    fasta_path_to_use = tmp_fasta.name
+                    guided_mode = True
+            elif fasta_dir:
+                fasta_path = Path(fasta_dir) / f"{pair_id}.fasta"
+                if not fasta_path.exists():
+                    return {"pair_id": pair_id, "error": f"missing_fasta: {fasta_path}"}
+                fasta_path_to_use = str(fasta_path)
+                guided_mode = True
+
+            if fasta_path_to_use:
+                cmd.extend(["-I", fasta_path_to_use])
+
+            if args.get("extra_args"):
+                cmd.extend(args["extra_args"])
+
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
         tm_scores = parse_tmalign_output(result.stdout)
 
@@ -95,7 +120,7 @@ def _worker(task):
             "seq1_id": ex["seq1_id"],
             "seq2_id": ex["seq2_id"],
             "metrics": tm_scores,
-            "meta": {"tmalign_mode": "guided" if fasta_dir else "baseline"},
+            "meta": {"tmalign_mode": "guided" if guided_mode else "baseline"},
         }
         return rec
 
@@ -110,6 +135,7 @@ def main():
     ap.add_argument("--dataset", type=str, required=True, help="Path to the dataset (JSONL or HF identifier).")
     ap.add_argument("--pdb_dir", type=str, required=True, help="Root directory for PDB files (e.g., data/MALIDUP).")
     ap.add_argument("--fasta_dir", type=str, default=None, help="Optional directory containing *.fasta alignment files to guide TMalign with -I.")
+    ap.add_argument("--use_ref_alignment", action="store_true", help="Use 'ref_alignment' from the dataset as input for TMalign.")
     ap.add_argument("--tmalign_bin", type=str, default="TMalign", help="Path to the TMalign executable.")
     ap.add_argument("--extra_args", nargs="*", default=[], help="Additional flags for TMalign.")
     ap.add_argument("--output", type=str, required=True, help="Path to the output JSONL file.")
