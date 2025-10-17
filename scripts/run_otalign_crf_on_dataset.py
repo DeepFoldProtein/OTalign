@@ -11,12 +11,13 @@ import torch
 from tqdm.auto import tqdm
 
 from otalign.align.cost import pairwise_cosine
-from otalign.align.crf import uot_alignment_path
+from otalign.align.soft_dp import find_longest_increasing_sequence_2d, forward_backward
+from otalign.align.transfer_matrix import compute_diagonal_stats, find_mu_c, find_mu_peak_fd
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
 from otalign.functional.sinkhorn_uot import unbalanced_sinkhorn
 from otalign.io.fasta_utils import reconstruct_alignment
-from otalign.metrics.alignment import alignment_scores
+from otalign.metrics.alignment import alignment_scores, build_ref_matrix, soft_alignment_scores
 from otalign.models.embedding import get_embeddings_for_sequences
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
 from otalign.utils.checkpointing import load_peft_model_from_checkpoint
@@ -120,30 +121,55 @@ def _process_batch(
         records = []
         for i in range(batch_size):
             ex = batch[i]
-            len1_i = lens1[i].item()
-            len2_i = lens2[i].item()
+            len1_i = int(lens1[i].item())
+            len2_i = int(lens2[i].item())
 
-            C_i = cost_matrix[i, :len1_i, :len2_i].cpu().numpy()
-            P_i = transport_plan[i, :len1_i, :len2_i].cpu().numpy()
-            a_i = a[i, :len1_i].cpu().numpy()
-            b_i = b[i, :len2_i].cpu().numpy()
+            C_i = cost_matrix[i, :len1_i, :len2_i]
+            P_i = transport_plan[i, :len1_i, :len2_i]
+            a_i = a[i, :len1_i]
+            b_i = b[i, :len2_i]
 
             # Calculate phi and psi from the final transport plan
-            phi_i = -reg_m * np.log(P_i.sum(axis=1) / a_i + 1e-8)
-            psi_i = -reg_m * np.log(P_i.sum(axis=0) / b_i + 1e-8)
+            phi = -reg_m * torch.log(P_i.sum(1) / a_i + 1e-8)
+            psi = -reg_m * torch.log(P_i.sum(0) / b_i + 1e-8)
+            S = (phi[:, None] + psi[None, :] - C_i) / final_reg
+
+            rho_D = torch.exp(-phi / reg_m)
+            rho_I = torch.exp(-psi / reg_m)
+            rho_D = rho_D / (1 + rho_D)
+            rho_I = rho_I / (1 + rho_I)
+
+            # Affine components
+            geD = torch.log(rho_D)
+            goD = torch.log1p(-rho_D)
+            geI = torch.log(rho_I)
+            goI = torch.log1p(-rho_I)
+
+            stats = compute_diagonal_stats(S, goD, geD, goI, geI, gamma=1.0, band=None, block=256)
+            mu_c = find_mu_c(stats, 0.0, 50.0)
+            mu_peak, *_ = find_mu_peak_fd(stats, mu_center=mu_c, span=5.0, points=129, h=0.01)
+
+            mu = mu_c
 
             # Get hard alignment using uot_alignment_path
-            path, _ = uot_alignment_path(C_i, phi_i, psi_i, eps=final_reg, tau=reg_m, mu=args_dict["mu"], rho_min=None)
-
-            pred_pairs = [(x, y) for x, y, o in path if o == "M"]
+            dp_dic = forward_backward(S, goD, geD, goI, geI, mu=mu)
+            F_M = dp_dic["F_M"]
+            B_M = dp_dic["B_M"]
+            logZ = dp_dic["logZ"]
+            P_M = torch.exp(F_M + B_M - logZ).cpu().numpy()
+            indices = find_longest_increasing_sequence_2d((P_M > args_dict["hard_threshold"]))
+            pred_pairs = [(int(i), int(j)) for i, j in indices]  # list[tuple[int, int]]
 
             # Compute standard alignment metrics
-            std_metrics = {}
+            metrics = {}
             if ex.get("ref_alignment"):
                 ref_set = {tuple(item) for item in ex["ref_alignment"]}
                 pred_set = set(pred_pairs)
                 scores = alignment_scores(pred_set, ref_set, tolerance=args_dict["eval_band_width"])
-                std_metrics = asdict(scores)
+                metrics = asdict(scores)
+
+                T = build_ref_matrix(ref_set, len1_i, len2_i)
+                metrics.update(soft_alignment_scores(P_M, T))
 
             # Assemble record
             rec = {
@@ -151,9 +177,13 @@ def _process_batch(
                 "seq1_id": ex["seq1_id"],
                 "seq2_id": ex["seq2_id"],
                 "pred_alignment": pred_pairs,
-                "metrics": std_metrics,
-                "ot_metrics": {},  # Not calculated
-                "meta": {"tool": "OTAlign-Progressive", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]}},
+                "metrics": metrics,
+                "mu": mu,
+                "mu_c": mu_c,
+                "mu_peak": mu_peak,
+                "logZ": logZ,
+                "ENM": float(np.sum(P_M)),
+                "meta": {"tool": "OTAlign-CRF", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]}},
             }
 
             # Export FASTA if requested
@@ -189,7 +219,7 @@ def run_otalign_evaluation(
     reg_m: float = 5.0,
     num_iter: int = 50000,
     eval_band_width: int = 0,
-    mu: float = 9.0,
+    hard_threshold: float = 0.5,
     align_batch_size: int = 16,
     export_fasta_dir: Optional[str] = None,
     no_tqdm: bool = False,
@@ -294,10 +324,10 @@ def main():
     ap.add_argument("--reg_init", type=float, default=1.0, help="Initial Sinkhorn regularization.")
     ap.add_argument("--reg_final", type=float, default=0.01, help="Final Sinkhorn regularization.")
     ap.add_argument("--reg_steps", type=int, default=5, help="Number of steps for regularization annealing.")
-    ap.add_argument("--reg_m", type=float, default=5.0, help="Marginal relaxation term for UOT.")
+    ap.add_argument("--reg_m", type=float, default=10.0, help="Marginal relaxation term for UOT.")
     ap.add_argument("--num_iter", type=int, default=50000, help="Max Sinkhorn iterations per step.")
     ap.add_argument("--eval_band_width", type=int, default=0, help="Tolerance for alignment score evaluation (e.g., 0, 1, 2, 4).")
-    ap.add_argument("--mu", type=float, default=9.0, help="Fugacity threshold (in hard DP).")
+    ap.add_argument("--hard_threshold", type=float, default=0.5, help="Threshold for hard alignment extractdion.")
 
     # IO and batching
     ap.add_argument("--align_batch_size", type=int, default=16, help="Batch size for alignment on both CPU and GPU.")
@@ -320,7 +350,7 @@ def main():
         reg_m=args.reg_m,
         num_iter=args.num_iter,
         eval_band_width=args.eval_band_width,
-        mu=args.mu,
+        hard_threshold=args.hard_threshold,
         align_batch_size=args.align_batch_size,
         export_fasta_dir=args.export_fasta_dir,
         no_tqdm=args.no_tqdm,
