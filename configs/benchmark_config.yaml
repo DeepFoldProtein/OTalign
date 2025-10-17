@@ -204,10 +204,20 @@ models:
     params:
       align_batch_size: 16
       reg_init: 1.0
-      reg_final: 0.1
+      reg_final: 0.01
       reg_steps: 5
       reg_m: 1.0
-      dp_mu: 11.0
+  otalign-crf-prott5:
+    tool: "otalign-crf"
+    plm: "ProtT5_XL_UniRef50"
+    label: "OTalign-CRF (ProtT5-XL)"
+    color: "#ff1f0e"
+    params:
+      align_batch_size: 16
+      reg_init: 1.0
+      reg_final: 0.01
+      reg_steps: 5
+      reg_m: 1.0
 
   # --- Baseline Models ---
   hhalign:
@@ -274,6 +284,7 @@ tests:
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
+      - "otalign-crf-prott5"
   malisam:
     datasets: ["malisam"]
     models:
@@ -296,6 +307,7 @@ tests:
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
+      - "otalign-crf-prott5"
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -318,6 +330,7 @@ tests:
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
+      - "otalign-crf-prott5"
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -340,6 +353,7 @@ tests:
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
+      - "otalign-crf-prott5"
 
   sabmark-sup_fp:
     datasets: ["sabmark_sup_fp"]
@@ -347,12 +361,14 @@ tests:
       - "otalign_ankhcl"
       - "nwalign"
       - "hhalign"
+      - "otalign-crf-ankh-large"
   sabmark-twi_fp:
     datasets: ["sabmark_twi_fp"]
     models:
       - "otalign_ankhcl"
       - "nwalign"
       - "hhalign"
+      - "otalign-crf-ankh-large"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
@@ -410,16 +426,6 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2_2"
-
-  # OTalign vs PLMAlign ProtT5-XL Focused Comparison
-  prott5_comparison:
-    datasets: ["sabmark_sup", "sabmark_twi", "malidup", "malisam"]
-    models:
-      - "otalign_prott5"
-      - "plmalign_prott5_global"
-      - "deepblast"
-      # - "nwalign" # baseline for reference
-      # - "hhalign" # baseline for reference
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.
@@ -533,25 +539,3 @@ plotting:
         type: "barplot"
         title: "Malisam Benchmark (F1 Score)"
         metrics: ["f1"]
-
-  prott5_comparison:
-    plots:
-      prott5_comparison_metrics_box:
-        type: "boxplot"
-        title: "" # "OTalign vs PLMAlign ProtT5-XL Comparison (All Datasets)"
-        style:
-          figsize: [12, 6]
-        legend:
-          position: "none"
-        metrics: ["f1", "recall", "precision"]
-        datasets: ["sabmark_sup", "sabmark-twi", "malidup", "malisam"]
-      prott5_comparison_sabmark_recall_bar:
-        type: "barplot"
-        title: "" # "OTalign vs PLMAlign ProtT5-XL Recall Comparison (SABmark)"
-        metrics: ["recall"]
-        datasets: ["sabmark_sup", "sabmark_twi"]
-      prott5_comparison_mali_f1_bar:
-        type: "barplot"
-        title: "" # "OTalign vs PLMAlign ProtT5-XL F1 Score Comparison (Malidup & Malisam)"
-        metrics: ["f1"]
-        datasets: ["malidup", "malisam"]
