@@ -1,32 +1,18 @@
+from dataclasses import dataclass
+from typing import Callable, Optional, cast
+
 import numpy as np
+from numba import njit
+from scipy.optimize import brentq, minimize_scalar
 
 from otalign.align.uot_alignment import _dp_core_numba
 
 
-def uot_alignment_path(C: np.ndarray, phi: np.ndarray, psi: np.ndarray, eps: float, tau: float, mu: float, rho_min: float | None = 1e-6):
-    # Match score and gap hazards
-    S = (phi[:, None] + psi[None, :] - C) / eps + mu
-    rho_D = np.exp(-phi / tau)
-    rho_I = np.exp(-psi / tau)
-
-    # Practical "gotchas" and fixes: Keep hazards in (0,1)
-    if rho_min:
-        rho_D = np.clip(rho_D, rho_min, 1 - rho_min)
-        rho_I = np.clip(rho_I, rho_min, 1 - rho_min)
-    else:
-        rho_D = rho_D / (1 + rho_D)
-        rho_I = rho_I / (1 + rho_I)
-
-    # Affine components
-    g_ext_D = np.log(rho_D)
-    g_open_D = np.log1p(-rho_D)
-    g_ext_I = np.log(rho_I)
-    g_open_I = np.log1p(-rho_I)
-
-    ge_q = np.concatenate(([0.0], g_ext_D))
-    go_q = np.concatenate(([0.0], g_open_D))
-    ge_t = np.concatenate(([0.0], g_ext_I))
-    go_t = np.concatenate(([0.0], g_open_I))
+def uot_alignment_path(S: np.ndarray, goD: np.ndarray, geD: np.ndarray, goI: np.ndarray, geI: np.ndarray):
+    ge_q = np.concatenate(([0.0], geD))
+    go_q = np.concatenate(([0.0], goD))
+    ge_t = np.concatenate(([0.0], geI))
+    go_t = np.concatenate(([0.0], goI))
 
     _mode_flag = 3
     _band = 0
@@ -65,11 +51,7 @@ def uot_alignment_path(C: np.ndarray, phi: np.ndarray, psi: np.ndarray, eps: flo
 
     path.reverse()
 
-    return path, {"best_score": best_score, "score": S, "rho_D": rho_D, "rho_I": rho_I, "goD": g_open_D, "geD": g_ext_D, "goI": g_open_I, "geI": g_ext_I}
-
-
-import numpy as np
-from numba import njit
+    return path, {"best_score": best_score}
 
 
 # ---------- numerics ----------
@@ -130,7 +112,6 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
     logZ          : float64
     """
     n, m = E_M.shape
-    local = False
 
     # Allocate forward
     F_M = np.full((n + 1, m + 1), -np.inf, dtype=np.float64)
@@ -138,24 +119,15 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
     F_I = np.full((n + 1, m + 1), -np.inf, dtype=np.float64)
 
     # ---- Forward init ----
-    if local:
-        # local: anywhere can start (0-clamp will also apply inside recurrences)
-        F_M[0, 0] = 0.0
-        F_D[0, 0] = 0.0
-        F_I[0, 0] = 0.0
-        for j in range(1, m + 1):
-            F_I[0, j] = 0.0
-        for i in range(1, n + 1):
-            F_D[i, 0] = 0.0
-    else:
-        # global: classic boundaries
-        F_M[0, 0] = 0.0
-        # first column: deletions extend only
-        for i in range(1, n + 1):
-            F_D[i, 0] = 0.0  # F_D[i - 1, 0] + geD[i - 1]
-        # first row: insertions extend only
-        for j in range(1, m + 1):
-            F_I[0, j] = 0.0  # F_I[0, j - 1] + geI[j - 1]
+
+    # global: classic boundaries
+    F_M[0, 0] = 0.0
+    # first column
+    for i in range(1, n + 1):
+        F_D[i, 0] = 0.0  # F_D[i - 1, 0] + geD[i - 1]
+    # first row
+    for j in range(1, m + 1):
+        F_I[0, j] = 0.0  # F_I[0, j - 1] + geI[j - 1]
 
     # ---- Forward DP ----
     for i in range(1, n + 1):
@@ -163,36 +135,24 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
             # M(i,j)
             t_prev = lse3(F_M[i - 1, j - 1], F_D[i - 1, j - 1], F_I[i - 1, j - 1])
             val_M = E_M[i - 1, j - 1] + t_prev
-            if local:
-                val_M = lse2(val_M, 0.0)
             F_M[i, j] = val_M
 
             # D(i,j) : from M open+ext at i, or D extend at i
             d_open = F_M[i - 1, j] + goD[i - 1] + geD[i - 1]
             d_extend = F_D[i - 1, j] + geD[i - 1]
             val_D = lse2(d_open, d_extend)
-            if local:
-                val_D = lse2(val_D, 0.0)
             F_D[i, j] = val_D
 
             # I(i,j) : from M open+ext at j, or I extend at j
             i_open = F_M[i, j - 1] + goI[j - 1] + geI[j - 1]
             i_extend = F_I[i, j - 1] + geI[j - 1]
             val_I = lse2(i_open, i_extend)
-            if local:
-                val_I = lse2(val_I, 0.0)
             F_I[i, j] = val_I
 
     # ---- logZ ----
-    if local:
-        # sum over all endpoints (add a virtual sink with 0-cost)
-        logZ = -np.inf
-        for i in range(n + 1):
-            for j in range(m + 1):
-                logZ = lse4(logZ, F_M[i, j], F_D[i, j], F_I[i, j])
-    else:
-        # global: only (n,m)
-        logZ = lse3(F_M[n, m], F_D[n, m], F_I[n, m])
+
+    # global: only (n,m)
+    logZ = lse3(F_M[n, m], F_D[n, m], F_I[n, m])
 
     # Allocate backward
     B_M = np.full((n + 1, m + 1), -np.inf, dtype=np.float64)
@@ -200,22 +160,15 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
     B_I = np.full((n + 1, m + 1), -np.inf, dtype=np.float64)
 
     # ---- Backward init (same as before) ----
-    if local:
-        for i in range(n + 1):
-            for j in range(m + 1):
-                B_M[i, j] = 0.0
-                B_D[i, j] = 0.0
-                B_I[i, j] = 0.0
-    else:
-        B_M[n, m] = 0.0
-        B_D[n, m] = 0.0
-        B_I[n, m] = 0.0
+    B_M[n, m] = 0.0
+    B_D[n, m] = 0.0
+    B_I[n, m] = 0.0
 
     # ---- Backward DP (from bottom-right to top-left) ----
     for i in range(n, -1, -1):
         for j in range(m, -1, -1):
             # *** 핵심 가드: 글로벌에서는 (n,m)을 덮어쓰지 않음 ***
-            if (not local) and (i == n) and (j == m):
+            if (i == n) and (j == m):
                 continue  # keep B_*[n,m] == 0.0
 
             # M(i,j) -> { M(i+1,j+1), D(i+1,j), I(i,j+1) }
@@ -229,15 +182,7 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
             if (j + 1) <= m:
                 t3 = goI[j] + geI[j] + B_I[i, j + 1]
 
-            if local:
-                # 로컬: 종료 가능하므로 후속이 없으면 0 유지
-                if np.isneginf(t1) and np.isneginf(t2) and np.isneginf(t3):
-                    # keep B_M[i,j] as is (already 0.0)
-                    pass
-                else:
-                    B_M[i, j] = lse3(t1, t2, t3)
-            else:
-                B_M[i, j] = lse3(t1, t2, t3)
+            B_M[i, j] = lse3(t1, t2, t3)
 
             # D(i,j) -> { D(i+1,j), M(i+1,j+1) }
             u1 = -np.inf
@@ -246,13 +191,8 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
                 u1 = geD[i] + B_D[i + 1, j]
             if (i + 1) <= n and (j + 1) <= m:
                 u2 = E_M[i, j] + B_M[i + 1, j + 1]
-            if local:
-                if np.isneginf(u1) and np.isneginf(u2):
-                    pass
-                else:
-                    B_D[i, j] = lse2(u1, u2)
-            else:
-                B_D[i, j] = lse2(u1, u2)
+
+            B_D[i, j] = lse2(u1, u2)
 
             # I(i,j) -> { I(i,j+1), M(i+1,j+1) }
             v1 = -np.inf
@@ -261,13 +201,8 @@ def crf_forward_backward(E_M, goD, geD, goI, geI):
                 v1 = geI[j] + B_I[i, j + 1]
             if (i + 1) <= n and (j + 1) <= m:
                 v2 = E_M[i, j] + B_M[i + 1, j + 1]
-            if local:
-                if np.isneginf(v1) and np.isneginf(v2):
-                    pass
-                else:
-                    B_I[i, j] = lse2(v1, v2)
-            else:
-                B_I[i, j] = lse2(v1, v2)
+
+            B_I[i, j] = lse2(v1, v2)
 
     return F_M, F_D, F_I, B_M, B_D, B_I, logZ
 
@@ -377,7 +312,7 @@ def calculate_lyapunov_pressure(score_matrix, g_od, g_ed, g_oi, g_ei, mu, gamma)
     return (sum_log_c / K) if K > 0 else 0.0
 
 
-def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, gamma=1.0, tol=1e-6):
+def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, gamma=1.0, tol=1e-6) -> float:
     """
     Find mu_c by solving F(mu) = P(mu, gamma=1) = 0.
     """
@@ -407,17 +342,11 @@ def find_critical_fugacity_lyapunov(score_matrix, gaps, mu_bracket, gamma=1.0, t
     if not np.isfinite(p_L) or not np.isfinite(p_U) or np.sign(p_L) == np.sign(p_U):
         raise ValueError(f"Invalid mu bracket [{mu_L}, {mu_U}] for mu_c: F(L)={p_L:.6g}, F(U)={p_U:.6g} (need F(L)<0<F(U)).")
 
-    while (mu_U - mu_L) > tol:
-        mu_M = 0.5 * (mu_L + mu_U)
-        p_M = F(mu_M)
-        if p_M < 0.0:
-            mu_L = mu_M
-        else:
-            mu_U = mu_M
-    return 0.5 * (mu_L + mu_U)
+    # Use Brent's method for faster and more robust root finding.
+    return cast(float, brentq(F, mu_L, mu_U, xtol=tol))
 
 
-def find_lambda_lyapunov(mu, score_matrix, gaps, tol=1e-6):
+def find_lambda_lyapunov(mu, score_matrix, gaps, tol=1e-6) -> float:
     """
     Find lambda(mu) by solving P(mu, gamma) = 0 for mu <= mu_c.
     Bracket: gamma in [0, 1], since P(mu,0) > 0 and P(mu,1) <= 0 in subcritical regime.
@@ -431,30 +360,136 @@ def find_lambda_lyapunov(mu, score_matrix, gaps, tol=1e-6):
     def P_gamma(gamma):
         return calculate_lyapunov_pressure(score_matrix, g_od, g_ed, g_oi, g_ei, mu, gamma)
 
-    # Evaluate ends once
-    p0 = P_gamma(0.0)  # typically > 0
-    p1 = P_gamma(1.0)  # = F(mu) <= 0 if mu <= mu_c
+    gamma_L, gamma_U = 0.0, 1.0
+
+    # Evaluate ends once to check validity of bracket
+    p0 = P_gamma(gamma_L)
+    p1 = P_gamma(gamma_U)
 
     if not np.isfinite(p0) or not np.isfinite(p1):
-        raise ValueError(f"Non-finite pressure: P(mu,0)={p0}, P(mu,1)={p1}")
+        raise ValueError(f"Non-finite pressure at bracket ends: P(mu,0)={p0}, P(mu,1)={p1}")
 
     if p1 > 0.0:
-        # You're actually supercritical (mu > mu_c), so lambda is undefined.
-        raise ValueError(f"mu must be <= mu_c. Got F(mu)=P(mu,1)={p1:.6g} > 0 at mu={mu:.6g}.")
-    if p0 < 0.0:
-        # Very unusual; but if it happens, widen the lower end to find a sign change.
-        # (Could be extreme positive scores/units.)
-        gamma_L, gamma_U = 0.0, 1.0
-        # try expanding upward a bit if needed
-    else:
-        gamma_L, gamma_U = 0.0, 1.0
+        # Supercritical case (mu > mu_c), lambda is not well-defined as a root in [0,1].
+        raise ValueError(f"Cannot find lambda for supercritical mu. F(mu)=P(mu,1)={p1:.6g} > 0 at mu={mu:.6g}.")
 
-    # Bisection on [0,1]
-    while (gamma_U - gamma_L) > tol:
-        gm = 0.5 * (gamma_L + gamma_U)
-        pm = P_gamma(gm)
-        if pm > 0.0:
-            gamma_L = gm
-        else:
-            gamma_U = gm
-    return 0.5 * (gamma_L + gamma_U)
+    # Brent's method requires endpoints to have different signs.
+    # The check for p1 > 0.0 handles the supercritical case.
+    # This handles the unusual case where P(mu,0) < 0.
+    if np.sign(p0) == np.sign(p1):
+        raise ValueError(f"Root finding for lambda failed. Bracket values P(mu,0)={p0:.6g} and P(mu,1)={p1:.6g} do not straddle zero.")
+
+    # Use Brent's method for faster and more robust root finding.
+    return cast(float, brentq(P_gamma, gamma_L, gamma_U, xtol=tol))
+
+
+def fd_second_5pt(f: Callable[[float], float], x: float, h: float) -> float:
+    """5-point central stencil for the 2nd derivative.
+    f''(x) ≈ [-f(x+2h) + 16 f(x+h) - 30 f(x) + 16 f(x-h) - f(x-2h)] / (12 h^2)
+    """
+    f_p2 = f(x + 2 * h)
+    f_p1 = f(x + h)
+    f_0 = f(x)
+    f_m1 = f(x - h)
+    f_m2 = f(x - 2 * h)
+    return (-f_p2 + 16.0 * f_p1 - 30.0 * f_0 + 16.0 * f_m1 - f_m2) / (12.0 * h * h)
+
+
+def fd_third_5pt(f: Callable[[float], float], x: float, h: float) -> float:
+    """5-point central stencil for the 3rd derivative.
+    f'''(x) ≈ [f(x-2h) - 2 f(x-h) + 2 f(x+h) - f(x+2h)] / (2 h^3)
+    """
+    f_p2 = f(x + 2 * h)
+    f_p1 = f(x + h)
+    f_m1 = f(x - h)
+    f_m2 = f(x - 2 * h)
+    return (f_m2 - 2.0 * f_m1 + 2.0 * f_p1 - f_p2) / (2.0 * h**3)
+
+
+def fd_fourth_5pt(f: Callable[[float], float], x: float, h: float) -> float:
+    """5-point central stencil for the 4th derivative.
+    f''''(x) ≈ [f(x-2h) - 4 f(x-h) + 6 f(x) - 4 f(x+h) + f(x+2h)] / (h^4)
+    """
+    f_p2 = f(x + 2 * h)
+    f_p1 = f(x + h)
+    f_0 = f(x)
+    f_m1 = f(x - h)
+    f_m2 = f(x - 2 * h)
+    return (f_m2 - 4.0 * f_m1 + 6.0 * f_0 - 4.0 * f_p1 + f_p2) / (h**4)
+
+
+def golden_maximize(g: Callable[[float], float], a: float, b: float, tol: float = 1e-4, max_iter: int = 200) -> tuple[float, float]:
+    """Maximize g on [a,b] using scipy's minimize_scalar. Returns (x*, g(x*)).
+    Assumes g is unimodal on the interval."""
+    # We use minimize_scalar to find the maximum by minimizing the negative of the function.
+    res = minimize_scalar(lambda x: -g(x), bounds=(a, b), method="bounded", options={"xatol": tol, "maxiter": max_iter})
+
+    if not res.success:
+        # Depending on requirements, could warn or raise here.
+        # For now, just return the found value.
+        pass
+
+    return res.x, -res.fun
+
+
+@dataclass
+class PeakSearchConfig:
+    bracket_radius: float = 1.0  # search window around mu_c
+    h: float = 0.05  # finite-difference step
+    golden_tol: float = 1e-4  # tolerance for golden-section
+    newton_tol: float = 1e-6  # stop when |P'''| < tol
+    max_newton_iter: int = 12
+
+
+def estimate_var_peak_by_pressure(
+    pressure_func: Callable[[float], float],
+    mu_c: float,
+    cfg: PeakSearchConfig = PeakSearchConfig(),
+) -> tuple[float, float]:
+    """Method 1: Fast proxy peak via maximizing the 2nd derivative of P(mu).
+    Returns (mu_hat, proxy_second_derivative_value)."""
+    a = mu_c - cfg.bracket_radius
+    b = mu_c + cfg.bracket_radius
+
+    def second_deriv(mu: float) -> float:
+        return fd_second_5pt(pressure_func, mu, cfg.h)
+
+    mu_hat, sec_val = golden_maximize(second_deriv, a, b, tol=cfg.golden_tol)
+    return mu_hat, sec_val
+
+
+def newton_var_peak_by_pressure(
+    pressure_func: Callable[[float], float],
+    mu0: float,
+    cfg: PeakSearchConfig = PeakSearchConfig(),
+    hard_bracket: Optional[tuple[float, float]] = None,
+) -> tuple[float, int]:
+    """Method 2: Find root of P'''(mu)=0 using Brent's method.
+    Returns (mu_star, iters=1 for compatibility). Optionally clamps to 'hard_bracket'."""
+
+    def third_deriv(mu: float) -> float:
+        return fd_third_5pt(pressure_func, mu, cfg.h)
+
+    # Define search bracket for the root of P'''
+    # If a hard_bracket is provided, use it. Otherwise, create one around mu0.
+    if hard_bracket:
+        a, b = hard_bracket
+    else:
+        # Heuristic bracket around the initial guess mu0
+        a, b = mu0 - cfg.bracket_radius / 2, mu0 + cfg.bracket_radius / 2
+
+    try:
+        # Brent's method requires the function values at the endpoints to have opposite signs.
+        fa, fb = third_deriv(a), third_deriv(b)
+        if np.sign(fa) == np.sign(fb):
+            # If not, we can try to expand the bracket or just fail.
+            # For now, we'll raise an error as this indicates an issue with the bracket.
+            raise ValueError(f"Root for P''' not bracketed in [{a}, {b}]. f(a)={fa}, f(b)={fb}")
+
+        mu_star, r = brentq(third_deriv, a, b, xtol=cfg.newton_tol, full_output=True)
+        return mu_star, r.iterations
+    except (ValueError, RuntimeError):
+        # Fallback or error handling if brentq fails
+        # For now, just return the initial guess. A warning could be logged.
+        # print(f"Warning: Newton-like peak finding failed: {e}. Returning mu0.")
+        return mu0, 0
