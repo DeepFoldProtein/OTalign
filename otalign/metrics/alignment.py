@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import numpy as np
+
 
 Pair = tuple[int, int]
 
@@ -81,3 +83,22 @@ def alignment_scores(pred_pairs: set[Pair], ref_pairs: set[Pair], tolerance: int
         jaccard = tp / union
 
     return AlignmentScores(precision=precision, recall=recall, f1=f1, jaccard=jaccard, tp=tp, fp=fp, fn=fn, pred_size=pred_size, ref_size=ref_size)
+
+
+def build_ref_matrix(ref: set[Pair], m: int, n: int) -> np.ndarray:
+    T = np.zeros((m, n))
+    for i, j in ref:
+        T[i, j] = 1
+    return T
+
+
+def soft_alignment_scores(prob_match: np.ndarray, ref_matrix: np.ndarray, eps: float = 1e-6) -> dict[str, float]:
+    tp_soft = np.sum(prob_match * ref_matrix)
+    ENM = np.sum(prob_match)
+    ref_size = ref_matrix.sum()
+
+    prec_soft = tp_soft / (ENM + eps)
+    recall_soft = tp_soft / (ref_size + eps)
+    f1_soft = 2 * prec_soft * recall_soft / (prec_soft + recall_soft)
+
+    return {"soft_precision": prec_soft, "soft_recall": recall_soft, "soft_f1": f1_soft}
