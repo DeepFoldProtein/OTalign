@@ -55,6 +55,7 @@ datasets:
 # Define all models and alignment tools to be benchmarked.
 models:
   # --- OTalign Models ---
+
   otalign_esm1b:
     tool: "otalign"
     plm: "ESM1b_33_650M"
@@ -64,6 +65,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_esm2:
     tool: "otalign"
     plm: "ESM2_33_650M"
@@ -73,6 +75,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_ankhcl:
     tool: "otalign"
     plm: "AnkhCL"
@@ -82,6 +85,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_ankh_base:
     tool: "otalign"
     plm: "Ankh_Base"
@@ -91,6 +95,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_ankh_large:
     tool: "otalign"
     plm: "Ankh_Large"
@@ -100,6 +105,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_ankh3_large:
     tool: "otalign"
     plm: "Ankh3_Large"
@@ -109,6 +115,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_ankh3_xl:
     tool: "otalign"
     plm: "Ankh3_XL"
@@ -118,6 +125,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 8
+
   otalign_prott5:
     tool: "otalign"
     plm: "ProtT5_XL_UniRef50"
@@ -127,6 +135,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_esm2_6_8m:
     tool: "otalign"
     plm: "ESM2_6_8M"
@@ -136,6 +145,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_esm2_12_35m:
     tool: "otalign"
     plm: "ESM2_12_35M"
@@ -145,6 +155,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_esm2_30_150m:
     tool: "otalign"
     plm: "ESM2_30_150M"
@@ -154,6 +165,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_esm2_36_3b:
     tool: "otalign"
     plm: "ESM2_36_3B"
@@ -163,6 +175,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   otalign_proteinglm_100b_int4:
     tool: "otalign"
     plm: "ProteinGLM_100B_INT4"
@@ -174,6 +187,7 @@ models:
       align_batch_size: 16
 
   # --- Trained OTalign Model ---
+
   otalign_esm1b_lora_ft2_2:
     tool: "otalign"
     checkpoint_path: "work/checkpoints/esm1b-lora-finetune-2/checkpoint-epoch-2" # Checkpoint path
@@ -184,6 +198,7 @@ models:
       epsilon: 0.1
       tau: 1.0
       align_batch_size: 16
+
   esm1b-lora-finetune-ot-head-1:
     tool: "otalign"
     checkpoint_path: "work/checkpoints/esm1b-lora-finetune-ot-head-1/checkpoint-epoch-2" # Checkpoint path
@@ -195,43 +210,47 @@ models:
       tau: 1.0
       align_batch_size: 16
 
-  # --- Baseline Models ---
+  # --- OTalign-CRF ---
   otalign-crf-ankh-large:
     tool: "otalign-crf"
     plm: "Ankh_Large"
     label: "OTalign-CRF (Ankh-Large)"
     color: "#ff5f0e"
     params:
-      align_batch_size: 16
-      reg_init: 1.0
-      reg_final: 0.01
-      reg_steps: 5
-      reg_m: 1.0
+      align_batch_size: 128
+      # reg_init: 1.0
+      # reg_final: 0.01
+      # reg_steps: 5
+      # reg_m: 1.0
+
   otalign-crf-prott5:
     tool: "otalign-crf"
     plm: "ProtT5_XL_UniRef50"
     label: "OTalign-CRF (ProtT5-XL)"
     color: "#ff1f0e"
     params:
-      align_batch_size: 16
-      reg_init: 1.0
-      reg_final: 0.01
-      reg_steps: 5
-      reg_m: 1.0
+      align_batch_size: 128
+      # reg_init: 1.0
+      # reg_final: 0.01
+      # reg_steps: 5
+      # reg_m: 1.0
 
   # --- Baseline Models ---
+
   hhalign:
     tool: "hhalign"
     label: "HHalign"
     color: "#808080"
     params:
       mode: "global"
+
   nwalign:
     tool: "nwalign"
     label: "NWalign"
     color: "#A9A9A9"
     params:
       glocal: 0 # 0 for global alignment
+
   deepblast:
     tool: "deepblast"
     label: "DeepBLAST (NW)"
@@ -276,15 +295,16 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
-      - "otalign_esm2"
-      - "otalign_esm1b"
+      # - "otalign_esm2"
+      # - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
       # - "otalign_esm2_12_35m"
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
-      - "otalign-crf-prott5"
+      # - "otalign-crf-prott5"
+
   malisam:
     datasets: ["malisam"]
     models:
@@ -299,15 +319,16 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
-      - "otalign_esm2"
-      - "otalign_esm1b"
+      # - "otalign_esm2"
+      # - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
       # - "otalign_esm2_12_35m"
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
-      - "otalign-crf-prott5"
+      # - "otalign-crf-prott5"
+
   sabmark-sup:
     datasets: ["sabmark_sup"]
     models:
@@ -322,15 +343,16 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
-      - "otalign_esm2"
-      - "otalign_esm1b"
+      # - "otalign_esm2"
+      # - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
       # - "otalign_esm2_12_35m"
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
-      - "otalign-crf-prott5"
+      # - "otalign-crf-prott5"
+
   sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -345,15 +367,15 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
-      - "otalign_esm2"
-      - "otalign_esm1b"
+      # - "otalign_esm2"
+      # - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
       # - "otalign_esm2_12_35m"
       # - "otalign_esm2_30_150m"
       # - "otalign_esm2_36_3b"
       # - "otalign_proteinglm_100b_int4"
       - "otalign-crf-ankh-large"
-      - "otalign-crf-prott5"
+      # - "otalign-crf-prott5"
 
   sabmark-sup_fp:
     datasets: ["sabmark_sup_fp"]
@@ -361,14 +383,15 @@ tests:
       - "otalign_ankhcl"
       - "nwalign"
       - "hhalign"
-      - "otalign-crf-ankh-large"
+      # - "otalign-crf-ankh-large"
+
   sabmark-twi_fp:
     datasets: ["sabmark_twi_fp"]
     models:
       - "otalign_ankhcl"
       - "nwalign"
       - "hhalign"
-      - "otalign-crf-ankh-large"
+      # - "otalign-crf-ankh-large"
 
   finetune-sabmark-sup:
     datasets: ["sabmark_sup"]
@@ -384,6 +407,7 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2_2"
+
   finetune-sabmark-twi:
     datasets: ["sabmark_twi"]
     models:
@@ -398,6 +422,7 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2_2"
+
   finetune-malidup:
     datasets: ["malidup"]
     models:
@@ -412,6 +437,7 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2_2"
+
   finetune-malisam:
     datasets: ["malisam"]
     models:
@@ -499,43 +525,43 @@ plotting:
         title: "Malisam Benchmark (F1 Score)"
         metrics: ["f1"]
 
-  finetune-sabmark-sup:
-    plots:
-      metrics_box:
-        type: "boxplot"
-        title: "SABmark (Superfamlies) Benchmark"
-        metrics: ["f1", "recall", "precision"]
-      recall_bar:
-        type: "barplot"
-        title: "SABmark (Superfamlies) Recall Comparison"
-        metrics: ["recall"]
-  finetune-sabmark-twi:
-    plots:
-      metrics_box:
-        type: "boxplot"
-        title: "SABmark (Twilights) Benchmark"
-        metrics: ["f1", "recall", "precision"]
-      recall_bar:
-        type: "barplot"
-        title: "SABmark (Twilights) Recall Comparison"
-        metrics: ["recall"]
-  finetune-malidup:
-    plots:
-      metrics_box:
-        type: "boxplot"
-        title: "Malidup Benchmark"
-        metrics: ["f1", "recall", "precision"]
-      f1_bar:
-        type: "barplot"
-        title: "Malidup Benchmark (F1 Score)"
-        metrics: ["f1"]
-  finetune-malisam:
-    plots:
-      metrics_box:
-        type: "boxplot"
-        title: "Malisam Benchmark"
-        metrics: ["f1", "recall", "precision"]
-      f1_bar:
-        type: "barplot"
-        title: "Malisam Benchmark (F1 Score)"
-        metrics: ["f1"]
+  # finetune-sabmark-sup:
+  #   plots:
+  #     metrics_box:
+  #       type: "boxplot"
+  #       title: "SABmark (Superfamlies) Benchmark"
+  #       metrics: ["f1", "recall", "precision"]
+  #     recall_bar:
+  #       type: "barplot"
+  #       title: "SABmark (Superfamlies) Recall Comparison"
+  #       metrics: ["recall"]
+  # finetune-sabmark-twi:
+  #   plots:
+  #     metrics_box:
+  #       type: "boxplot"
+  #       title: "SABmark (Twilights) Benchmark"
+  #       metrics: ["f1", "recall", "precision"]
+  #     recall_bar:
+  #       type: "barplot"
+  #       title: "SABmark (Twilights) Recall Comparison"
+  #       metrics: ["recall"]
+  # finetune-malidup:
+  #   plots:
+  #     metrics_box:
+  #       type: "boxplot"
+  #       title: "Malidup Benchmark"
+  #       metrics: ["f1", "recall", "precision"]
+  #     f1_bar:
+  #       type: "barplot"
+  #       title: "Malidup Benchmark (F1 Score)"
+  #       metrics: ["f1"]
+  # finetune-malisam:
+  #   plots:
+  #     metrics_box:
+  #       type: "boxplot"
+  #       title: "Malisam Benchmark"
+  #       metrics: ["f1", "recall", "precision"]
+  #     f1_bar:
+  #       type: "barplot"
+  #       title: "Malisam Benchmark (F1 Score)"
+  #       metrics: ["f1"]

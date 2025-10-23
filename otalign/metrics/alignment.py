@@ -92,13 +92,17 @@ def build_ref_matrix(ref: set[Pair], m: int, n: int) -> np.ndarray:
     return T
 
 
-def soft_alignment_scores(prob_match: np.ndarray, ref_matrix: np.ndarray, eps: float = 1e-6) -> dict[str, float]:
+def soft_alignment_scores(prob_match: np.ndarray, ref_matrix: np.ndarray, eps: float = 1e-5) -> dict[str, float]:
     tp_soft = np.sum(prob_match * ref_matrix)
     ENM = np.sum(prob_match)
     ref_size = ref_matrix.sum()
 
-    prec_soft = tp_soft / (ENM + eps)
-    recall_soft = tp_soft / (ref_size + eps)
-    f1_soft = 2 * prec_soft * recall_soft / (prec_soft + recall_soft)
+    precision = tp_soft / (ENM + eps)
+    recall = tp_soft / (ref_size + eps)
+    pr_sum = precision + recall
+    if pr_sum != pr_sum or pr_sum == 0:  # check for nan or zero
+        f1 = 0.0
+    else:
+        f1 = 2 * precision * recall / pr_sum
 
-    return {"soft_precision": prec_soft, "soft_recall": recall_soft, "soft_f1": f1_soft}
+    return {"soft_precision": precision, "soft_recall": recall, "soft_f1": f1}

@@ -33,7 +33,7 @@ class Plotter:
         self.cli_args = cli_args
         self.results_dir = Path(config["paths"]["results_dir"])
         self.plots_dir = Path(config["paths"]["plots_dir"])
-        self.plot_format = cli_args.plot_format if hasattr(cli_args, "plot_format") and cli_args.plot_format else "png"
+        self.plot_format = cli_args.format if hasattr(cli_args, "format") and cli_args.format else "png"
         self.global_plot_style = config.get("plot_style", {})
         self.plots_dir.mkdir(exist_ok=True)
 
