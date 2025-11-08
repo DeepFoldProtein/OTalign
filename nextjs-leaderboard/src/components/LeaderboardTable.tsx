@@ -134,24 +134,6 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort("malidup_f1")}
-              >
-                <div className="flex items-center gap-1">
-                  MALIDUP F1
-                  <SortIcon field="malidup_f1" />
-                </div>
-              </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                onClick={() => handleSort("malisam_f1")}
-              >
-                <div className="flex items-center gap-1">
-                  MALISAM F1
-                  <SortIcon field="malisam_f1" />
-                </div>
-              </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                 onClick={() => handleSort("sabmark_sup_recall")}
               >
                 <div className="flex items-center gap-1">
@@ -166,6 +148,24 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                 <div className="flex items-center gap-1">
                   SABmark (twi) Recall
                   <SortIcon field="sabmark_twi_recall" />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                onClick={() => handleSort("malidup_f1")}
+              >
+                <div className="flex items-center gap-1">
+                  MALIDUP F1
+                  <SortIcon field="malidup_f1" />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                onClick={() => handleSort("malisam_f1")}
+              >
+                <div className="flex items-center gap-1">
+                  MALISAM F1
+                  <SortIcon field="malisam_f1" />
                 </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
@@ -240,16 +240,16 @@ export default function LeaderboardTable({ data }: LeaderboardTableProps) {
                   {formatScore(entry.average)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {formatScore(entry.malidup_f1)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {formatScore(entry.malisam_f1)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {formatScore(entry.sabmark_sup_recall)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {formatScore(entry.sabmark_twi_recall)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {formatScore(entry.malidup_f1)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {formatScore(entry.malisam_f1)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {entry.organization}
