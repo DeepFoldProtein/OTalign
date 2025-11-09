@@ -1,4 +1,4 @@
-# **OTalign: Optimal Transport Alignment for Remote Protein Homologs Using Protein Language Model Embeddings**
+# **OTalign: Optimal Transport Based Protein Sequence Alignment**
 
 <div align="center"> <img src="assets/logo_with_text.png" alt="OTalign Logo" width="400"></div>
 
