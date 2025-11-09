@@ -93,11 +93,13 @@ OTalign demonstrates superior performance compared to traditional and other deep
 
 | Method | SABmark (sup) F1 ⬆️ | SABmark (twi) F1 ⬆️ | MALIDUP F1 ⬆️ | MALISAM F1 ⬇️ |
 | :---- | :---- | :---- | :---- | :---- |
-| Needleman-Wunsch | 0.386 | 0.118 | 0.349 | 0.066 |
-| HHalign | 0.454 | 0.196 | 0.383 | 0.009 |
-| DeepBLAST (ProtT5-XL) | 0.694 | 0.283 | 0.550 | - |
-| PLMAlign (ProtT5-XL) | 0.469 | 0.253 | 0.590 | - |
-| OTalign (ProtT5-XL) | 0.678 | 0.330 | 0.590 | 0.201 |
+| Needleman-Wunsch | 0.334 | 0.118 | 0.349 | 0.066 |
+| HHalign | 0.454 | 0.196 | 0.491 | **0.011** |
+| DeepBLAST (ProtT5-XL) | 0.518 | 0.283 | 0.522 | 0.151 |
+| PLMAlign (ProtT5-XL) | 0.469 | 0.253 | 0.507 | 0.168 |
+| OTalign (ProtT5-XL) | 0.565 | 0.330 | 0.590 | 0.201 |
+| OTalign (ESM-1b) | 0.417 | 0.189 | 0.415 | 0.063 |
+| OTalign (PSM-2 650M) | 0.540 | 0.113 | 0.519 | 0.107 |
 | **OTalign (Ankh-Large)** | **0.594** | **0.358** | **0.640** | 0.191 |
 
 <!-- These findings confirm that the OTalign alignment framework achieves robust and consistent performance across diverse PLM embeddings and sequence characteristics. -->
