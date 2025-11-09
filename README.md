@@ -53,7 +53,7 @@ python scripts/run_otalign_on_dataset.py \
   --output out/malidup_predictions.jsonl
 ```
 
-* `--dataset`: Specifies the dataset. For Hugging Face datasets, the format is user/dataset,config,split.  
+* `--dataset`: Specifies the dataset. For Hugging Face datasets, the format is `user/dataset,config,split`.  
 * `--model`: The name of the base PLM (e.g., AnkhCL, ESM2_33_650M) or the path to a fine-tuned checkpoint.  
 * `--cache_dir`: Path to a directory for caching embeddings to accelerate subsequent runs.  
 * `--dp_mode`: The dynamic programming mode (global, local, or glocal).
