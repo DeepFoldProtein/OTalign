@@ -17,8 +17,8 @@
 
 OTalign performs alignment in a three-stage process:
 
-1. **Embedding**: Protein sequences are fed into a PLM to generate high-dimensional embeddings for each residue. These embeddings capture structural and functional context.  
-2. **Optimal Transport**: The two sets of residue embeddings are treated as empirical distributions. OTalign then computes an optimal **entropy-regularized unbalanced optimal transport (UOT)** plan that minimizes the "cost" (based on cosine distance) of transforming one distribution into the other. This plan represents a soft, many-to-many mapping between residues.  
+1. **Optimal Transport**: The two sets of residue embeddings are treated as empirical distributions. OTalign then computes an optimal **entropy-regularized unbalanced optimal transport (UOT)** plan that minimizes the "cost" (based on cosine distance) of transforming one distribution into the other. This plan represents a soft, many-to-many mapping between residues.  
+2. **Embedding**: Protein sequences are fed into a PLM to generate high-dimensional embeddings for each residue. These embeddings capture structural and functional context.  
 3. **Dynamic Programming**: The soft transport plan is used to derive **position-specific match scores** (from Pointwise Mutual Information) and **position-specific gap penalties** (from UOT dual potentials). These parameters guide a standard Dynamic Programming algorithm to produce the final, discrete gapped alignment.
 
 ## **Setup**
