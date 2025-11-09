@@ -121,7 +121,18 @@ We provide a comprehensive online leaderboard that enables systematic evaluation
 If you use OTalign in your research, please cite our paper:
 
 ```bibtex
-
+@article{minsoo2025,
+      title={OTalign: Optimal Transport Alignment for Remote Protein Homologs Using Protein Language Model Embeddings}, 
+      author={Minsoo Kim, Hanjin Bae, Gyeongpil Jo, Kunwoo Kim, Jejoong Yoo, and Keehyoung Joo},
+      volume={},
+      ISSN={},
+      doi={},
+      number={},
+      journal={under review},
+      publisher={},
+      author={},
+      year={},
+      pages={}
 ```
 
 <!-- OTalign: Optimal Transport Alignment for Remote Protein Homologs Using Protein Language Model Embeddings  
