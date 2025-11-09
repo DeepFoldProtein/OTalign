@@ -92,7 +92,7 @@ To start training:
 
 OTalign demonstrates superior performance compared to traditional and other deep learning-based methods, especially on remote homolog benchmarks. Results below are F1-Scores.
 
-| Method | SABmark (sup) F1 ⬆️ | SABmark (twi) F1 ⬆️ | MALIDUP F1 ⬆️ | MALISAM F1 ⬇️ |
+| Method | SABmark (sup) F1 ⬆️ | SABmark (twi) F1 ⬆️ | MALIDUP F1 ⬆️ | MALISAM F1 ⬆️ |
 | :---- | :---- | :---- | :---- | :---- |
 | Needleman-Wunsch | 0.334 | 0.118 | 0.349 | 0.066 |
 | HHalign | 0.454 | 0.196 | 0.491 | 0.011 |
