@@ -6,11 +6,11 @@
 
 ## **Key Features**
 
-* **PLM-Powered**: Utilizes rich, contextual embeddings from state-of-the-art PLMs like ESM, Ankh, and ProtT5.  
 * **Optimal Transport Core**: Employs **Unbalanced Optimal Transport (UOT)** with the Sinkhorn algorithm to find an optimal residue-level correspondence (a "transport plan").  
 * **Position-Specific Gap Penalties**: Introduces adaptive gap penalties derived from OT dual potentials, a principled alternative to fixed-cost models.  
 * **Fine-Tuning Framework**: Includes a complete, differentiable framework for fine-tuning PLMs on alignment tasks using a custom KL-Divergence-based loss and Parameter-Efficient Fine-Tuning (PEFT) with LoRA.  
 * **High Performance**: Achieves state-of-the-art results on challenging remote homolog benchmarks (SABmark, MALIDUP, MALISAM).  
+* **PLM-Powered**: Utilizes rich, contextual embeddings from state-of-the-art PLMs like ESM, Ankh, and ProtT5.  
 * **PLM Probing Tool**: Provides a quantitative framework to evaluate how well PLM embeddings capture structural and functional relationships.
 
 ## **How OTalign Works**
