@@ -2,7 +2,8 @@
 
 <div align="center"> <img src="assets/logo_with_text.png" alt="OTalign Logo" width="400"></div>
 
-**OTalign** is a novel protein sequence alignment method that leverages the power of protein language models (PLMs) and the mathematical rigor of optimal transport (OT). It reframes the alignment task as a mathematically principled distribution matching problem, enabling robust and accurate alignments even for remote homologs.
+**OTalign** is a new method that applies Optimal Transport (OT) theory to sequence alignment, providing a mathematically principled
+framework for modeling residue matches and gaps. It integrates protein language model embeddings to capture evolutionary and structural context, enabling accurate alignment even for remote homologs in the low-identity (“twilight”) zone.
 
 ## **Key Features**
 
