@@ -37,7 +37,7 @@ max_len1: 1024
 max_len2: 1024
 
 # -- Training Settings --
-train_full_head: true # Whether to train the full language model head.
+train_full_head: false # Whether to train the full language model head.
 epochs: 50
 batch_size: 2
 lr: 1.0e-4
@@ -48,7 +48,7 @@ seed: 42
 
 # -- Uncertainty Weighting Settings --
 uncertainty:
-  enabled: true
+  enabled: false
   min_logvar: -4.0
   max_logvar: 4.0
   tasks:
