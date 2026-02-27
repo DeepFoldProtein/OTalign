@@ -3,7 +3,6 @@ import logging
 from tqdm import tqdm
 
 from benchmark.modules.base_evaluator import BaseEvaluator
-from scripts.run_deepblast_on_dataset import run_deepblast_evaluation
 
 
 class DeepblastEvaluator(BaseEvaluator):
@@ -15,6 +14,9 @@ class DeepblastEvaluator(BaseEvaluator):
         """
         if not self.should_run():
             return
+
+        # Lazy import so the benchmark can load without deepblast when only running e.g. plmblast
+        from scripts.run_deepblast_on_dataset import run_deepblast_evaluation
 
         # Construct the dataset identifier
         dataset_id = self.dataset_config["id"]

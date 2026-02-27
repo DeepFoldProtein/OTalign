@@ -59,6 +59,24 @@ python scripts/run_otalign_on_dataset.py \
 * `--cache_dir`: Path to a directory for caching embeddings to accelerate subsequent runs.  
 * `--dp_mode`: The dynamic programming mode (global, local, or glocal).
 
+## **EBA benchmark (MALIDUP, MALISAM, SABmark-sup, SABmark-twi)**
+
+To run the [EBA](https://github.com/DeepFoldProtein/EBA) (Embedding-based alignment) model **eba_prott5** on all four benchmarks and generate plots, use the EBA uv environment and the following commands (from project root):
+
+```bash
+# 1. Sync submodule and EBA env (once)
+git submodule update --init third_party/eba
+uv sync --directory .uv/eba
+
+# 2. Run eba_prott5 on MALIDUP, MALISAM, SABmark-sup, SABmark-twi
+.uv/eba/.venv/bin/python -m benchmark run --tests malidup malisam sabmark-sup sabmark-twi --models eba_prott5 --update
+
+# 3. Generate plots for all four benchmarks
+.uv/eba/.venv/bin/python -m benchmark plot --tests malidup malisam sabmark-sup sabmark-twi
+```
+
+Results are written to `out/results/<test>/eba_prott5/`; plots to `out/plots/`.
+
 ## **Documentation**
 
 For more detailed information, please refer to the following documents:
@@ -66,6 +84,7 @@ For more detailed information, please refer to the following documents:
 * [**Reproduction Guide**](docs/reproduction.md): Instructions on how to reproduce our benchmark results and run baseline models.  
 * [**Training Details**](docs/training_details.md): An in-depth explanation of the training process, loss functions, and model configuration.  
 * [**Dataset Generation**](docs/dataset_generation.md): A guide on how the CATH-based training dataset was constructed.
+* [**ECOD Homolog Detection Benchmark**](docs/ecod_benchmark.md): Guide for the ECOD-based homolog detection benchmark with ROC/PR curve evaluation.
 
 ## **Training: Fine-Tuning a Model**
 

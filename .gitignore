@@ -234,6 +234,9 @@ Temporary Items
 ### Experiments ###
 .cache/
 /wandb
-/data
+/data/*
+!/data/ecod30_hard/
 /work
 /out
+results/
+.claude/

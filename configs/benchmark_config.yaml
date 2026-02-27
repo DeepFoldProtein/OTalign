@@ -15,6 +15,10 @@ paths:
   nwalign_bin: "NWalign"
   # Path to the DeepBLAST checkpoint
   deepblast_checkpoint: "data/deepblast/deepblast-v3.ckpt"
+  # pLM-BLAST (git submodule)
+  plmblast_root: "third_party/plmblast"
+  # DEDAL (git submodule)
+  dedal_root: "third_party/dedal"
 
 # 2. Datasets
 # Define the benchmark datasets to be used.
@@ -50,6 +54,11 @@ datasets:
     config: "all"
     split: "test"
     hhm_dir: "data/hhsuite/malisam/hhm"
+  
+  # ECOD30 Hard benchmark (pLM-BLAST paper style, 30% seq-id matching paper)
+  ecod30_hard:
+    data_dir: "data/ecod30_hard"
+    description: "ECOD30 Hard benchmark (pLM-BLAST paper): 300 H-groups × 5 domains, 30% seq-id clustering"
 
 # 3. Models and Tools
 # Define all models and alignment tools to be benchmarked.
@@ -258,6 +267,102 @@ models:
       alignment_mode: "local"
       plm_model: "ProtT5_XL_UniRef50"
 
+  # --- pLM-BLAST (https://github.com/labstructbioinf/pLM-BLAST) ---
+  plmblast_prott5:
+    tool: "plmblast"
+    plm: "ProtT5_XL_UniRef50"
+    label: "pLM-BLAST (ProtT5-XL)"
+    color: "#e78ac3"
+    params:
+      global_alignment: true  # Global performs better than local on this benchmark (0.07 vs 0.05 F1)
+
+  # --- DEDAL (https://github.com/DeepFoldProtein/dedal-fork) ---
+  dedal:
+    tool: "dedal"
+    label: "DEDAL"
+    color: "#9ecae1"
+    model_url: "https://tfhub.dev/google/dedal/3"
+    params:
+      max_length: 512
+      use_gpu: true  # Set to false for CPU-only (slower but avoids PTX errors on some GPUs)
+
+  # --- EBA (https://github.com/DeepFoldProtein/EBA) ---
+  eba_prott5:
+    tool: "eba"
+    label: "EBA (ProtT5)"
+    color: "#fdae6b"
+    params:
+      plm: "ProtT5"
+      l: 1.0  # similarity matrix regularization
+
+  # --- ECOD Homolog Detection (H-group / X-group, paper convention) ---
+  ecod_plmblast_prott5:
+    tool: "ecod_homolog"
+    plm: "ProtT5_XL_UniRef50"
+    label: "pLM-BLAST (ProtT5) - ECOD"
+    color: "#e78ac3"
+    params:
+      global_alignment: true
+
+  # --- OTalign ECOD Homolog Detection ---
+  ecod_otalign_ankh_large:
+    tool: "ecod_homolog"
+    plm: "Ankh_Large"
+    label: "OTalign (Ankh-Large) - ECOD"
+    color: "#74c476"
+    params:
+      score_method: "mean_cosine"
+      reg: 0.1
+      lambda1: 1.0
+      lambda2: 1.0
+      num_iter: 1000
+      align_batch_size: 16
+  ecod_otalign_prott5:
+    tool: "ecod_homolog"
+    plm: "ProtT5_XL_UniRef50"
+    label: "OTalign (ProtT5) - ECOD"
+    color: "#66c2a5"
+    params:
+      score_method: "mean_cosine"
+      reg: 0.1
+      lambda1: 1.0
+      lambda2: 1.0
+      num_iter: 1000
+      align_batch_size: 16
+  ecod_otalign_esm2:
+    tool: "ecod_homolog"
+    plm: "ESM2_33_650M"
+    label: "OTalign (ESM-2 650M) - ECOD"
+    color: "#3182bd"
+    params:
+      score_method: "mean_cosine"
+      reg: 0.1
+      lambda1: 1.0
+      lambda2: 1.0
+      num_iter: 1000
+      align_batch_size: 16
+
+  # --- EBA ECOD Homolog Detection ---
+  ecod_eba_prott5:
+    tool: "ecod_homolog"
+    plm: "ProtT5"
+    label: "EBA (ProtT5) - ECOD"
+    color: "#fdae6b"
+    params:
+      eba_score_method: "EBA_min"
+      l_sim: 1.0
+
+  # --- DEDAL ECOD Homolog Detection ---
+  ecod_dedal:
+    tool: "ecod_homolog"
+    label: "DEDAL - ECOD"
+    color: "#9ecae1"
+    params:
+      dedal_score_method: "sw_scores"
+      model_url: "https://tfhub.dev/google/dedal/3"
+      max_length: 512
+      use_gpu: false
+
 # 4. Benchmark Tests
 # Define which models to run on which datasets.
 # This allows for flexible and targeted benchmarking.
@@ -276,6 +381,9 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
+      - "plmblast_prott5"
+      - "dedal"
+      - "eba_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
@@ -299,6 +407,9 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
+      - "plmblast_prott5"
+      - "dedal"
+      - "eba_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
@@ -322,6 +433,9 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
+      - "plmblast_prott5"
+      - "dedal"
+      - "eba_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
@@ -345,6 +459,9 @@ tests:
       - "deepblast"
       - "plmalign_prott5_global"
       # - "plmalign_prott5_local"
+      - "plmblast_prott5"
+      - "dedal"
+      - "eba_prott5"
       - "otalign_esm2"
       - "otalign_esm1b"
       # - "otalign_esm2_6_8m"
@@ -426,6 +543,18 @@ tests:
       - "otalign_esm2"
       - "otalign_esm1b"
       - "otalign_esm1b_lora_ft2_2"
+
+  # ECOD30 Hard benchmark (pLM-BLAST paper style, 30% seq-id matching paper)
+  # All-vs-all comparison of 1,500 domains (300 H-groups × 5)
+  ecod30_hard:
+    datasets: ["ecod30_hard"]
+    models:
+      - "ecod_plmblast_prott5"
+      - "ecod_otalign_ankh_large"
+      - "ecod_otalign_prott5"
+      - "ecod_otalign_esm2"
+      - "ecod_eba_prott5"
+      - "ecod_dedal"
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.
