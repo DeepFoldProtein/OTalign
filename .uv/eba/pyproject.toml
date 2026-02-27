@@ -1,0 +1,31 @@
+# EBA benchmark test environment (PyTorch, transformers, EBA)
+#
+# Install from project root:
+#   uv sync --directory .uv/eba
+#
+# Run malidup benchmark (EBA only):
+#   .uv/eba/.venv/bin/python -m benchmark run --tests malidup --models eba --update
+
+[project]
+name = "otalign-eba"
+version = "0.0.1"
+description = "EBA benchmark test environment for OTalign"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "OTalign",
+    "datasets",
+    "numpy",
+    "scipy",
+    "numba",
+    "torch",
+    "transformers",
+    "sentencepiece",
+    "tqdm",
+    "fair-esm",
+]
+
+[tool.uv.sources]
+OTalign = { path = "../..", editable = true }
+
+[tool.uv]
+package = false

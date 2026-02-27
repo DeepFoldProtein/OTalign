@@ -56,6 +56,7 @@ def main():
     # --- 'run' command ---
     run_parser = subparsers.add_parser("run", help="Execute benchmark tests")
     run_parser.add_argument("--tests", type=str, nargs="+", help="Run benchmarks only for a specific test (e.g., 'malidup')")
+    run_parser.add_argument("--models", type=str, nargs="+", help="Run only these models (e.g., 'plmblast_prott5'). Uses config list if not set.")
     run_parser.add_argument("--update", action="store_true", help="Force re-computation of results")
     run_parser.add_argument("--device", type=str, default="cuda", help="Device to run evaluation on (e.g., 'cpu', 'cuda'). Auto-detects if not set.")
     run_parser.add_argument("--workers", type=int, default=1, help="Number of workers for tools like NWalign and HHalign.")

@@ -19,11 +19,16 @@ def run_benchmarks(config, args):
         tests_to_run = {test: tests_to_run[test] for test in args.tests}
 
     for test_name, test_config in tests_to_run.items():
+        model_keys = test_config["models"]
+        if getattr(args, "models", None):
+            model_keys = [m for m in model_keys if m in args.models]
+            if not model_keys:
+                continue
         for dataset_name in test_config["datasets"]:
             dataset_config = config["datasets"][dataset_name]
             dataset_config["name"] = dataset_name  # Add name to config for easy access
 
-            for model_key in test_config["models"]:
+            for model_key in model_keys:
                 model_config = config["models"][model_key]
                 model_config["_key"] = model_key  # Inject the key for the evaluator
 

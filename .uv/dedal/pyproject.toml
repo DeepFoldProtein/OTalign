@@ -1,0 +1,30 @@
+# DEDAL benchmark test environment (TensorFlow, TF Hub)
+#
+# Install from project root:
+#   uv sync --directory .uv/dedal
+#
+# Run malidup benchmark (DEDAL only):
+#   .uv/dedal/run_benchmark.sh malidup
+
+[project]
+name = "otalign-dedal"
+version = "0.0.1"
+description = "DEDAL benchmark test environment for OTalign"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "OTalign",
+    "datasets",
+    "setuptools",
+    "gin-config>=0.4.0",
+    "matplotlib>=3.7",
+    "numpy>=1.18",
+    "pandas>=2.0",
+    "scikit-learn>=1.2",
+    "tensorflow>=2.17",
+    "tensorflow-hub>=0.16",
+    "tensorflow-probability>=0.25",
+    "tqdm>=4.65",
+]
+
+[tool.uv.sources]
+OTalign = { path = "../..", editable = true }

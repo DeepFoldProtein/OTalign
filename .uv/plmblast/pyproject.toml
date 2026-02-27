@@ -1,0 +1,36 @@
+# pLM-BLAST benchmark test environment
+#
+# Install from the project root:
+#   uv sync --directory .uv/plmblast
+#
+# Run benchmark (includes plmblast_prott5):
+#   uv run --directory .uv/plmblast --project . -m benchmark run --tests malidup
+# Or activate and run:
+#   source .uv/plmblast/.venv/bin/activate && python -m benchmark run --tests malidup
+
+[project]
+name = "otalign-plmblast"
+version = "0.0.1"
+description = "pLM-BLAST benchmark test environment for OTalign"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "OTalign",
+    "biopython>=1.5.9",
+    "matplotlib>=3.7",
+    "numba>=0.57",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "scikit-learn>=1.2",
+    "torch>=2.0",
+    "tqdm>=4.65",
+    "transformers>=4.38",
+    "sentencepiece>=0.1.99",
+    "psutil",
+    "accelerate",
+    "h5py",
+    "mkl",
+    "mkl-service",
+]
+
+[tool.uv.sources]
+OTalign = { path = "../..", editable = true }

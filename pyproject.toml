@@ -8,7 +8,7 @@ version = "0.0.1"
 description = "Differentiable OT-based alignment and evaluation for protein embeddings"
 authors = [{ name = "Minsoo Kim" }]
 readme = "README.md"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "torch (>=2.5.1,<3.0.0)",
     "numpy (==2.2.6)",
@@ -52,12 +52,14 @@ exclude = [
     ".mypy_cache",
     ".tox",
     ".venv",
+    ".uv",
     "_build",
     "buck-out",
     "build",
     "dist",
     "env",
     "venv",
+    "third_party",
 ]
 
 [tool.ruff.lint]
