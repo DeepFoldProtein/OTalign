@@ -97,6 +97,7 @@ class EcodHomologEvaluator(BaseEvaluator):
     def _run_search(self, queries_csv: Path, query_emb_dir: Path, db_csv: Path, db_emb_dir: Path):
         """Run pLM-BLAST search for all queries."""
         import pandas as pd
+
         from scripts.run_ecod_plmblast_search import (
             compute_labels,
             load_query_embeddings,

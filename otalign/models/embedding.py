@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -6,6 +7,9 @@ import torch
 from otalign.cache.lmdb_reader import LMDBCache
 from otalign.cache.npz_reader import NPZCache
 from otalign.models.plm_adaptors import get_plm_adaptor_and_configs
+
+
+AnyCache = Union[NPZCache, LMDBCache]
 
 
 def l2_normalize(X: np.ndarray, axis: int = -1, eps: float = 1e-12) -> np.ndarray:
@@ -22,12 +26,6 @@ def l2_normalize_torch(X: torch.Tensor, axis: int = -1, eps: float = 1e-12) -> t
     """
     n = torch.linalg.norm(X, ord=2, dim=axis, keepdim=True)
     return X / n.clamp(min=eps)
-
-
-from typing import Optional, Union
-
-
-AnyCache = Union[NPZCache, LMDBCache]
 
 
 def get_embeddings_for_sequences(
@@ -89,7 +87,8 @@ def get_embeddings_for_sequences(
     if adaptor is None:
         adaptor, _, _ = get_plm_adaptor_and_configs(model_name)
 
-    assert adaptor is not None
+    if adaptor is None:
+        raise ValueError(f"Could not load PLM adaptor for model '{model_name}'.")
     model_device = torch.device(device)
 
     if model is not None:

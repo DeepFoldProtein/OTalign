@@ -29,9 +29,6 @@ def is_notebook() -> bool:
 
 IN_NOTEBOOK = is_notebook()
 
-if IN_NOTEBOOK:
-    pass
-
 
 # ANSI escape codes for terminal colors
 class Colors:
