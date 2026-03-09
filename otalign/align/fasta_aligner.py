@@ -244,6 +244,7 @@ class FastaAligner:
                     "sinkhorn_divergence": sinkhorn_divergence,
                     "filter_score": filter_score,
                     "passes_filter": passes_filter,
+                    "alignment_score": float(hard_aln["score"]),
                     "num_pairs": len(alignment_pairs),
                     "coverage_query": len(alignment_pairs) / len(query_seq),
                     "coverage_target": len(alignment_pairs) / len(target_seq),
