@@ -58,6 +58,7 @@ datasets:
   # ECOD30 Hard benchmark (pLM-BLAST paper style, 30% seq-id matching paper)
   ecod30_hard:
     data_dir: "data/ecod30_hard"
+    hhm_dir: "data/hhsuite/ecod30_hard/hhm"  # used by ecod_hhalign_global (prebuilt hhblits HHMs)
     description: "ECOD30 Hard benchmark (pLM-BLAST paper): 300 H-groups × 5 domains, 30% seq-id clustering"
 
 # 3. Models and Tools
@@ -363,6 +364,16 @@ models:
       max_length: 512
       use_gpu: false
 
+  # --- HHalign ECOD Homolog Detection (global mode, prebuilt hhblits profiles) ---
+  ecod_hhalign_global:
+    tool: "ecod_homolog"
+    label: "HHalign (global) - ECOD"
+    color: "#808080"
+    params:
+      hhalign_mode: "global"
+      hhmake_bin: "hhmake"
+      timeout: 120
+
 # 4. Benchmark Tests
 # Define which models to run on which datasets.
 # This allows for flexible and targeted benchmarking.
@@ -555,6 +566,7 @@ tests:
       - "ecod_otalign_esm2"
       - "ecod_eba_prott5"
       - "ecod_dedal"
+      - "ecod_hhalign_global"
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.

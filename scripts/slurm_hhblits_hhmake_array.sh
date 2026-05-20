@@ -12,17 +12,32 @@
 
 set -euo pipefail
 
-# ---- user config ----
-FASTA_DIR="${FASTA_DIR:-work/fasta}"          # input single-sequence FASTA files (*.fasta)
+# Load .env if values weren't already provided via --export
+HERE_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "$HERE_REPO/.env" ]]; then
+  set -a; source "$HERE_REPO/.env"; set +a
+fi
+
+# ---- per-job overrides ----
+FASTA_DIR="${FASTA_DIR:-work/fasta}"
 A3M_DIR="${A3M_DIR:-work/a3m}"
 HHM_DIR="${HHM_DIR:-work/hhm}"
-FILELIST="${FILELIST:-work/fasta.list}"       # list of absolute paths to fasta files
-# HHsuite database root (prefix without _a3m/_cs219 suffix, as per your installation)
-HHDB="${HHDB:-/path/to/uniclust30/uniclust30_2018_08/uniclust30_2018_08}" 
+FILELIST="${FILELIST:-work/fasta.list}"
 NCPU="${NCPU:-8}"
 ROUNDS="${ROUNDS:-2}"
 EVALUE="${EVALUE:-1e-3}"
-MAXSEQ="${MAXSEQ:-65535}"   # cap sequences in MSA to keep size reasonable
+MAXSEQ="${MAXSEQ:-65535}"
+
+: "${HHDB:?HHDB must be set (via .env or --export)}"
+: "${HHSUITE_SIF:?HHSUITE_SIF must be set (via .env or --export)}"
+SING_BIN="${SING_BIN:-$(command -v apptainer || command -v singularity)}"
+[[ -n "${SING_BIN:-}" ]] || { echo "ERROR: apptainer/singularity not on PATH" >&2; exit 1; }
+SING_BINDS="${SING_BINDS:-}"
+if [[ -n "$SING_BINDS" ]]; then
+  HH_EXEC=("$SING_BIN" exec --bind "$SING_BINDS" "$HHSUITE_SIF")
+else
+  HH_EXEC=("$SING_BIN" exec "$HHSUITE_SIF")
+fi
 # ---------------------
 
 mkdir -p "$(dirname "$FILELIST")" "$A3M_DIR" "$HHM_DIR" logs
@@ -51,13 +66,13 @@ echo "[info] ($SLURM_ARRAY_TASK_ID) input=$IN -> $A3M | $HHM"
 
 # 1) hhblits -> A3M
 if [[ ! -s "$A3M" ]]; then
-  hhblits -i "$IN" -d "$HHDB" -oa3m "$A3M" \
+  "${HH_EXEC[@]}" hhblits -i "$IN" -d "$HHDB" -oa3m "$A3M" \
           -e "$EVALUE" -cov 0 -qid 0 -n "$ROUNDS" -cpu "$NCPU" -maxseq "$MAXSEQ"
 fi
 
 # 2) hhmake -> HHM
 if [[ ! -s "$HHM" ]]; then
-  hhmake -i "$A3M" -o "$HHM" -cpu "$NCPU"
+  "${HH_EXEC[@]}" hhmake -i "$A3M" -o "$HHM" -cpu "$NCPU"
 fi
 
 echo "[ok] ($SLURM_ARRAY_TASK_ID) done."

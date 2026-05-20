@@ -97,7 +97,6 @@ class EcodHomologEvaluator(BaseEvaluator):
     def _run_search(self, queries_csv: Path, query_emb_dir: Path, db_csv: Path, db_emb_dir: Path):
         """Run pLM-BLAST search for all queries."""
         import pandas as pd
-
         from scripts.run_ecod_plmblast_search import (
             compute_labels,
             load_query_embeddings,
@@ -213,10 +212,12 @@ class EcodHomologEvaluator(BaseEvaluator):
             logging.info(f"Per-query mean PR AUC: {valid['pr_auc'].mean():.4f}")
 
     def _run_hard_benchmark(self, data_dir: Path):
-        """Run hard benchmark (all-vs-all), dispatching to pLM-BLAST, OTalign, EBA, or DEDAL."""
+        """Run hard benchmark (all-vs-all), dispatching to pLM-BLAST, OTalign, EBA, DEDAL, or HHalign."""
         params = self.model_config.get("params", {})
 
-        if "dedal_score_method" in params:
+        if "hhalign_mode" in params:
+            self._run_hard_benchmark_hhalign(data_dir)
+        elif "dedal_score_method" in params:
             self._run_hard_benchmark_dedal(data_dir)
         elif "eba_score_method" in params:
             self._run_hard_benchmark_eba(data_dir)
@@ -373,6 +374,70 @@ class EcodHomologEvaluator(BaseEvaluator):
 
         metrics_file = self.results_dir / "roc_pr_metrics.json"
         with open(metrics_file, "w") as f:
+            json.dump(metrics, f, indent=2)
+
+        logging.info(f"ROC AUC: {metrics['roc_auc']:.4f}")
+        logging.info(f"PR AUC: {metrics['pr_auc']:.4f}")
+
+    def _run_hard_benchmark_hhalign(self, data_dir: Path):
+        """Run hard benchmark with HHalign all-vs-all."""
+        from scripts.run_hard_benchmark_hhalign import (
+            _load_dotenv,
+            assign_labels,
+            build_single_seq_hhms,
+            compute_metrics,
+            load_benchmark_data,
+            run_pairwise_hhalign,
+        )
+
+        _load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+        params = self.model_config.get("params", {})
+        mode = params.get("hhalign_mode", "global")
+        hhalign_bin = self.global_paths.get("hhalign_bin", "hhalign")
+        hhmake_bin = params.get("hhmake_bin", "hhmake")
+        num_workers = getattr(self.cli_args, "workers", 8) or 8
+        timeout = params.get("timeout", 120)
+
+        # Prefer dataset-level hhm_dir if configured, else build single-seq HHMs into results/hhm
+        hhm_dir_cfg = self.dataset_config.get("hhm_dir")
+        if hhm_dir_cfg and Path(hhm_dir_cfg).exists():
+            hhm_dir = Path(hhm_dir_cfg)
+            logging.info(f"Using prebuilt HHMs from {hhm_dir}")
+            profile_mode = "prebuilt"
+        else:
+            hhm_dir = self.results_dir / "hhm"
+
+        logging.info(f"Running Hard benchmark (HHalign, {mode}) for {self.model_config['label']}")
+
+        df = load_benchmark_data(data_dir)
+        if not (hhm_dir_cfg and Path(hhm_dir_cfg).exists()):
+            build_single_seq_hhms(df, hhm_dir, hhmake_bin=hhmake_bin)
+            profile_mode = "single_seq"
+
+        results = run_pairwise_hhalign(
+            df["id"].tolist(),
+            hhm_dir=hhm_dir,
+            hhalign_bin=hhalign_bin,
+            mode=mode,
+            num_workers=num_workers,
+            timeout=timeout,
+        )
+        result_df = assign_labels(results, df)
+
+        results_csv = self.results_dir / "search_results.csv"
+        result_df.to_csv(results_csv, index=False)
+        logging.info(f"Saved results to {results_csv}")
+
+        metrics = compute_metrics(result_df, exclude_neutral=True)
+        metrics["mode"] = mode
+        metrics["num_domains"] = int(len(df))
+        metrics["num_pairs"] = int(len(results))
+        metrics["score_field"] = "prob_true"
+        metrics["profile_mode"] = profile_mode
+        metrics["hhm_dir"] = str(hhm_dir)
+
+        with open(self.results_dir / "roc_pr_metrics.json", "w") as f:
             json.dump(metrics, f, indent=2)
 
         logging.info(f"ROC AUC: {metrics['roc_auc']:.4f}")
