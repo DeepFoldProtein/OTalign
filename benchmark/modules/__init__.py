@@ -1,5 +1,6 @@
 import importlib
 import pkgutil
+import re
 
 
 # Dynamically import all modules in this directory
@@ -17,8 +18,9 @@ def get_evaluator_class(tool_name: str):
     sanitized_tool_name = tool_name.lower().replace("-", "_")
     module_name = f"{sanitized_tool_name}_evaluator"
 
-    # Construct the class name (e.g., 'otalign-progressive' -> 'OTAlignProgressiveEvaluator')
-    class_name_parts = [part.capitalize() for part in tool_name.split("-")]
+    # Construct the class name, splitting on both '-' and '_' so e.g.
+    # 'otalign-crf' -> 'OtalignCrfEvaluator' and 'ecod_homolog' -> 'EcodHomologEvaluator'.
+    class_name_parts = [part.capitalize() for part in re.split(r"[-_]", tool_name)]
     class_name = "".join(class_name_parts) + "Evaluator"
 
     try:

@@ -7,8 +7,12 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --time=24:00:00
-#SBATCH --mem=4G
+#SBATCH --mem=8G
 #SBATCH --array=0-9999   # set after creating the file list
+#
+# --cpus-per-task and --mem can be overridden at sbatch time:
+#   sbatch --cpus-per-task=16 --mem=16G ... slurm_hhblits_hhmake_array.sh
+# scripts/submit_ecod30_hhblits.sh already passes them via env vars.
 
 set -euo pipefail
 
@@ -23,7 +27,8 @@ FASTA_DIR="${FASTA_DIR:-work/fasta}"
 A3M_DIR="${A3M_DIR:-work/a3m}"
 HHM_DIR="${HHM_DIR:-work/hhm}"
 FILELIST="${FILELIST:-work/fasta.list}"
-NCPU="${NCPU:-8}"
+# Default NCPU to the slurm allocation so the script auto-scales with --cpus-per-task.
+NCPU="${NCPU:-${SLURM_CPUS_PER_TASK:-8}}"
 ROUNDS="${ROUNDS:-2}"
 EVALUE="${EVALUE:-1e-3}"
 MAXSEQ="${MAXSEQ:-65535}"
@@ -51,9 +56,12 @@ if [[ ! -s "$FILELIST" ]]; then
   exit 0
 fi
 
-LINE=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" "$FILELIST")
+# Chunked submissions remap to 0-based arrays + an offset; defaults to 0.
+ARRAY_OFFSET="${ARRAY_OFFSET:-0}"
+LINE_IDX=$((SLURM_ARRAY_TASK_ID + ARRAY_OFFSET))
+LINE=$(sed -n "$((LINE_IDX+1))p" "$FILELIST")
 if [[ -z "${LINE:-}" ]]; then
-  echo "[warn] No line for index $SLURM_ARRAY_TASK_ID"
+  echo "[warn] No line for filelist index $LINE_IDX (task=$SLURM_ARRAY_TASK_ID offset=$ARRAY_OFFSET)"
   exit 0
 fi
 

@@ -53,7 +53,14 @@ def main():
 
     runs = []
     for model_dir in sorted(p for p in results_root.iterdir() if p.is_dir()):
+        # Convention: rename a dir to "<name>.skip" to exclude it from the comparison
+        # without deleting the underlying files.
+        if model_dir.name.endswith(".skip"):
+            continue
+        # Prefer our evaluator's output name, but accept the standalone runners' name too.
         metrics_path = model_dir / "roc_pr_metrics.json"
+        if not metrics_path.exists():
+            metrics_path = model_dir / "metrics.json"
         if not metrics_path.exists():
             continue
         m = load_run(metrics_path)
@@ -63,8 +70,8 @@ def main():
         print(f"No roc_pr_metrics.json found under {results_root}")
         return
 
-    # ROC overlay
-    fig, ax = plt.subplots(figsize=(8, 7))
+    # ROC overlay (1:1 aspect)
+    fig, ax = plt.subplots(figsize=(7, 7))
     for key, m in runs:
         label = label_map.get(key, key)
         color = color_map.get(key)
@@ -79,16 +86,20 @@ def main():
     ax.set_xlabel("False Positive Rate")
     ax.set_ylabel("True Positive Rate")
     ax.set_title("ECOD30 Hard - ROC Comparison")
-    ax.legend(loc="lower right", fontsize=9)
+    ax.legend(loc="best", fontsize=9)
     ax.grid(True, alpha=0.3)
-    out = plots_dir / "roc_comparison.png"
+    ax.set_xlim((0, 1))
+    ax.set_ylim((0, 1))
+    ax.set_aspect("equal", adjustable="box")
     fig.tight_layout()
-    fig.savefig(out, dpi=200)
+    for ext in (".png", ".pdf"):
+        out = plots_dir / f"roc_comparison{ext}"
+        fig.savefig(out, dpi=200)
+        print(f"Wrote {out}")
     plt.close(fig)
-    print(f"Wrote {out}")
 
-    # PR overlay
-    fig, ax = plt.subplots(figsize=(8, 7))
+    # PR overlay (1:1 aspect)
+    fig, ax = plt.subplots(figsize=(7, 7))
     for key, m in runs:
         label = label_map.get(key, key)
         color = color_map.get(key)
@@ -102,15 +113,17 @@ def main():
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
     ax.set_title("ECOD30 Hard - PR Comparison")
-    ax.legend(loc="upper right", fontsize=9)
+    ax.legend(loc="lower left", fontsize=9)
     ax.grid(True, alpha=0.3)
-    ax.set_xlim([0, 1])
-    ax.set_ylim([0, 1.02])
-    out = plots_dir / "pr_comparison.png"
+    ax.set_xlim((0, 1))
+    ax.set_ylim((0, 1))
+    ax.set_aspect("equal", adjustable="box")
     fig.tight_layout()
-    fig.savefig(out, dpi=200)
+    for ext in (".png", ".pdf"):
+        out = plots_dir / f"pr_comparison{ext}"
+        fig.savefig(out, dpi=200)
+        print(f"Wrote {out}")
     plt.close(fig)
-    print(f"Wrote {out}")
 
     # AUC summary table
     rows = []

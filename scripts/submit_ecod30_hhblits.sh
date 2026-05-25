@@ -28,6 +28,15 @@ FILELIST="${FILELIST:-$ROOT/fasta.list}"
 : "${HHDB:?HHDB must be set in .env}"
 : "${HHSUITE_SIF:?HHSUITE_SIF must be set in .env}"
 
+# Slurm needs the log directory to exist before it can open --output/--error files.
+mkdir -p logs
+
+# Resource per array task (override at the shell):
+#   CPUS_PER_TASK=24 MEM=24G bash scripts/submit_ecod30_hhblits.sh
+# Node has 96 cores / 1 TB; with 16 cores/16 GB → 6 tasks concurrent.
+CPUS_PER_TASK="${CPUS_PER_TASK:-16}"
+MEM="${MEM:-16G}"
+
 if [[ ! -s "$FILELIST" ]]; then
   echo "ERROR: $FILELIST is missing or empty. Run scripts/prepare_ecod30_hhblits_inputs.py first." >&2
   exit 1
@@ -46,15 +55,20 @@ CONCURRENT="${CONCURRENT:-}"
 
 echo "Total tasks: $N (indices 0-$LAST). MaxArraySize=$MAX_ARRAY, chunk=$CHUNK"
 
+# MaxArraySize caps both the chunk size AND each array index, so every
+# submission has to use 0-based indices. We pass ARRAY_OFFSET so the slurm
+# script can map back to the right line in FILELIST.
 i=0
 while (( i <= LAST )); do
   end=$((i + CHUNK - 1))
   (( end > LAST )) && end=$LAST
-  spec="$i-$end"
+  count=$((end - i + 1))
+  spec="0-$((count - 1))"
   [[ -n "$CONCURRENT" ]] && spec+="%${CONCURRENT}"
-  echo "  -> sbatch --array=$spec"
+  echo "  -> sbatch --array=$spec  (lines $i-$end, ARRAY_OFFSET=$i)"
   sbatch --array="$spec" \
-    --export=ALL,FASTA_DIR="$FASTA_DIR",A3M_DIR="$A3M_DIR",HHM_DIR="$HHM_DIR",FILELIST="$FILELIST",HHDB="$HHDB",HHSUITE_SIF="$HHSUITE_SIF",SING_BINDS="${SING_BINDS:-}" \
+    --cpus-per-task="$CPUS_PER_TASK" --mem="$MEM" \
+    --export=ALL,FASTA_DIR="$FASTA_DIR",A3M_DIR="$A3M_DIR",HHM_DIR="$HHM_DIR",FILELIST="$FILELIST",HHDB="$HHDB",HHSUITE_SIF="$HHSUITE_SIF",SING_BINDS="${SING_BINDS:-}",ARRAY_OFFSET="$i" \
     scripts/slurm_hhblits_hhmake_array.sh
   i=$((end + 1))
 done

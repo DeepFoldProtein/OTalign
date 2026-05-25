@@ -239,4 +239,9 @@ Temporary Items
 /work
 /out
 results/
+
+# Slurm logs
+logs/
+*.err
+*.out
 .claude/

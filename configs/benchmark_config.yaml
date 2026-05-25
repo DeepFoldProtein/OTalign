@@ -9,8 +9,8 @@ paths:
   cache_dir: "out/cache"
   # Root directory for saving generated plots
   plots_dir: "out/plots"
-  # Path to the HHalign executable
-  hhalign_bin: "hhalign"
+  # Path to the HHalign executable (wrapper that routes through the .env-configured container)
+  hhalign_bin: "scripts/hhalign-container"
   # Path to the NWalign executable
   nwalign_bin: "NWalign"
   # Path to the DeepBLAST checkpoint
@@ -236,6 +236,12 @@ models:
     color: "#808080"
     params:
       mode: "global"
+  hhalign_local:
+    tool: "hhalign"
+    label: "HHalign (local)"
+    color: "#a0a0a0"
+    params:
+      mode: "local"
   nwalign:
     tool: "nwalign"
     label: "NWalign"
@@ -373,6 +379,15 @@ models:
       hhalign_mode: "global"
       hhmake_bin: "hhmake"
       timeout: 120
+  # HHalign in HHsearch's default local mode (Reviewer 2 comparison)
+  ecod_hhalign_local:
+    tool: "ecod_homolog"
+    label: "HHalign (local) - ECOD"
+    color: "#a0a0a0"
+    params:
+      hhalign_mode: "local"
+      hhmake_bin: "hhmake"
+      timeout: 120
 
 # 4. Benchmark Tests
 # Define which models to run on which datasets.
@@ -383,6 +398,7 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
+      - "hhalign_local"
       # - "otalign_ankhcl"
       # - "otalign_ankh_base"
       - "otalign_ankh_large"
@@ -409,6 +425,7 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
+      - "hhalign_local"
       # - "otalign_ankhcl"
       # - "otalign_ankh_base"
       - "otalign_ankh_large"
@@ -435,6 +452,7 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
+      - "hhalign_local"
       # - "otalign_ankhcl"
       # - "otalign_ankh_base"
       - "otalign_ankh_large"
@@ -461,6 +479,7 @@ tests:
     models:
       - "nwalign"
       - "hhalign"
+      - "hhalign_local"
       # - "otalign_ankhcl"
       # - "otalign_ankh_base"
       - "otalign_ankh_large"
@@ -489,6 +508,7 @@ tests:
       - "otalign_ankhcl"
       - "nwalign"
       - "hhalign"
+      - "hhalign_local"
       - "otalign-crf-ankh-large"
   sabmark-twi_fp:
     datasets: ["sabmark_twi_fp"]
@@ -496,6 +516,7 @@ tests:
       - "otalign_ankhcl"
       - "nwalign"
       - "hhalign"
+      - "hhalign_local"
       - "otalign-crf-ankh-large"
 
   finetune-sabmark-sup:
@@ -567,6 +588,7 @@ tests:
       - "ecod_eba_prott5"
       - "ecod_dedal"
       - "ecod_hhalign_global"
+      - "ecod_hhalign_local"
 
 # 5. Plotting Configuration
 # Defines the plots to be generated for each test group.

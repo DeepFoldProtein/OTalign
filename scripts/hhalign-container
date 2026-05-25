@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Wrapper that runs the hhalign binary inside the HH-suite Singularity image
+# configured via .env. Used so callers can treat it as a normal `hhalign` binary.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "$HERE/.env" ]]; then
+  set -a; source "$HERE/.env"; set +a
+fi
+
+: "${HHSUITE_SIF:?HHSUITE_SIF must be set in .env}"
+SING_BIN="${SING_BIN:-$(command -v apptainer || command -v singularity)}"
+[[ -n "${SING_BIN:-}" ]] || { echo "ERROR: apptainer/singularity not on PATH" >&2; exit 1; }
+SING_BINDS="${SING_BINDS:-}"
+
+if [[ -n "$SING_BINDS" ]]; then
+  exec "$SING_BIN" exec --bind "$SING_BINDS" "$HHSUITE_SIF" hhalign "$@"
+else
+  exec "$SING_BIN" exec "$HHSUITE_SIF" hhalign "$@"
+fi
