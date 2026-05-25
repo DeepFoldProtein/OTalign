@@ -25,7 +25,7 @@ import pandas as pd
 
 SOURCES: Dict[str, Dict] = {
     "OTalign (Global)": {
-        "dir": "otalign_norm_dp_minlen_global",
+        "dir": "otalign_norm_dp_global",
         "color": "#d62728",  # red
         "lw": 2.2,
     },
