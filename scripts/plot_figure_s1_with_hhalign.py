@@ -137,7 +137,7 @@ def main():
         rows.append(
             {
                 "method": label,
-                "dir": rd.name,
+                "dir": rd.name.removesuffix(".skip"),
                 "roc_auc": m["roc_auc"],
                 "pr_auc": m["pr_auc"],
                 "tp_at_fp_1": int(cum_tp[(cum_fp <= 1).sum() - 1] if (cum_fp <= 1).any() else 0),
