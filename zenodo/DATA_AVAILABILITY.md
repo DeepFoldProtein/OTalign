@@ -17,7 +17,7 @@ publishing the record so the manuscript can already cite it), substitute
 > MALISAM) and per-pair search-result scores and metrics for the ECOD30-hard
 > homolog-discrimination task. Source code is available on GitHub at
 > [https://github.com/DeepFoldProtein/OTalign](https://github.com/DeepFoldProtein/OTalign) and archived on Zenodo under DOI
-> [10.5281/zenodo.YYYYYYY](https://doi.org/10.5281/zenodo.YYYYYYY) (code record).
+> [10.5281/zenodo.20407383](https://doi.org/10.5281/zenodo.20407383) (code record).
 
 ## Supplementary §S8 (or equivalent reproduction section)
 
