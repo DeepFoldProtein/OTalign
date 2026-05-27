@@ -98,37 +98,65 @@ def update_metadata(base: str, token: str, dep_id: int, metadata: dict) -> dict:
     return r.json()
 
 
+class _ProgressFile:
+    """File-like wrapper that prints upload progress and exposes a length.
+
+    The bucket API (Invenio's `/api/files/<bucket>/<name>` PUT) rejects requests
+    sent with `Transfer-Encoding: chunked` — it expects a `Content-Length`
+    header. `requests` switches to chunked encoding whenever the request body
+    has no `__len__`, so wrapping the file handle and exposing `__len__`
+    forces it to send a regular PUT with the correct length.
+    """
+
+    def __init__(self, path: Path, total: int):
+        self._fh = path.open("rb")
+        self._total = total
+        self._done = 0
+        self._last_pct = -5
+
+    def __len__(self) -> int:
+        return self._total
+
+    def read(self, size: int = -1) -> bytes:
+        block = self._fh.read(size if size and size > 0 else CHUNK)
+        if not block:
+            return block
+        self._done += len(block)
+        pct = int(self._done * 100 / self._total) if self._total else 0
+        if pct - self._last_pct >= 5:
+            print(
+                f"    {pct:3d}%  ({self._done / 1e9:.2f} / {self._total / 1e9:.2f} GB)",
+                flush=True,
+            )
+            self._last_pct = pct
+        return block
+
+    def close(self) -> None:
+        self._fh.close()
+
+
 def upload_file_to_bucket(bucket_url: str, token: str, local_path: Path) -> dict:
-    """Stream a local file to the deposition's bucket via PUT."""
+    """Stream a local file to the deposition's bucket via PUT (Content-Length set)."""
     size = local_path.stat().st_size
-    print(f"  uploading {local_path.name} ({size / 1e9:.2f} GB) to bucket...")
-    with local_path.open("rb") as fh:
+    print(f"  uploading {local_path.name} ({size / 1e9:.2f} GB) to bucket...", flush=True)
+    body = _ProgressFile(local_path, size)
+    try:
         r = requests.put(
             f"{bucket_url}/{local_path.name}",
-            headers=auth_headers(token),
-            data=_streamer(fh, size),
+            headers={
+                **auth_headers(token),
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(size),
+            },
+            data=body,
             timeout=None,
         )
+    finally:
+        body.close()
     if r.status_code not in (200, 201):
         die(f"upload {local_path.name}: HTTP {r.status_code} — {r.text}")
+    print("    -> upload complete", flush=True)
     return r.json()
-
-
-def _streamer(fh, total: int):
-    """Yield chunks while printing a coarse progress line every few percent."""
-    done = 0
-    last_pct = -5
-    while True:
-        block = fh.read(CHUNK)
-        if not block:
-            print("    -> upload complete")
-            return
-        done += len(block)
-        pct = int(done * 100 / total) if total else 0
-        if pct - last_pct >= 5:
-            print(f"    {pct:3d}%  ({done / 1e9:.2f} / {total / 1e9:.2f} GB)")
-            last_pct = pct
-        yield block
 
 
 def publish(base: str, token: str, dep_id: int) -> dict:

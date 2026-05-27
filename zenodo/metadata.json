@@ -7,6 +7,28 @@
         "name": "Kim, Minsoo",
         "affiliation": "Sungkyunkwan University",
         "orcid": "0000-0002-3961-9703"
+      },
+      {
+        "name": "Bae, Hanjin",
+        "affiliation": "Sungkyunkwan University"
+      },
+      {
+        "name": "Jo, Gyeongpil",
+        "affiliation": "Sungkyunkwan University"
+      },
+      {
+        "name": "Kunwoo, Kim",
+        "affiliation": "Sungkyunkwan University"
+      },
+      {
+        "name": "Yoo, Jejoong",
+        "affiliation": "Sungkyunkwan University - Suwon Campus",
+        "orcid": "0000-0001-7120-8464"
+      },
+      {
+        "name": "Joo, Keehyoung",
+        "affiliation": "Korea Institute for Advanced Study",
+        "orcid": "0000-0002-4612-0927"
       }
     ],
     "description": "<p>Per-pair predictions, search-result scores, and HHsuite HMM profiles used to produce the figures and tables in:</p><p><em>OTalign: Optimal-transport alignment of protein language model embeddings.</em> Minsoo Kim et al., Bioinformatics (2026, in revision).</p><p>The deposit covers the alignment-task datasets (SABmark-sup, SABmark-sup_fp, SABmark-twi, SABmark-twi_fp, MALIDUP, MALISAM) and the ECOD30-hard homolog-discrimination benchmark, with results for OTalign (Ankh-Large, Ankh-Base, ESM-1b, ESM-2, ProtT5 backbones; 2-epoch LoRA fine-tune of ESM-1b), HHalign (global and local), NWalign, DeepBLAST, pLMAlign-ProtT5, pLM-BLAST, and EBA. See the embedded MANIFEST.txt for SHA-256 digests and README.md for a description of the layout.</p><p>Source code is available on GitHub at https://github.com/DeepFoldProtein/OTalign and archived on Zenodo separately.</p>",
