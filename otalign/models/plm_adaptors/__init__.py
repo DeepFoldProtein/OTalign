@@ -3,6 +3,7 @@ from functools import partial
 from .ankh_adaptor import build_ankh_adaptor
 from .ankhcl_adaptor import build_ankhcl_adaptor
 from .esm_adaptor import build_esm_adaptor
+from .esmc_adaptor import build_esmc_adaptor
 from .proteinglm_int4_adaptor import build_proteinglm_int4_adaptor
 from .t5_adaptor import build_prott5_adaptor
 
@@ -38,6 +39,21 @@ def get_plm_adaptor_and_configs(name: str, for_masked_lm: bool = False):
             "builder": partial(build_esm_adaptor, "facebook/esm1b_t33_650M_UR50S", for_masked_lm=for_masked_lm),
             "policy": "drop_first_last_active",
             "adaptor_name": "ESM-1b",
+        },
+        "ESMC_300M": {
+            "builder": partial(build_esmc_adaptor, "300m", for_masked_lm=for_masked_lm),
+            "policy": "drop_first_last_active",
+            "adaptor_name": "ESM-C (300M)",
+        },
+        "ESMC_600M": {
+            "builder": partial(build_esmc_adaptor, "600m", for_masked_lm=for_masked_lm),
+            "policy": "drop_first_last_active",
+            "adaptor_name": "ESM-C (600M)",
+        },
+        "ESMC_6B": {
+            "builder": partial(build_esmc_adaptor, "6b", for_masked_lm=for_masked_lm),
+            "policy": "drop_first_last_active",
+            "adaptor_name": "ESM-C (6B)",
         },
         "AnkhCL": {
             "builder": partial(build_ankhcl_adaptor, for_masked_lm=for_masked_lm),
