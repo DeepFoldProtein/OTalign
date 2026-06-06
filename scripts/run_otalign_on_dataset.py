@@ -162,9 +162,10 @@ def _process_batch(
                 Path(save_transport_plan_dir_str).mkdir(parents=True, exist_ok=True)
                 plan_dtype = np.uint8 if args_dict["plan_dtype"] == "uint8" else np.uint16
                 quantized_data = quantize(P_np, dtype=plan_dtype)
+                quant_meta = quantized_data.pop("meta")
                 pair_id = ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}")
                 output_path = Path(save_transport_plan_dir_str) / f"{pair_id}.npz"
-                np.savez_compressed(output_path, **quantized_data, f=f_np, g=g_np)
+                np.savez_compressed(output_path, **quantized_data, f=f_np, g=g_np, meta=json.dumps(quant_meta))
 
             hard_aln = hard_alignment_from_transport(
                 P=P_np,

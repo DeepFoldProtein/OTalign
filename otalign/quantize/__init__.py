@@ -36,6 +36,19 @@ def quantize(plan: np.ndarray, dtype: DTypeLike = np.uint8) -> Dict[str, Any]:
         "data": quantized_plan,
         "scale": scale,
         "zero_point": zero_point,
+        # Self-describing record of how the plan was quantized so that a reader
+        # can dequantize correctly even if the scheme changes in the future.
+        "meta": {
+            "version": 1,
+            # decoded = (data - zero_point) * scale
+            "scheme": "linear_affine",
+            "dtype": np.dtype(dtype).name,
+            "r_min": 0.0,  # quantization assumes the plan minimum is 0.0
+            "r_max": float(r_max),
+            "q_min": int(q_min),
+            "q_max": int(q_max),
+            "clipped": True,
+        },
     }
 
 
