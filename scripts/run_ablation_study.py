@@ -39,6 +39,7 @@ Example output:
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -53,7 +54,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from otalign.align.uot_alignment import hard_alignment_from_transport
-from otalign.quantize import dequantize
+from otalign.quantize import dequantize, validate_meta
 from scripts.dataset_utils import iter_pairs_from_dataset
 
 
@@ -116,8 +117,14 @@ def run_experiment_duals_only(P, f, g, **kwargs):
 # ---------------------------------------------------------------------------
 
 
-def load_data(dataset_id, transport_plan_dir):
-    """Load dataset pairs and their pre-computed transport plans."""
+def load_data(dataset_id, transport_plan_dir, validate_quant=True):
+    """Load dataset pairs and their pre-computed transport plans.
+
+    When ``validate_quant`` is True (default), the quantization ``meta`` saved
+    in each .npz is checked for scheme/version/dtype compatibility before
+    dequantizing. Legacy files without meta are unaffected. Set it False to
+    force-load plans written by an unrecognized scheme.
+    """
     transport_plan_dir = Path(transport_plan_dir)
     if not transport_plan_dir.exists():
         raise FileNotFoundError(f"Transport plan directory not found: {transport_plan_dir}\nPlease run the benchmark first with --save_transport_plan_dir.")
@@ -133,6 +140,8 @@ def load_data(dataset_id, transport_plan_dir):
         if plan_path.exists():
             try:
                 data = np.load(plan_path, allow_pickle=True)
+                if validate_quant and "meta" in data.files:
+                    validate_meta(json.loads(str(data["meta"])), data["data"])
                 quantized_plan_data = {
                     "data": data["data"],
                     "scale": data["scale"],
@@ -307,10 +316,16 @@ def main():
         help="score_scale values to sweep (default: 0.5 2.0).",
     )
 
+    parser.add_argument(
+        "--no_validate_quant_meta",
+        action="store_true",
+        help="Skip the quantization-metadata compatibility check when loading transport plans.",
+    )
+
     args = parser.parse_args()
 
     # Load data
-    all_data = load_data(args.dataset, args.transport_plan_dir)
+    all_data = load_data(args.dataset, args.transport_plan_dir, validate_quant=not args.no_validate_quant_meta)
     if not all_data:
         print("ERROR: No data loaded. Check your dataset and transport plan directory.")
         sys.exit(1)

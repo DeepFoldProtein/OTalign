@@ -1,7 +1,13 @@
-from typing import Any, Dict, cast
+from typing import Any, Dict, Optional, cast
 
 import numpy as np
 from numpy.typing import DTypeLike
+
+
+# Quantization scheme that dequantize() knows how to decode. Bumped only when the
+# on-disk format changes in a way that older decoders cannot read.
+SCHEME = "linear_affine"
+SCHEME_VERSION = 1
 
 
 def quantize(plan: np.ndarray, dtype: DTypeLike = np.uint8) -> Dict[str, Any]:
@@ -39,9 +45,9 @@ def quantize(plan: np.ndarray, dtype: DTypeLike = np.uint8) -> Dict[str, Any]:
         # Self-describing record of how the plan was quantized so that a reader
         # can dequantize correctly even if the scheme changes in the future.
         "meta": {
-            "version": 1,
+            "version": SCHEME_VERSION,
             # decoded = (data - zero_point) * scale
-            "scheme": "linear_affine",
+            "scheme": SCHEME,
             "dtype": np.dtype(dtype).name,
             "r_min": 0.0,  # quantization assumes the plan minimum is 0.0
             "r_max": float(r_max),
@@ -50,6 +56,30 @@ def quantize(plan: np.ndarray, dtype: DTypeLike = np.uint8) -> Dict[str, Any]:
             "clipped": True,
         },
     }
+
+
+def validate_meta(meta: Optional[Dict[str, Any]], data: Optional[np.ndarray] = None) -> None:
+    """
+    Check that a saved quantization ``meta`` is compatible with ``dequantize()``.
+
+    Raises ``ValueError`` on an incompatible scheme/version, or a dtype that
+    disagrees with the quantized array. A ``None`` meta — legacy files written
+    before metadata existed — passes silently, since those are decoded by the
+    fixed ``dequantize()`` formula.
+    """
+    if meta is None:
+        return
+
+    scheme = meta.get("scheme")
+    if scheme != SCHEME:
+        raise ValueError(f"Unsupported quantization scheme {scheme!r}; this build only decodes {SCHEME!r}.")
+
+    version = meta.get("version")
+    if version != SCHEME_VERSION:
+        raise ValueError(f"Unsupported quantization meta version {version!r}; this build only decodes version {SCHEME_VERSION}.")
+
+    if data is not None and "dtype" in meta and np.dtype(meta["dtype"]) != data.dtype:
+        raise ValueError(f"Quantized data dtype {data.dtype} does not match meta dtype {meta['dtype']!r}.")
 
 
 def dequantize(quantized_data: Dict[str, Any]) -> np.ndarray:
