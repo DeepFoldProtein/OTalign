@@ -41,6 +41,11 @@ dependencies = [
 [project.optional-dependencies]
 deepblast = ["deepblast"]
 dev = ["pytest", "ruff", "pre-commit"]
+# FlashAttention T5 backend used by the ProtT5 / Ankh / AnkhCL adaptors
+# (see otalign/models/plm_adaptors/_t5_backend.py). Optional: the adaptors
+# fall back to vanilla transformers.T5EncoderModel when turbot5 is absent or
+# no CUDA device is present.
+flash = ["turbot5>=0.0.2"]
 
 [tool.ruff]
 line-length = 199

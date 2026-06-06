@@ -1,10 +1,12 @@
+import warnings
+from contextlib import nullcontext
 from typing import Callable, List, Optional, Sequence, Tuple
 
 import torch
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from .base import BasePLMAdaptor, EmbeddingOutput
-from .policies import make_mask_from_lengths
+from .policies import make_mask_from_lengths, pack_left_aligned
 
 
 def _split_into_batches(xs: Sequence[str], batch_size: int) -> List[List[str]]:
@@ -31,6 +33,7 @@ class HFEncoderAdaptor(BasePLMAdaptor):
         model_output_field: str = "last_hidden_state",
         pad_to_multiple_of: Optional[int] = None,
         use_encoder: bool = True,  # if False, call model(**inputs) anyway (for decoder-only)
+        fp16_unsafe: bool = False,  # T5/ProtT5/Ankh overflow to NaN in fp16 — use bf16 instead
     ) -> None:
         self.tokenizer = tokenizer
         self.model = model
@@ -40,6 +43,7 @@ class HFEncoderAdaptor(BasePLMAdaptor):
         self.model_output_field = model_output_field
         self.pad_to_multiple_of = pad_to_multiple_of
         self.use_encoder = use_encoder
+        self.fp16_unsafe = fp16_unsafe
 
     def encode(
         self,
@@ -54,7 +58,21 @@ class HFEncoderAdaptor(BasePLMAdaptor):
         model = self.model
         tok = self.tokenizer
         device = device or next(model.parameters()).device
-        autocast_dtype = torch.float16 if fp16 else None
+
+        # Resolve the reduced-precision autocast dtype. fp16 overflows to NaN on
+        # T5-family encoders (ProtT5 / Ankh / AnkhCL); for those we substitute
+        # bf16 (preferred) or fall back to fp32 rather than emit garbage.
+        autocast_dtype: Optional[torch.dtype] = None
+        if fp16:
+            if self.fp16_unsafe:
+                if device.type == "cuda" and torch.cuda.is_bf16_supported():
+                    autocast_dtype = torch.bfloat16
+                    warnings.warn(f"{type(model).__name__}: fp16 is numerically unstable for this model; using bfloat16 instead.", stacklevel=2)
+                else:
+                    warnings.warn(f"{type(model).__name__}: fp16 is numerically unstable for this model and bf16 is unavailable; running in fp32.", stacklevel=2)
+            else:
+                autocast_dtype = torch.float16
+        use_autocast = autocast_dtype is not None
         all_embeds: List[torch.Tensor] = []
         all_masks: List[torch.Tensor] = []
         all_lengths: List[int] = []
@@ -77,7 +95,7 @@ class HFEncoderAdaptor(BasePLMAdaptor):
                 attn_mask: torch.Tensor = enc[self.attention_mask_field].to(device)
 
                 # Forward
-                with torch.autocast(device_type=str(device).split(":")[0], dtype=autocast_dtype) if fp16 else torch.enable_grad():
+                with torch.autocast(device_type=device.type, dtype=autocast_dtype) if use_autocast else nullcontext():
                     model_kwargs = {self.token_field: input_ids, self.attention_mask_field: attn_mask}
                     try:
                         outputs = model(**model_kwargs, output_hidden_states=True)
@@ -93,18 +111,11 @@ class HFEncoderAdaptor(BasePLMAdaptor):
                 trimmed_ids, lengths, keep_mask = self.trim_policy(input_ids, attn_mask)
                 # keep_mask: [B, T] True where original token should be kept as a residue
                 # Select hidden states
-                B, _, D = hidden.shape
-                maxL = int(keep_mask.sum(dim=1).max().item()) if B > 0 else 0
-                # assert isinstance(maxL, int)
-                # pack kept positions per row into a padded [B, maxL, D]
-                kept_embeds = []
-                for b in range(B):
-                    sel = hidden[b][keep_mask[b]]  # [L_b, D]
-                    pad = sel
-                    if sel.size(0) < maxL:
-                        pad = torch.cat([pad, hidden.new_zeros((maxL - sel.size(0), D))], dim=0)
-                    kept_embeds.append(pad.unsqueeze(0))
-                kept_embeds = torch.cat(kept_embeds, dim=0) if kept_embeds else torch.empty((B, 0, D), device=hidden.device, dtype=hidden.dtype)
+                # Pack kept positions per row into a left-aligned padded [B, maxL, D]
+                # with the same vectorized scatter the trim policy uses for ids.
+                # maxL comes from `lengths` (already on CPU) to avoid a per-batch sync.
+                maxL = max(lengths) if lengths else 0
+                kept_embeds = pack_left_aligned(hidden, keep_mask, maxL)
                 all_embeds.append(kept_embeds)
                 all_masks.append(make_mask_from_lengths(lengths, device=hidden.device))
                 all_lengths.extend([int(x) for x in lengths])
