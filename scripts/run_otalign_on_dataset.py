@@ -93,8 +93,8 @@ def _process_batch(
             emb2_padded[i, :len2] = emb2_list[i]
             mask2[i, :len2] = True
 
-        # 3. Initialize aligner
-        aligner = SinkhornUOT()
+        # 3. Initialize aligner (residue cost metric is selectable)
+        aligner = SinkhornUOT(metric=args_dict.get("metric", "cosine"))
 
         # 4. Perform alignments (A:B, A:A, B:B)
         reg = args_dict["reg"]
@@ -191,11 +191,20 @@ def _process_batch(
                         true_plan[r, c] = 1.0
 
             # Assemble record
+            # DP alignment score from the hard alignment, plus length-normalized
+            # variant (score / min(N, M)) — the discriminator used for the _fp
+            # (false-positive) ROC analysis.
+            dp_score = float(hard_aln["score"])
+            min_len = max(1, min(int(len1), int(len2)))
             rec = {
                 "pair_id": ex.get("pair_id", f"{ex['seq1_id']}-{ex['seq2_id']}"),
                 "seq1_id": ex["seq1_id"],
                 "seq2_id": ex["seq2_id"],
                 "pred_alignment": pred_pairs,
+                "alignment_score": dp_score,
+                "alignment_score_norm": dp_score / min_len,
+                "len1": int(len1),
+                "len2": int(len2),
                 "metrics": std_metrics,
                 "ot_metrics": ot_metrics_serializable,
                 "meta": {"tool": "OTAlign", "model": args_dict["model"], "params": {k: v for k, v in args_dict.items() if k not in ["device", "pbar"]}},
@@ -232,6 +241,7 @@ def run_otalign_evaluation(
     cache_dir: Optional[str] = None,
     device: str = "cpu",
     dtype: str = "fp32",
+    metric: str = "cosine",
     reg: float = 0.1,
     lambda1: float = 1.0,
     lambda2: float = 1.0,
@@ -349,6 +359,7 @@ def main():
     ap.add_argument("--cache_dir", help="Directory for embedding cache.")
     ap.add_argument("--device", type=str, default="cpu", help="Device to run inference on.")
     ap.add_argument("--dtype", default="fp32", choices=["fp16", "fp32", "bf16"])
+    ap.add_argument("--metric", default="cosine", choices=["cosine", "cosine_centered"], help="Residue cost metric (cost mode).")
     ap.add_argument("--reg", type=float, default=0.1)
     ap.add_argument("--lambda1", type=float, default=1.0)
     ap.add_argument("--lambda2", type=float, default=1.0)
@@ -374,6 +385,7 @@ def main():
         cache_dir=args.cache_dir,
         device=args.device,
         dtype=args.dtype,
+        metric=args.metric,
         reg=args.reg,
         lambda1=args.lambda1,
         lambda2=args.lambda2,

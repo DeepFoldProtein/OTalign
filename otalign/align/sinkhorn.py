@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from otalign.align.cost import pairwise_cosine
+from otalign.align.cost import get_cost_fn
 from otalign.functional.sinkhorn_uot import unbalanced_sinkhorn
 
 
@@ -14,17 +14,19 @@ class SinkhornUOT(nn.Module):
     transport plan.
     """
 
-    def __init__(self, cost_fn=pairwise_cosine):
+    def __init__(self, metric: str = "cosine", cost_fn=None):
         """
         Initializes the SinkhornUOT aligner.
 
         Args:
-            cost_fn: A function that takes two tensors (B, L, D) and
-                     returns a cost matrix (B, L, L).
-                     Defaults to pairwise_cosine.
+            metric: Name of the residue cost mode in `otalign.align.cost.COST_MODES`
+                    (e.g. "cosine", "cosine_centered"). Used unless `cost_fn` is given.
+            cost_fn: Optional explicit cost callable with signature
+                     (x, y, mask_x, mask_y) -> (B, L_a, L_b); overrides `metric`.
         """
         super().__init__()
-        self.cost_fn = cost_fn
+        self.metric = metric
+        self.cost_fn = cost_fn if cost_fn is not None else get_cost_fn(metric)
 
     def forward(
         self,
@@ -60,8 +62,8 @@ class SinkhornUOT(nn.Module):
             A dictionary containing the transport plan, dual variables,
             cost matrix, and marginals.
         """
-        # Cost matrix
-        cost_matrix = self.cost_fn(a, b)  # (B, L_a, L_b)
+        # Cost matrix (cost_fn is mask-aware; plain modes ignore the masks)
+        cost_matrix = self.cost_fn(a, b, mask_a, mask_b)  # (B, L_a, L_b)
 
         # Marginals (uniform over valid lengths)
         mu = mask_a.float() / mask_a.sum(-1, keepdim=True).clamp(min=1.0)
