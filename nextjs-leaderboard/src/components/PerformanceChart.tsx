@@ -9,14 +9,10 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
   ReferenceLine,
 } from "recharts";
 import { usePerformanceChart } from "@/hooks/usePerformanceChart";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import { ScatterCustomizedShape } from "recharts/types/cartesian/Scatter";
 
 interface PerformanceChartProps {
@@ -33,44 +29,57 @@ interface ScatterDataPoint {
 }
 
 export default function PerformanceChart({ data }: PerformanceChartProps) {
-  const {
-    selectedModel,
-    scatterData,
-    availableModels,
-    getRadarData,
-    getTypeColor,
-    setSelectedModel,
-  } = usePerformanceChart({ data });
+  const { selectedModel, scatterData, availableModels, setSelectedModel } =
+    usePerformanceChart({ data });
 
-  // Separate data with valid parameters and N/A parameters
-  const validParameterData = scatterData.filter((d) => d.x >= 0);
-  const naParameterData = scatterData.filter((d) => d.x === -1);
+  // Per-benchmark profile: selected method's scores + best-in-class reference.
+  const metricDefs = [
+    { label: "MALIDUP F1", key: "malidup_f1" },
+    { label: "MALISAM F1", key: "malisam_f1" },
+    { label: "SABmark (sup)", key: "sabmark_sup_recall" },
+    { label: "SABmark (twi)", key: "sabmark_twi_recall" },
+  ] as const;
+  const selectedEntry = data.find((d) => d.model === selectedModel);
+  const benchmarkRows = metricDefs.map((m) => ({
+    label: m.label,
+    value: selectedEntry?.[m.key] ?? null,
+    best: Math.max(...data.map((d) => d[m.key] ?? 0)),
+  }));
 
-  // Debug: Log the data separation
-  console.log("Valid parameter data:", validParameterData);
-  console.log("N/A parameter data:", naParameterData);
-
-  // Format parameter count for display
-  const formatParameterCount = (value: number) => {
-    if (value === -1) return "N/A";
-    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value.toString();
-  };
-
-  // Get specific colors for N/A parameter models to avoid overlapping
-  const getNALineColor = (modelName: string) => {
-    if (modelName.includes("Needleman-Wunsch")) {
-      return "#EF4444"; // red
-    } else if (modelName.includes("HHAlign")) {
-      return "#F97316"; // orange
-    } else {
-      return "#6B7280"; // gray for other N/A models
+  // Resolved hex — recharts renders SVG presentation attributes where var() won't apply.
+  const c = useThemeColors();
+  const AXIS = c.axis;
+  const GRID = c.grid;
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "OTalign":
+        return c.seriesOt;
+      case "PLM-Based":
+      case "PLM-based":
+        return c.seriesPlm;
+      case "Traditional":
+        return c.seriesTrad;
+      default:
+        return c.axis;
     }
   };
 
-  // Custom dot component for different colors based on type
+  const validParameterData = scatterData.filter((d) => d.x >= 0);
+  const naParameterData = scatterData.filter((d) => d.x === -1);
+
+  const formatParameterCount = (value: number) => {
+    if (value === -1) return "N/A";
+    if (value >= 1e9) return `${(value / 1e9).toFixed(0)}B`;
+    if (value >= 1e6) return `${(value / 1e6).toFixed(0)}M`;
+    if (value >= 1e3) return `${(value / 1e3).toFixed(0)}K`;
+    return value.toString();
+  };
+
+  const getNALineColor = (modelName: string) =>
+    modelName.includes("Needleman-Wunsch") || modelName.includes("HHAlign")
+      ? c.seriesTrad
+      : c.axis;
+
   const CustomDot = (props: ScatterCustomizedShape) => {
     const { cx, cy, payload } = props as {
       cx: number;
@@ -78,16 +87,15 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
       payload: ScatterDataPoint;
     };
     if (!payload) return null;
-
     const color = getTypeColor(payload.type);
     return (
       <circle
         cx={cx}
         cy={cy}
-        r={3}
+        r={6}
         fill={color}
-        stroke={color}
-        strokeWidth={4}
+        stroke={c.surface}
+        strokeWidth={2}
       />
     );
   };
@@ -99,78 +107,67 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
     active?: boolean;
     payload?: Array<{ payload: ScatterDataPoint }>;
   }) => {
-    if (active && payload && payload.length) {
-      // Find the payload that actually has data and is not undefined
-      // Filter out any payload entries that don't have valid data
-      const validPayloads = payload.filter(
-        (p) =>
-          p.payload &&
-          p.payload.model &&
-          p.payload.x !== undefined &&
-          p.payload.y !== undefined
-      );
-
-      if (validPayloads.length === 0) return null;
-
-      // Use the first valid payload
-      const data = validPayloads[0].payload;
-
-      return (
-        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg transition-none">
-          <p className="font-semibold text-gray-900 dark:text-white">
-            {data.model}
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {data.organization}
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Type: {data.type}
-          </p>
-          <p className="text-sm">Parameters: {data.parameters}</p>
-          <p className="text-sm">Average Score: {data.y.toFixed(4)}</p>
-        </div>
-      );
-    }
-    return null;
+    if (!active || !payload?.length) return null;
+    const valid = payload.filter(
+      (p) => p.payload?.model && p.payload.y !== undefined
+    );
+    if (!valid.length) return null;
+    const d = valid[0].payload;
+    return (
+      <div className="rounded-[var(--r-ctrl)] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 shadow-lg">
+        <p className="font-semibold text-[var(--ink)] text-[13px]">{d.model}</p>
+        <p className="text-[12px] text-[var(--ink-3)] mb-1">{d.organization}</p>
+        <p className="text-[12px] text-[var(--ink-2)]">
+          Params <span className="tnum">{d.parameters}</span>
+        </p>
+        <p className="text-[12px] text-[var(--ink-2)]">
+          Avg. score <span className="tnum">{d.y.toFixed(4)}</span>
+        </p>
+      </div>
+    );
   };
 
+  const scatterTypes = Array.from(new Set(validParameterData.map((d) => d.type)));
+
   return (
-    <div className="space-y-8">
-      {/* Scatter Plot */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 w-[800px]">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-          Parameter Count vs Average Performance
+    <div className="space-y-5">
+      {/* Scatter */}
+      <div className="card p-5 sm:p-6">
+        <h3 className="text-[16px] font-semibold text-[var(--ink)]">
+          Parameter scale vs. average performance
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Compare model parameter counts against average performance scores.
+        <p className="text-[13px] text-[var(--ink-2)] mt-1 mb-4">
+          Each point is a method; the x-axis is on a log scale. Dashed lines mark
+          reference methods with no parameter count.
         </p>
 
         {scatterData.length > 0 ? (
           <>
-            <div className="h-[500px] w-full max-w-4xl mx-auto">
+            <div className="h-[420px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart
-                  margin={{ top: 60, right: 100, bottom: 60, left: 80 }}
+                  margin={{ top: 16, right: 24, bottom: 32, left: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <CartesianGrid stroke={GRID} strokeDasharray="0" vertical={false} />
                   <XAxis
                     type="number"
                     dataKey="x"
                     name="Parameters"
-                    domain={
-                      validParameterData.length > 0
-                        ? [1000000, 120000000000]
-                        : [0, 1]
-                    }
+                    domain={[1000000, 120000000000]}
                     scale="log"
                     tickFormatter={formatParameterCount}
                     ticks={Array.from(
                       new Set(validParameterData.map((d) => d.x))
                     ).sort((a, b) => a - b)}
+                    tick={{ fill: AXIS, fontSize: 12 }}
+                    tickLine={{ stroke: GRID }}
+                    axisLine={{ stroke: GRID }}
                     label={{
-                      value: "Parameter Count",
+                      value: "Parameter count",
                       position: "insideBottom",
-                      offset: -25,
+                      offset: -18,
+                      fill: AXIS,
+                      fontSize: 12,
                     }}
                   />
                   <YAxis
@@ -178,186 +175,159 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                     dataKey="y"
                     name="Average Score"
                     domain={[0.2, 0.55]}
-                    tickFormatter={(value) => value.toFixed(2)}
+                    tickFormatter={(v) => v.toFixed(2)}
+                    tick={{ fill: AXIS, fontSize: 12 }}
+                    tickLine={{ stroke: GRID }}
+                    axisLine={{ stroke: GRID }}
                     label={{
-                      value: "Average Score",
+                      value: "Average score",
                       angle: -90,
                       position: "insideLeft",
+                      fill: AXIS,
+                      fontSize: 12,
                       style: { textAnchor: "middle" },
                     }}
                   />
-                  <Tooltip content={<CustomTooltip />} animationDuration={0} />
-                  {/* Reference lines for N/A parameter models */}
-                  {naParameterData.map((item, index) => (
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    animationDuration={0}
+                    cursor={{ stroke: GRID }}
+                  />
+                  {naParameterData.map((item, i) => (
                     <ReferenceLine
-                      key={`na-${index}`}
+                      key={`na-${i}`}
                       y={item.y}
                       stroke={getNALineColor(item.model)}
-                      strokeDasharray="5 5"
-                      strokeWidth={2}
-                      label={false}
+                      strokeDasharray="4 4"
+                      strokeWidth={1.5}
                     />
                   ))}
-
-                  {/* Single Scatter component with all data and custom colored dots */}
                   <Scatter
                     data={validParameterData}
-                    fill="#8884d8"
-                    strokeWidth={1}
-                    stroke="#8884d8"
                     shape={CustomDot as ScatterCustomizedShape}
+                    isAnimationActive={false}
                   />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Custom legend for model types */}
-            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                Model Types
-              </h4>
-              <div className="flex flex-wrap gap-4">
-                {Array.from(new Set(validParameterData.map((d) => d.type))).map(
-                  (type) => (
-                    <div key={type} className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: getTypeColor(type) }}
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {type}
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
+            {/* Legend */}
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[var(--line)] pt-4">
+              {scatterTypes.map((type) => (
+                <span
+                  key={type}
+                  className="inline-flex items-center gap-1.5 text-[13px] text-[var(--ink-2)]"
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: getTypeColor(type) }}
+                  />
+                  {type}
+                </span>
+              ))}
+              {naParameterData.map((item, i) => (
+                <span
+                  key={`lg-${i}`}
+                  className="inline-flex items-center gap-1.5 text-[13px] text-[var(--ink-2)]"
+                >
+                  <span
+                    className="w-4 border-t-2 border-dashed"
+                    style={{ borderColor: getNALineColor(item.model) }}
+                  />
+                  {item.model}
+                </span>
+              ))}
             </div>
-
-            {/* Custom legend for N/A parameter models */}
-            {naParameterData.length > 0 && (
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Reference Methods
-                </h4>
-                <div className="flex flex-wrap gap-4">
-                  {naParameterData.map((item, index) => (
-                    <div
-                      key={`legend-${index}`}
-                      className="flex items-center gap-2"
-                    >
-                      <div
-                        className="w-6 h-0.5 border-dashed border-2"
-                        style={{ borderColor: getNALineColor(item.model) }}
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {item.model} (Score: {item.y.toFixed(3)})
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         ) : (
-          <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-400">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <p>No performance data available yet</p>
-            </div>
-          </div>
+          <EmptyState text="No performance data available yet." />
         )}
       </div>
 
-      {/* Radar Chart */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-          Model Performance Profile
-        </h3>
-
-        <div className="mb-4">
-          <label
-            htmlFor="model-select"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-          >
-            Select Model:
-          </label>
+      {/* Per-benchmark profile */}
+      <div className="card p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h3 className="text-[16px] font-semibold text-[var(--ink)]">
+              Per-benchmark profile
+            </h3>
+            <p className="text-[13px] text-[var(--ink-2)] mt-1">
+              Scores across the four benchmarks. The tick marks the best result
+              across all methods.
+            </p>
+          </div>
           <select
-            id="model-select"
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="rounded-[var(--r-ctrl)] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
           >
-            <option value="">Select a model...</option>
-            {availableModels.map((model) => (
-              <option key={model.model} value={model.model}>
-                {model.model}
+            <option value="">Select a method…</option>
+            {availableModels.map((m) => (
+              <option key={m.model} value={m.model}>
+                {m.model}
               </option>
             ))}
           </select>
         </div>
 
-        {selectedModel ? (
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={getRadarData(selectedModel)}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="metric" />
-                <PolarRadiusAxis
-                  angle={90}
-                  domain={[0, 1]}
-                  tickFormatter={(value) => value.toFixed(2)}
-                />
-                <Radar
-                  name={selectedModel}
-                  dataKey="value"
-                  stroke="#3B82F6"
-                  fill="#3B82F6"
-                  fillOpacity={0.2}
-                  strokeWidth={2}
-                />
-                <Tooltip
-                  formatter={(value: number) => [value.toFixed(4), "Score"]}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
+        {selectedEntry ? (
+          <div className="space-y-4">
+            {benchmarkRows.map((r) => (
+              <div key={r.label}>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className="text-[13px] text-[var(--ink-2)]">
+                    {r.label}
+                  </span>
+                  <span className="text-[13px] tnum">
+                    <span className="font-semibold text-[var(--ink)]">
+                      {r.value !== null ? r.value.toFixed(4) : "—"}
+                    </span>
+                    <span className="text-[var(--ink-3)]">
+                      {" "}
+                      / best {r.best.toFixed(4)}
+                    </span>
+                  </span>
+                </div>
+                <div
+                  className="relative h-2.5 rounded-full overflow-visible"
+                  style={{ background: "var(--bar-track)" }}
+                >
+                  {r.value !== null && (
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{
+                        width: `${Math.min(r.value * 100, 100)}%`,
+                        background: "var(--series-ot)",
+                      }}
+                    />
+                  )}
+                  <div
+                    className="absolute -top-1 -bottom-1 w-[2px] rounded-full"
+                    style={{
+                      left: `calc(${Math.min(r.best * 100, 100)}% - 1px)`,
+                      background: "var(--ink-3)",
+                    }}
+                    title={`Best: ${r.best.toFixed(4)}`}
+                  />
+                </div>
+              </div>
+            ))}
+            <p className="pt-2 text-[12px] text-[var(--ink-3)]">
+              Bars and ticks use a 0–1 scale (F1 / recall).
+            </p>
           </div>
         ) : (
-          <div className="h-96 flex items-center justify-center text-gray-500 dark:text-gray-400">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <p>Select a model to view its performance profile</p>
-            </div>
-          </div>
+          <EmptyState text="Select a method to view its profile." />
         )}
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="h-64 flex items-center justify-center text-[14px] text-[var(--ink-3)]">
+      {text}
     </div>
   );
 }

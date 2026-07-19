@@ -1,82 +1,158 @@
 @import "tailwindcss";
 
+/*
+  OTalign design tokens
+  A single neutral scale + a validated categorical palette for the three
+  method families (OTalign / PLM-based / Traditional). Series colors were
+  validated with the dataviz palette checker against both surfaces:
+  light #ffffff, dark #0f1113 — all CVD / contrast gates pass.
+*/
 :root {
-  /* Toss-inspired color palette */
-  --background: #ffffff;
-  --foreground: #202632;
-  --toss-blue: #0064ff;
-  --toss-gray: #202632;
-  --toss-light-gray: #8b95a1;
-  --surface: #f8f9fa;
-  --surface-hover: #f1f3f4;
-  --border: #e5e8eb;
-  --border-light: #f1f3f4;
+  color-scheme: light;
+
+  /* Surfaces */
+  --page: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f2f4f7;
+  --surface-hover: #eef1f5;
+
+  /* Ink */
+  --ink: #14161b;
+  --ink-2: #59606d;
+  --ink-3: #949aa6;
+
+  /* Lines */
+  --line: #e7e9ee;
+  --line-2: #d8dce3;
+
+  /* Brand / accent */
+  --accent: #0064ff;
+  --accent-ink: #ffffff;
+  --accent-weak: #eef4ff;
+
+  /* Categorical series (validated) */
+  --series-ot: #0064ff;
+  --series-plm: #008300;
+  --series-trad: #7c5cff;
+
+  /* Sequential (score magnitude) — brand blue ramp */
+  --bar-track: #eef1f5;
+  --bar-fill: #0064ff;
+
+  /* Status */
+  --good: #0ca30c;
+  --warn: #eda100;
+  --danger: #e34948;
+
+  /* Radii */
+  --r-card: 16px;
+  --r-ctrl: 10px;
+  --r-chip: 999px;
+
+  /* Backwards-compatible aliases (legacy variable names) */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --toss-blue: var(--accent);
+  --toss-gray: var(--ink);
+  --toss-light-gray: var(--ink-3);
+  --border: var(--line-2);
+  --border-light: var(--line);
 }
 
 @theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-accent: var(--accent);
+  --color-accent-weak: var(--accent-weak);
+  --color-series-ot: var(--series-ot);
+  --color-series-plm: var(--series-plm);
+  --color-series-trad: var(--series-trad);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-toss-blue: var(--toss-blue);
-  --color-toss-gray: var(--toss-gray);
-  --color-toss-light-gray: var(--toss-light-gray);
-  --color-surface: var(--surface);
-  --color-surface-hover: var(--surface-hover);
   --color-border: var(--border);
   --color-border-light: var(--border-light);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f0f11;
-    --foreground: #ffffff;
-    --toss-blue: #3182f6;
-    --toss-gray: #ffffff;
-    --toss-light-gray: #8b95a1;
-    --surface: #1a1b1e;
-    --surface-hover: #242529;
-    --border: #2f3038;
-    --border-light: #242529;
+    color-scheme: dark;
+
+    --page: #0b0c0e;
+    --surface: #141518;
+    --surface-2: #1c1e22;
+    --surface-hover: #22242a;
+
+    --ink: #f5f6f8;
+    --ink-2: #a7adb8;
+    --ink-3: #6e7480;
+
+    --line: #26282e;
+    --line-2: #34373f;
+
+    --accent: #3182f6;
+    --accent-ink: #ffffff;
+    --accent-weak: #14233d;
+
+    --series-ot: #3182f6;
+    --series-plm: #22a06b;
+    --series-trad: #7a68d8;
+
+    --bar-track: #24262c;
+    --bar-fill: #3182f6;
+
+    --good: #34d17a;
+    --warn: #f0b52a;
+    --danger: #f0706f;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbar for webkit browsers */
+/* Numeric columns align vertically */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Hairline card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--toss-light-gray);
-  border-radius: 3px;
+  background: var(--line-2);
+  border-radius: 999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--toss-gray);
+  background: var(--ink-3);
 }
 
-/* Custom classes for Toss-inspired design */
-.toss-gradient {
-  background: linear-gradient(135deg, var(--toss-blue) 0%, #4a90e2 100%);
-}
-
-.toss-surface {
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-}
-
-.toss-surface:hover {
-  background: var(--surface-hover);
-  border-color: var(--border);
+/* Focus ring */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 }

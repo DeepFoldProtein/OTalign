@@ -3,15 +3,14 @@ interface LoadingSpinnerProps {
 }
 
 export default function LoadingSpinner({
-  message = "Loading...",
+  message = "Loading…",
 }: LoadingSpinnerProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--page)]">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--toss-blue)] border-t-transparent mx-auto mb-4"></div>
-        <p className="text-[var(--toss-light-gray)] text-sm">{message}</p>
+        <div className="animate-spin rounded-full h-7 w-7 border-2 border-[var(--accent)] border-t-transparent mx-auto mb-3" />
+        <p className="text-[13px] text-[var(--ink-3)]">{message}</p>
       </div>
     </div>
   );
 }
-

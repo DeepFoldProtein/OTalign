@@ -5,41 +5,37 @@ interface MetricCardProps {
 
 function MetricCard({ title, description }: MetricCardProps) {
   return (
-    <div className="text-center p-4 bg-[var(--background)] border border-[var(--border-light)] rounded-lg hover:border-[var(--border)] transition-colors">
-      <div className="font-semibold text-[var(--foreground)] mb-1">{title}</div>
-      <div className="text-xs text-[var(--toss-light-gray)]">{description}</div>
+    <div className="rounded-[var(--r-ctrl)] border border-[var(--line)] bg-[var(--surface-2)] p-4">
+      <div className="font-semibold text-[var(--ink)] text-[14px] mb-1">
+        {title}
+      </div>
+      <div className="text-[12.5px] text-[var(--ink-2)] leading-relaxed">
+        {description}
+      </div>
     </div>
   );
 }
 
 export default function MetricsSection() {
   const metrics = [
-    {
-      title: "F1 Score",
-      description: "Harmonic mean of precision and recall",
-    },
-    {
-      title: "Recall",
-      description: "Fraction of true alignments recovered",
-    },
+    { title: "F1 Score", description: "Harmonic mean of precision and recall." },
+    { title: "Recall", description: "Fraction of true alignments recovered." },
     {
       title: "Precision",
-      description: "Fraction of predictions that are correct",
+      description: "Fraction of predicted alignments that are correct.",
     },
   ];
 
   return (
-    <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-6">
-      <h3 className="font-bold text-[var(--foreground)] text-lg mb-4 flex items-center">
-        <span className="mr-2">📊</span>
-        Evaluation Metrics
+    <div className="card p-5 sm:p-6">
+      <h3 className="font-semibold text-[var(--ink)] text-[15px] mb-4">
+        Evaluation metrics
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {metrics.map((metric) => (
-          <MetricCard key={metric.title} {...metric} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {metrics.map((m) => (
+          <MetricCard key={m.title} {...m} />
         ))}
       </div>
     </div>
   );
 }
-

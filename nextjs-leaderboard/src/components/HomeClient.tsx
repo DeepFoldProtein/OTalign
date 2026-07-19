@@ -17,7 +17,7 @@ export default function HomeClient() {
   const { data, loading, error } = useLeaderboard();
 
   if (loading) {
-    return <LoadingSpinner message="Loading leaderboard..." />;
+    return <LoadingSpinner message="Loading leaderboard…" />;
   }
 
   if (error || !data) {
@@ -25,175 +25,157 @@ export default function HomeClient() {
   }
 
   const tabs = [
-    { name: "Leaderboard", key: "leaderboard", icon: "📊" },
-    { name: "Analysis", key: "analysis", icon: "📈" },
-    { name: "Datasets", key: "datasets", icon: "🎯" },
-    { name: "Submit", key: "submit", icon: "📤" },
+    { name: "Leaderboard", key: "leaderboard" },
+    { name: "Analysis", key: "analysis" },
+    { name: "Datasets", key: "datasets" },
+    { name: "Submit", key: "submit" },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col">
-      {/* Compact Header */}
-      <header className="bg-[var(--background)] border-b border-[var(--border-light)] sticky top-0 z-50 backdrop-blur-sm bg-opacity-95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8">
-                  <Image
-                    src="/svgs/foreground.svg"
-                    alt="OTalign"
-                    width={32}
-                    height={32}
-                    className="w-full h-full"
-                  />
-                </div>
-                <div>
-                  <h1 className="font-bold text-[var(--foreground)] text-lg">
-                    OTalign
-                  </h1>
-                  <p className="text-xs text-[var(--toss-light-gray)] leading-tight">
-                    Protein Alignment Benchmark
-                  </p>
-                </div>
-              </div>
+    <div className="min-h-screen bg-[var(--page)] flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/svgs/foreground.svg"
+                alt="OTalign"
+                width={26}
+                height={26}
+                className="w-[26px] h-[26px]"
+              />
+              <span className="font-semibold text-[var(--ink)] text-[15px] tracking-tight">
+                OTalign
+              </span>
+              <span className="hidden sm:inline text-[13px] text-[var(--ink-3)] border-l border-[var(--line-2)] pl-2.5">
+                Protein Alignment Benchmark
+              </span>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="text-xs text-[var(--toss-light-gray)]">
-                {data.metadata.total_models} models
-              </div>
-              <div className="text-xs text-[var(--toss-light-gray)]">
-                Updated{" "}
-                {new Date(data.metadata.last_updated).toLocaleDateString()}
-              </div>
-            </div>
+            <a
+              href="https://github.com/DeepFoldProtein/OTalign"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[13px] text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+            >
+              GitHub
+            </a>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow">
+      {/* Hero */}
+      <section className="border-b border-[var(--line)] bg-[var(--surface)]">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 pt-10 pb-9">
+          <p className="text-[13px] font-medium text-[var(--accent)] mb-2">
+            Optimal Transport · Protein Alignment
+          </p>
+          <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[var(--ink)] max-w-2xl leading-[1.15]">
+            Benchmarking protein sequence alignment methods
+          </h1>
+          <p className="mt-3 text-[15px] text-[var(--ink-2)] max-w-2xl leading-relaxed">
+            A living leaderboard comparing optimal-transport, protein language
+            model, and classical alignment methods across four challenging
+            structural benchmarks.
+          </p>
+        </div>
+      </section>
+
+      {/* Main */}
+      <main className="max-w-6xl mx-auto w-full px-5 sm:px-6 lg:px-8 py-7 flex-grow">
         <TabGroup>
-          <TabList className="flex space-x-1 bg-[var(--surface)] border border-[var(--border-light)] p-1 rounded-lg mb-6 max-w-lg mx-auto">
+          <TabList className="flex gap-1 mb-7 border-b border-[var(--line)]">
             {tabs.map((tab) => (
               <Tab
                 key={tab.key}
                 className={({ selected }) =>
                   clsx(
-                    "flex-1 rounded-md py-2 px-3 text-sm font-medium leading-5 transition-all flex items-center justify-center space-x-2",
-                    "focus:outline-none focus:ring-2 focus:ring-[var(--toss-blue)] focus:ring-offset-1",
+                    "relative -mb-px px-3.5 py-2.5 text-[14px] font-medium transition-colors focus:outline-none",
                     selected
-                      ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm border border-[var(--border)]"
-                      : "text-[var(--toss-light-gray)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                      ? "text-[var(--ink)] border-b-2 border-[var(--accent)]"
+                      : "text-[var(--ink-3)] border-b-2 border-transparent hover:text-[var(--ink-2)]"
                   )
                 }
               >
-                <span className="text-xs">{tab.icon}</span>
-                <span>{tab.name}</span>
+                {tab.name}
               </Tab>
             ))}
           </TabList>
 
           <TabPanels>
-            {/* Leaderboard Tab */}
             <TabPanel className="focus:outline-none">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold text-[var(--foreground)]">
-                      Protein Alignment Leaderboard
-                    </h2>
-                    <p className="text-sm text-[var(--toss-light-gray)] mt-1">
-                      Comparing alignment methods across challenging benchmark
-                      datasets
-                    </p>
-                  </div>
-                  <div className="text-xs text-[var(--toss-light-gray)]">
-                    Sorted by F1 Score
-                  </div>
-                </div>
-                <LeaderboardTable data={data.leaderboard_data} />
-              </div>
+              <SectionHeader
+                title="Leaderboard"
+                subtitle="Ranked by average score across MALIDUP, MALISAM, and SABmark benchmarks."
+              />
+              <LeaderboardTable data={data.leaderboard_data} />
             </TabPanel>
 
-            {/* Analysis Tab */}
             <TabPanel className="focus:outline-none">
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-bold text-[var(--foreground)]">
-                    Performance Analysis
-                  </h2>
-                  <p className="text-sm text-[var(--toss-light-gray)] mt-1">
-                    Visualize method performance across metrics and datasets
-                  </p>
-                </div>
-                <PerformanceChart data={data.leaderboard_data} />
-              </div>
+              <SectionHeader
+                title="Performance analysis"
+                subtitle="Method performance across parameter scale and per-benchmark profiles."
+              />
+              <PerformanceChart data={data.leaderboard_data} />
             </TabPanel>
 
-            {/* Datasets Tab */}
             <TabPanel className="focus:outline-none">
+              <SectionHeader
+                title="Benchmark datasets"
+                subtitle="Evaluation sets probing distinct alignment challenges."
+              />
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold text-[var(--foreground)]">
-                    Benchmark Datasets
-                  </h2>
-                  <p className="text-sm text-[var(--toss-light-gray)] mt-1">
-                    Evaluation datasets for protein sequence alignment methods
-                    using Optimal Transport theory
-                  </p>
-                </div>
-
-                {/* Dataset Cards */}
                 <DatasetCards />
-
-                {/* Metrics Section */}
                 <MetricsSection />
-
-                {/* Methods Overview */}
                 <MethodsSection />
               </div>
             </TabPanel>
 
-            {/* Submit Tab */}
             <TabPanel className="focus:outline-none">
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-bold text-[var(--foreground)]">
-                    Submit Results
-                  </h2>
-                  <p className="text-sm text-[var(--toss-light-gray)] mt-1">
-                    Add your method to the leaderboard
-                  </p>
-                </div>
-                <SubmissionForm />
-              </div>
+              <SectionHeader
+                title="Submit your method"
+                subtitle="Generate a submission entry and open a pull request to add it."
+              />
+              <SubmissionForm />
             </TabPanel>
           </TabPanels>
         </TabGroup>
       </main>
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-[var(--border-light)] mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between text-xs text-[var(--toss-light-gray)]">
-            <div className="flex items-center space-x-4">
+      {/* Footer */}
+      <footer className="border-t border-[var(--line)] bg-[var(--surface)]">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-5">
+          <div className="flex items-center justify-between text-[13px] text-[var(--ink-3)]">
+            <div className="flex items-center gap-3">
               <span>OTalign v{data.metadata.version}</span>
-              <span>•</span>
-              <a
-                href="https://github.com/DeepFoldProtein/OTalign"
-                className="hover:text-[var(--toss-blue)] transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub
-              </a>
+              <span className="text-[var(--line-2)]">·</span>
+              <span>
+                Updated{" "}
+                {new Date(data.metadata.last_updated).toLocaleDateString()}
+              </span>
             </div>
-            <div>© 2025 DeepFold Team</div>
+            <span>© 2025 DeepFold</span>
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="mb-5">
+      <h2 className="text-[20px] font-bold tracking-tight text-[var(--ink)]">
+        {title}
+      </h2>
+      <p className="text-[14px] text-[var(--ink-2)] mt-1">{subtitle}</p>
     </div>
   );
 }

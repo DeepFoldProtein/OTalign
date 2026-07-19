@@ -75,32 +75,31 @@ export function usePerformanceChart({
     [data]
   );
 
-  const scatterData: ScatterDataPoint[] = useMemo(() => {
-    const data = validData.map((entry) => ({
-      x: parseParameterCount(entry.parameters),
-      y: entry.average!,
-      model: entry.model,
-      type: entry.type,
-      organization: entry.organization,
-      parameters: entry.parameters,
-    }));
-    console.log("Scatter data:", data); // Debug log
-    return data;
-  }, [validData]);
+  const scatterData: ScatterDataPoint[] = useMemo(
+    () =>
+      validData.map((entry) => ({
+        x: parseParameterCount(entry.parameters),
+        y: entry.average!,
+        model: entry.model,
+        type: entry.type,
+        organization: entry.organization,
+        parameters: entry.parameters,
+      })),
+    [validData]
+  );
 
-  // Get color for different types
+  // Validated categorical palette (see globals.css); resolves per color scheme
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "Traditional":
-        return "#3B82F6"; // blue
       case "OTalign":
-        return "#A855F7"; // purple
+        return "var(--series-ot)";
       case "PLM-Based":
-        return "#10B981"; // green
       case "PLM-based":
-        return "#10B981"; // green
+        return "var(--series-plm)";
+      case "Traditional":
+        return "var(--series-trad)";
       default:
-        return "#6B7280"; // gray
+        return "var(--ink-3)";
     }
   };
 

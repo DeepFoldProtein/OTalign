@@ -6,13 +6,16 @@ interface MethodCategoryProps {
 
 function MethodCategory({ color, title, description }: MethodCategoryProps) {
   return (
-    <div className="flex items-start space-x-4 p-4 bg-[var(--background)] border border-[var(--border-light)] rounded-lg hover:border-[var(--border)] transition-colors">
-      <div className={`w-3 h-3 ${color} rounded-full mt-1`}></div>
+    <div className="flex items-start gap-3 rounded-[var(--r-ctrl)] border border-[var(--line)] bg-[var(--surface-2)] p-4">
+      <span
+        className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
+        style={{ backgroundColor: color }}
+      />
       <div>
-        <div className="font-semibold text-[var(--foreground)] text-sm">
+        <div className="font-semibold text-[var(--ink)] text-[14px]">
           {title}
         </div>
-        <div className="text-xs text-[var(--toss-light-gray)] mt-1">
+        <div className="text-[12.5px] text-[var(--ink-2)] mt-0.5 leading-relaxed">
           {description}
         </div>
       </div>
@@ -23,37 +26,35 @@ function MethodCategory({ color, title, description }: MethodCategoryProps) {
 export default function MethodsSection() {
   const methods = [
     {
-      color: "bg-[var(--toss-blue)]",
-      title: "Traditional Methods",
+      color: "var(--series-ot)",
+      title: "OTalign methods",
       description:
-        "Classical alignment algorithms like Needleman-Wunsch and HHAlign using substitution matrices",
+        "Optimal-transport alignment over protein language model embeddings (ESM-2, ESM-1b, ProtT5, Ankh).",
     },
     {
-      color: "bg-purple-500",
-      title: "OTalign Methods",
+      color: "var(--series-plm)",
+      title: "PLM-based methods",
       description:
-        "Novel optimal transport-based alignment using protein language model embeddings (ESM-2, ESM-1b, ProtT5, AnkhCL)",
+        "Methods leveraging protein language model representations without optimal transport.",
     },
     {
-      color: "bg-green-500",
-      title: "PLM-based Methods",
+      color: "var(--series-trad)",
+      title: "Traditional methods",
       description:
-        "Methods leveraging protein language models for sequence representation without optimal transport",
+        "Classical algorithms such as Needleman-Wunsch and HHAlign using substitution matrices.",
     },
   ];
 
   return (
-    <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-6">
-      <h3 className="font-bold text-[var(--foreground)] text-lg mb-4 flex items-center">
-        <span className="mr-2">🔬</span>
-        Method Categories
+    <div className="card p-5 sm:p-6">
+      <h3 className="font-semibold text-[var(--ink)] text-[15px] mb-4">
+        Method categories
       </h3>
-      <div className="space-y-4">
-        {methods.map((method) => (
-          <MethodCategory key={method.title} {...method} />
+      <div className="space-y-3">
+        {methods.map((m) => (
+          <MethodCategory key={m.title} {...m} />
         ))}
       </div>
     </div>
   );
 }
-

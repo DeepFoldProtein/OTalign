@@ -2,6 +2,11 @@
 
 import { useSubmissionForm } from "@/hooks/useSubmissionForm";
 
+const inputCls =
+  "w-full rounded-[var(--r-ctrl)] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--ink)] placeholder:text-[var(--ink-3)] focus:outline-none focus:border-[var(--accent)] transition-colors";
+const labelCls =
+  "block text-[13px] font-medium text-[var(--ink-2)] mb-1.5";
+
 export default function SubmissionForm() {
   const {
     formData,
@@ -12,60 +17,50 @@ export default function SubmissionForm() {
     isFormValid,
   } = useSubmissionForm();
 
+  const metrics = [
+    { id: "malidup_f1", label: "MALIDUP F1" },
+    { id: "malisam_f1", label: "MALISAM F1" },
+    { id: "sabmark_sup_recall", label: "SABmark (sup) recall" },
+    { id: "sabmark_twi_recall", label: "SABmark (twi) recall" },
+  ] as const;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Instructions */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
-        <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-          How to Submit Your Method
+    <div className="max-w-3xl space-y-5">
+      {/* Steps */}
+      <div className="rounded-[var(--r-card)] border border-[var(--accent)]/25 bg-[var(--accent-weak)] p-5">
+        <h3 className="text-[15px] font-semibold text-[var(--ink)] mb-3">
+          How to submit
         </h3>
-        <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-200">
-          <li>
-            <strong>Run Evaluation:</strong> Execute your alignment method on
-            our benchmark datasets
-          </li>
-          <li>
-            <strong>Fill Form:</strong> Complete the form below with your method
-            details and performance metrics
-          </li>
-          <li>
-            <strong>Generate JSON:</strong> Click &quot;Generate Submission
-            JSON&quot; to create the submission file
-          </li>
-          <li>
-            <strong>Submit:</strong> Create a Pull Request to{" "}
-            <a
-              href="https://github.com/DeepFoldProtein/OTalign"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              our GitHub repository
-            </a>{" "}
-            with the JSON file
-          </li>
+        <ol className="space-y-2 text-[13.5px] text-[var(--ink-2)]">
+          {[
+            ["Run evaluation", "Execute your alignment method on our benchmark datasets."],
+            ["Fill the form", "Enter your method details and per-benchmark scores below."],
+            ["Generate JSON", "Produce the submission entry with the button below."],
+            ["Open a PR", "Add the entry via a pull request to our GitHub repository."],
+          ].map(([t, d], i) => (
+            <li key={t} className="flex gap-2.5">
+              <span className="tnum shrink-0 w-5 h-5 rounded-full bg-[var(--accent)] text-[var(--accent-ink)] text-[11px] font-semibold flex items-center justify-center">
+                {i + 1}
+              </span>
+              <span>
+                <strong className="text-[var(--ink)] font-semibold">{t}.</strong>{" "}
+                {d}
+              </span>
+            </li>
+          ))}
         </ol>
       </div>
 
       {/* Form */}
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          Submit Your Method
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Basic Information */}
+      <div className="card p-5 sm:p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Basic Information
+            <h3 className="text-[14px] font-semibold text-[var(--ink)]">
+              Basic information
             </h3>
-
             <div>
-              <label
-                htmlFor="model"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Model Name *
+              <label htmlFor="model" className={labelCls}>
+                Method name *
               </label>
               <input
                 type="text"
@@ -75,16 +70,12 @@ export default function SubmissionForm() {
                 onChange={handleInputChange}
                 placeholder="YourMethod-v1.0"
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className={inputCls}
               />
             </div>
-
             <div>
-              <label
-                htmlFor="type"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Method Type *
+              <label htmlFor="type" className={labelCls}>
+                Method type *
               </label>
               <select
                 id="type"
@@ -92,21 +83,17 @@ export default function SubmissionForm() {
                 value={formData.type}
                 onChange={handleInputChange}
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className={inputCls}
               >
-                <option value="">Select type...</option>
+                <option value="">Select type…</option>
                 <option value="Traditional">Traditional</option>
                 <option value="PLM-based">PLM-based</option>
                 <option value="OTalign">OTalign</option>
                 <option value="Other">Other</option>
               </select>
             </div>
-
             <div>
-              <label
-                htmlFor="organization"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
+              <label htmlFor="organization" className={labelCls}>
                 Organization *
               </label>
               <input
@@ -115,17 +102,13 @@ export default function SubmissionForm() {
                 name="organization"
                 value={formData.organization}
                 onChange={handleInputChange}
-                placeholder="Your University/Company"
+                placeholder="Your university or company"
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className={inputCls}
               />
             </div>
-
             <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
+              <label htmlFor="description" className={labelCls}>
                 Description *
               </label>
               <textarea
@@ -133,25 +116,20 @@ export default function SubmissionForm() {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                placeholder="Brief description of your method..."
+                placeholder="Brief description of your method…"
                 rows={3}
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className={inputCls}
               />
             </div>
           </div>
 
-          {/* URLs and Metrics */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Links & Performance
+            <h3 className="text-[14px] font-semibold text-[var(--ink)]">
+              Links & performance
             </h3>
-
             <div>
-              <label
-                htmlFor="code_url"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
+              <label htmlFor="code_url" className={labelCls}>
                 Code URL *
               </label>
               <input
@@ -160,17 +138,13 @@ export default function SubmissionForm() {
                 name="code_url"
                 value={formData.code_url}
                 onChange={handleInputChange}
-                placeholder="https://github.com/..."
+                placeholder="https://github.com/…"
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className={inputCls}
               />
             </div>
-
             <div>
-              <label
-                htmlFor="paper_url"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
+              <label htmlFor="paper_url" className={labelCls}>
                 Paper URL (optional)
               </label>
               <input
@@ -179,144 +153,66 @@ export default function SubmissionForm() {
                 name="paper_url"
                 value={formData.paper_url}
                 onChange={handleInputChange}
-                placeholder="https://arxiv.org/abs/..."
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                placeholder="https://arxiv.org/abs/…"
+                className={inputCls}
               />
             </div>
-
-            {/* Performance Metrics */}
-            <div className="space-y-3">
-              <h4 className="text-md font-medium text-gray-900 dark:text-white">
-                Performance Metrics
-              </h4>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="malidup_f1"
-                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    MALIDUP F1
+            <div className="grid grid-cols-2 gap-3">
+              {metrics.map((m) => (
+                <div key={m.id}>
+                  <label htmlFor={m.id} className="block text-[12px] font-medium text-[var(--ink-2)] mb-1.5">
+                    {m.label}
                   </label>
                   <input
                     type="number"
-                    id="malidup_f1"
-                    name="malidup_f1"
-                    value={formData.malidup_f1 || ""}
+                    id={m.id}
+                    name={m.id}
+                    value={(formData[m.id] as number | undefined) || ""}
                     onChange={handleInputChange}
                     step="0.0001"
                     min="0"
                     max="1"
                     placeholder="0.0000"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className={`${inputCls} tnum`}
                   />
                 </div>
-
-                <div>
-                  <label
-                    htmlFor="malisam_f1"
-                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    MALISAM F1
-                  </label>
-                  <input
-                    type="number"
-                    id="malisam_f1"
-                    name="malisam_f1"
-                    value={formData.malisam_f1 || ""}
-                    onChange={handleInputChange}
-                    step="0.0001"
-                    min="0"
-                    max="1"
-                    placeholder="0.0000"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="sabmark_sup_recall"
-                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    SABmark (sup) Recall
-                  </label>
-                  <input
-                    type="number"
-                    id="sabmark_sup_recall"
-                    name="sabmark_sup_recall"
-                    value={formData.sabmark_sup_recall || ""}
-                    onChange={handleInputChange}
-                    step="0.0001"
-                    min="0"
-                    max="1"
-                    placeholder="0.0000"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="sabmark_twi_recall"
-                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    SABmark (twi) Recall
-                  </label>
-                  <input
-                    type="number"
-                    id="sabmark_twi_recall"
-                    name="sabmark_twi_recall"
-                    value={formData.sabmark_twi_recall || ""}
-                    onChange={handleInputChange}
-                    step="0.0001"
-                    min="0"
-                    max="1"
-                    placeholder="0.0000"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Generate Button */}
-        <div className="mt-8">
-          <button
-            onClick={generateSubmission}
-            disabled={!isFormValid}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-          >
-            Generate Submission JSON
-          </button>
-        </div>
+        <button
+          onClick={generateSubmission}
+          disabled={!isFormValid}
+          className="mt-6 w-full rounded-[var(--r-ctrl)] bg-[var(--accent)] text-[var(--accent-ink)] py-2.5 text-[14px] font-semibold hover:opacity-90 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+        >
+          Generate submission JSON
+        </button>
       </div>
 
-      {/* Generated JSON */}
       {generatedJson && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="card p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Generated Submission JSON
+            <h3 className="text-[15px] font-semibold text-[var(--ink)]">
+              Generated submission
             </h3>
             <button
               onClick={copyToClipboard}
-              className="bg-green-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+              className="rounded-[var(--r-ctrl)] border border-[var(--line-2)] bg-[var(--surface-2)] px-3 py-1.5 text-[13px] font-medium text-[var(--ink)] hover:bg-[var(--surface-hover)] transition-colors"
             >
-              Copy to Clipboard
+              Copy
             </button>
           </div>
-          <pre className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md overflow-x-auto text-sm font-mono border border-gray-200 dark:border-gray-600">
-            <code className="text-gray-900 dark:text-gray-100">
-              {generatedJson}
-            </code>
+          <pre className="rounded-[var(--r-ctrl)] border border-[var(--line)] bg-[var(--surface-2)] p-4 overflow-x-auto text-[12.5px] font-mono text-[var(--ink)]">
+            <code>{generatedJson}</code>
           </pre>
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            Save this JSON to a file and submit it via a Pull Request to{" "}
+          <p className="mt-4 text-[13px] text-[var(--ink-2)]">
+            Save this to a file and submit it via a pull request to{" "}
             <a
               href="https://github.com/DeepFoldProtein/OTalign"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-[var(--accent)] hover:underline"
             >
               our GitHub repository
             </a>
