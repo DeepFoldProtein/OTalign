@@ -278,18 +278,20 @@ For more detailed information, please refer to the following documents:
 If you use OTalign in your research, please cite our paper:
 
 ```bibtex
-@article{minsoo2025,
-      title={OTalign: Optimal Transport Alignment for Remote Protein Homologs Using Protein Language Model Embeddings},
-      author={Minsoo Kim, Hanjin Bae, Gyeongpil Jo, Kunwoo Kim, Jejoong Yoo, and Keehyoung Joo},
-      volume={},
-      ISSN={},
-      doi={},
-      number={},
-      journal={under review},
-      publisher={},
-      author={},
-      year={},
-      pages={}
+@article{10.1093/bioinformatics/btag476,
+    author = {Kim, Minsoo and Bae, Hanjin and Jo, Gyeongpil and Kim, Kunwoo and Yoo, Jejoong and Joo, Keehyoung},
+    title = {OTalign: optimal transport alignment for remote protein homologs using protein language model embeddings},
+    journal = {Bioinformatics},
+    volume = {42},
+    number = {7},
+    pages = {btag476},
+    year = {2026},
+    month = {07},
+    issn = {1367-4811},
+    doi = {10.1093/bioinformatics/btag476},
+    url = {https://doi.org/10.1093/bioinformatics/btag476},
+    eprint = {https://academic.oup.com/bioinformatics/article-pdf/42/7/btag476/68653547/btag476.pdf},
+}
 ```
 
 <!-- OTalign: Optimal Transport Alignment for Remote Protein Homologs Using Protein Language Model Embeddings
